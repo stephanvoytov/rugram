@@ -71,8 +71,8 @@ db.sqlite3-journal
 # Flask stuff:
 instance/
 
-app/static/uploads/posts
-app/static/uploads/profile_images
+app/static/uploads/
+
 # Scrapy stuff:
 .scrapy
 
