@@ -50,7 +50,7 @@
                 </div>
 
                 <!-- Кликабельное изображение поста -->
-                <a href="{{ url_for('posts.post', post_id=post.id) }}">
+                <a href="{{ url_for('posts.get_post', post_id=post.id) }}">
                     {% if post.image %}
                     <img src="{{ url_for('static', filename='uploads/posts/' + post.image) }}"
                          class="card-img-top post-image"
@@ -60,7 +60,7 @@
 
                 <!-- Тело карточки -->
                 <div class="card-body">
-                    <a href="{{ url_for('posts.post', post_id=post.id) }}" class="text-decoration-none text-dark">
+                    <a href="{{ url_for('posts.get_post', post_id=post.id) }}" class="text-decoration-none text-dark">
                         <p class="card-text text-muted">{{ post.text|truncate(200) }}</p>
                     </a>
 
@@ -73,7 +73,7 @@
                             <span class="like-count ms-1">{{ post.likes_count }}</span>
                         </button>
 
-                        <a href="{{ url_for('posts.post', post_id=post.id) }}#comments"
+                        <a href="{{ url_for('posts.get_post', post_id=post.id) }}#comments"
                            class="btn btn-sm text-muted ms-3">
                             <i class="bi bi-chat-left-text fs-5"></i>
                             <span class="ms-1">{{ post.comments_count }}</span>

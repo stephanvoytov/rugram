@@ -34,7 +34,7 @@
                 </div>
 
                 <!-- Кликабельное изображение поста -->
-                <a href="{{ url_for('posts.post', post_id=post.id) }}">
+                <a href="{{ url_for('posts.get_post', post_id=post.id) }}">
                     {% if post.image %}
                     <img src="{{ url_for('static', filename='uploads/posts/' + post.image) }}"
                          class="card-img-top post-image"
@@ -44,7 +44,7 @@
 
                 <!-- Тело карточки -->
                 <div class="card-body">
-                    <a href="{{ url_for('posts.post', post_id=post.id) }}" class="text-decoration-none text-dark">
+                    <a href="{{ url_for('posts.get_post', post_id=post.id) }}" class="text-decoration-none text-dark">
                         <p class="card-text text-muted">{{ post.text|truncate(200) }}</p>
                     </a>
 
@@ -57,7 +57,7 @@
                             <span class="like-count ms-1">{{ post.likes_count }}</span>
                         </button>
 
-                        <a href="{{ url_for('posts.post', post_id=post.id) }}#comments"
+                        <a href="{{ url_for('posts.get_post', post_id=post.id) }}#comments"
                            class="btn btn-sm text-muted ms-3">
                             <i class="bi bi-chat-left-text fs-5"></i>
                             <span class="ms-1">{{ post.comments_count }}</span>
@@ -121,8 +121,7 @@
         box-shadow: 0 5px 15px rgba(0,0,0,0.1);
     }
     .post-image {
-        width: 100%;
-        height: 300px;
+        height: 100%;
         object-fit: cover;
     }
     .like-btn {
@@ -146,58 +145,90 @@
                 e.preventDefault();
                 e.stopPropagation();
 
+                // Проверка авторизации
+                const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                if (!csrfMeta) {
+                    window.location.href = "/auth/login";
+                    return;
+                }
+
                 if (!this.dataset.postId) return;
 
                 const postId = this.dataset.postId;
-                const isLiked = this.dataset.liked === 'true';
+                const likeIcon = this.querySelector('i');
+                const likeCount = this.querySelector('.like-count');
+                const csrfToken = csrfMeta.content;
 
+                // Сохраняем исходное состояние
+                const originalIconClass = likeIcon.className;
+                const originalText = likeCount.textContent;
+
+                // Показываем индикатор загрузки
                 this.disabled = true;
-                const originalHTML = this.innerHTML;
-                this.innerHTML = `<i class="bi bi-arrow-repeat fs-5"></i>`;
+                likeIcon.className = 'bi bi-arrow-repeat fs-5';
 
                 try {
                     const response = await fetch(`/post/${postId}/like`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest'
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRFToken': csrfToken
                         },
+                        body: JSON.stringify({}),
                         credentials: 'same-origin'
                     });
+
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
 
                     const data = await response.json();
 
                     if (data.status === 'liked') {
-                        this.innerHTML = `<i class="bi bi-heart-fill fs-5 text-danger"></i> <span class="like-count ms-1">${data.likes_count}</span>`;
+                        likeIcon.className = 'bi bi-heart-fill fs-5 text-danger';
                         this.dataset.liked = 'true';
                     } else {
-                        this.innerHTML = `<i class="bi bi-heart fs-5 text-muted"></i> <span class="like-count ms-1">${data.likes_count}</span>`;
+                        likeIcon.className = 'bi bi-heart fs-5 text-muted';
                         this.dataset.liked = 'false';
                     }
+
+                    likeCount.textContent = data.likes_count;
+
                 } catch (error) {
                     console.error('Error:', error);
-                    this.innerHTML = originalHTML;
+                    likeIcon.className = originalIconClass;
+                    likeCount.textContent = originalText;
                 } finally {
                     this.disabled = false;
                 }
             });
         });
-    });
 
-    function deletePost(postId) {
-        if (confirm('Удалить пост?')) {
-            fetch(`/delete/${postId}`, {
-                method: 'DELETE',
-                headers: {
-                    'X-CSRFToken': '{{ csrf_token() }}',
-                    'Content-Type': 'application/json',
-                },
-            })
-            .then(response => {
-                if (response.ok) window.location.reload();
-                else alert('Ошибка удаления!');
-            });
+        function deletePost(postId) {
+            if (confirm('Удалить пост?')) {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+                fetch(`/delete/${postId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'Content-Type': 'application/json',
+                    },
+                })
+                .then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        alert('Ошибка удаления!');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Ошибка удаления!');
+                });
+            }
         }
-    }
+    });
 </script>
 {% endblock %}

@@ -2,14 +2,14 @@ import datetime
 
 from flask_login import UserMixin
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.util import FastIntFlag
+from sqlalchemy_serializer import SerializerMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from sqlalchemy import DateTime
 from extencions import db
 
 
-class User(db.Model, UserMixin):
+class User(db.Model, UserMixin, SerializerMixin):
     __tablename__ = 'users'
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -38,7 +38,7 @@ class User(db.Model, UserMixin):
         return check_password_hash(self.hashed_password, password)
 
 
-class Post(db.Model):
+class Post(db.Model, SerializerMixin):
     __tablename__ = 'posts'
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -64,7 +64,7 @@ class Post(db.Model):
         ).first() is not None
 
 
-class Like(db.Model):
+class Like(db.Model, SerializerMixin):
     __tablename__ = 'likes'
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(db.ForeignKey('users.id'))
@@ -75,7 +75,7 @@ class Like(db.Model):
     post: Mapped["Post"] = relationship(back_populates="likes")
 
 
-class Comment(db.Model):
+class Comment(db.Model, SerializerMixin):
     __tablename__ = 'comments'
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     author_id: Mapped[int] = mapped_column(db.ForeignKey('users.id'))

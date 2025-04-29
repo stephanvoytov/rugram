@@ -1,6 +1,5 @@
 import os
 import time
-from pydoc import describe
 
 from flask import render_template, flash, redirect, url_for, Blueprint, request, jsonify, abort
 from flask_login import login_user, login_required, logout_user, current_user
@@ -96,7 +95,7 @@ def create_post():
         db.session.commit()
 
         flash('Пост успешно создан!', 'success')
-        return redirect(url_for('posts.post', post_id=post.id))
+        return redirect(url_for('posts.get_post', post_id=post.id))
 
     return render_template('posts/create_post.html', form=form, header='Создать публикацию')
 
@@ -134,7 +133,7 @@ def edit_post(post_id):
 
             db.session.commit()
             flash('Пост успешно обновлен!', 'success')
-            return redirect(url_for('posts.post', post_id=post.id))
+            return redirect(url_for('posts.get_post', post_id=post.id))
 
         except Exception as e:
             db.session.rollback()
@@ -144,7 +143,7 @@ def edit_post(post_id):
 
 
 @posts_bp.route('/post/<int:post_id>')
-def post(post_id):
+def get_post(post_id):
     post = Post.query.filter(Post.id == post_id, Post.is_deleted == False).first()
     if post:
         return render_template('posts/post.html', post=post)
