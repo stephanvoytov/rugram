@@ -68,7 +68,7 @@
             {% else %}
             <div class="alert alert-info text-center py-4">
                 <i class="bi bi-info-circle fs-4"></i>
-                <p class="mt-2 mb-0">Постов пока нет. Будьте первым, кто создаст пост!</p>
+                <p class="mt-2 mb-0">Ничего не найдено</p>
                 {% if current_user.is_authenticated %}
                 <a href="{{ url_for('posts.create_post') }}" class="btn btn-primary mt-3">Создать пост</a>
                 {% endif %}

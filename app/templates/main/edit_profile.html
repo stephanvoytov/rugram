@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Редактирование профиля</h2>
+    <div class="row">
+        <div class="col-md-6">
+            <form method="POST" enctype="multipart/form-data">
+                {{ form.hidden_tag() }}
+
+                <div class="form-group mb-3">
+                    {{ form.username.label(class="form-label") }}
+                    {{ form.username(class="form-control") }}
+                    {% for error in form.username.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+                <div class="form-group mb-3">
+                    {{ form.description.label(class="form-label") }}
+                    {{ form.description(class="form-control", rows=4) }}
+                </div>
+
+                <div class="form-group mb-3">
+                    {{ form.profile_image.label(class="form-label") }}
+                    {{ form.profile_image(class="form-control") }}
+                    {% if current_user.profile_image %}
+                    <div class="mt-2">
+                        <small>Текущий аватар:</small>
+                        <img src="{{ url_for('static', filename='uploads/profile_images/' + current_user.profile_image) }}"
+                             class="img-thumbnail mt-1" width="100">
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group mb-3">
+                    {{ form.password.label(class="form-label") }}
+                    {{ form.password(class="form-control") }}
+                    {% for error in form.password.errors %}
+                    <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                    <small class="text-muted">Оставьте пустым, если не хотите менять пароль</small>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+                <a href="{{ url_for('main.profile', user_id_or_username=current_user.username) }}"
+                   class="btn btn-secondary">Отмена</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

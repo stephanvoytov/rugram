@@ -1,6 +1,8 @@
 import os
 import time
 
+from PIL import Image
+
 from flask import render_template, flash, redirect, url_for, Blueprint, request, jsonify, abort
 from flask_login import login_user, login_required, logout_user, current_user
 from werkzeug.utils import secure_filename
@@ -15,13 +17,59 @@ auth_bp = Blueprint('auth', __name__, template_folder='../templates')
 posts_bp = Blueprint('posts', __name__, template_folder='../templates')
 
 
+def process_avatar(image_file):
+    # Создаем квадратное изображение
+    img = Image.open(image_file)
+
+    if img.mode == 'RGBA':
+        img = img.convert('RGB')
+
+    # Определяем минимальную сторону
+    min_size = min(img.size)
+
+    # Обрезаем до квадрата (центрированно)
+    img = img.crop((
+        (img.width - min_size) // 2,
+        (img.height - min_size) // 2,
+        (img.width + min_size) // 2,
+        (img.height + min_size) // 2
+    ))
+
+    # Приводим к нужному размеру
+    img = img.resize((500, 500), Image.Resampling.LANCZOS)
+
+    # Сохраняем
+    filename = f"avatar_{current_user.id}.jpg"
+    save_path = os.path.join(config.Config.UPLOAD_FOLDER, 'profile_images', filename)
+    img.save(save_path, "JPEG", quality=85)
+
+    return filename
+
+
 @main_bp.route('/')
 @main_bp.route('/index')
 def index():
+    search_query = request.args.get('q', '').strip().lower()
     page = request.args.get('page', 1, type=int)
-    pagination = Post.query.filter(Post.is_deleted == False).order_by(Post.created_date.desc()).paginate(page=page,
-                                                                                                         per_page=15)
-    return render_template('main/index.html', posts=pagination.items, pagination=pagination)
+    per_page = 15
+
+    base_query = Post.query.filter(Post.is_deleted == False)
+
+    if search_query:
+        search_filter = Post.text.like(f'%{search_query}%')
+        pagination = base_query.filter(search_filter) \
+            .order_by(Post.created_date.desc()) \
+            .paginate(page=page, per_page=per_page)
+    else:
+        pagination = base_query.order_by(Post.created_date.desc()) \
+            .paginate(page=page, per_page=per_page)
+
+    return render_template(
+        'main/index.html',
+        posts=pagination.items,
+        pagination=pagination,
+        search_query=search_query
+    )
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
@@ -165,31 +213,40 @@ def profile(user_id_or_username):
 @login_required
 def edit_profile():
     form = ProfileForm()
+
     if form.validate_on_submit():
-        # Обновление данных
-        current_user.username = form.username.data
-        current_user.description = form.description.data
+        try:
+            # Обновление базовых данных
+            current_user.username = form.username.data
+            current_user.description = form.description.data
 
-        # Обработка аватара
-        if form.profile_image.data:
-            filename = secure_filename(form.profile_image.data.filename)
-            filepath = os.path.join(config.Config.UPLOAD_FOLDER, filename)
-            form.profile_image.data.save(filepath)
-            current_user.profile_image = filename
+            # Обработка аватара
+            if form.profile_image.data:
+                try:
+                    filename = process_avatar(form.profile_image.data)
+                    current_user.profile_image = filename
+                except Exception as e:
+                    flash(f'Ошибка при обработке аватара: {str(e)}', 'error')
+                    return redirect(url_for('main.edit_profile'))
 
-        # Смена пароля (если указан)
-        if form.password.data:
-            current_user.set_password(form.password.data)
+            # Смена пароля (если указан)
+            if form.password.data:
+                current_user.set_password(form.password.data)
 
-        db.session.commit()
-        flash('Профиль обновлен!', 'success')
-        return redirect(url_for('profile', username=current_user.username))
+            db.session.commit()
+            flash('Профиль успешно обновлен!', 'success')
+            return redirect(url_for('main.profile', user_id_or_username=current_user.username))
 
-    # Заполняем форму текущими данными
-    form.username.data = current_user.username
-    form.description.data = current_user.description
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Ошибка при обновлении профиля: {str(e)}', 'danger')
 
-    return render_template('edit_profile.html', form=form)
+    elif request.method == 'GET':
+        # Заполняем форму текущими данными
+        form.username.data = current_user.username
+        form.description.data = current_user.description
+
+    return render_template('main/edit_profile.html', form=form)
 
 
 @posts_bp.route('/post/<int:post_id>/like', methods=['POST'])
@@ -289,3 +346,13 @@ def delete_post(post_id):
     db.session.commit()
 
     return jsonify({'success': True})
+
+
+@main_bp.route('/chat')
+def chat():
+    return render_template('main/chat.html')
+
+
+@main_bp.route('/settings')
+def settings():
+    return render_template('main/settings.html')

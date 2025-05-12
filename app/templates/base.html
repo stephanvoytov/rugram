@@ -29,20 +29,26 @@
     <div class="container">
         <!-- Логотип -->
         <a class="navbar-brand d-flex align-items-center fw-bold" href="{{ url_for('main.index') }}">
-            <img src="{{ url_for('static', filename='images/logo.png') }}" width="36" height="36" class="me-2 rounded-circle" alt="Rugram Logo">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" width="36" height="36"
+                 class="me-2 rounded-circle" alt="Rugram Logo">
             <span class="gradient-text">Rugram</span>
         </a>
 
         <!-- Кнопка для мобильных -->
-        <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent" aria-controls="navbarContent" aria-expanded="false" aria-label="Toggle navigation">
+        <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent"
+                aria-controls="navbarContent" aria-expanded="false" aria-label="Toggle navigation">
             <i class="bi bi-list" style="font-size: 1.5rem;"></i>
         </button>
 
         <div class="collapse navbar-collapse" id="navbarContent">
             <!-- Поиск -->
-            <form class="d-flex mx-lg-3 my-2 my-lg-0 flex-grow-1" action="" method="GET">
+            <form class="d-flex mx-lg-3 my-2 my-lg-0 flex-grow-1" action="{{ url_for('main.index') }}" method="GET">
                 <div class="input-group search-group">
-                    <input type="search" class="form-control rounded-pill ps-3" placeholder="Поиск..." name="q">
+                    <input type="search"
+                           class="form-control rounded-pill ps-3"
+                           placeholder="Поиск..."
+                           name="q"
+                           value="{{ search_query }}">
                     <button class="btn btn-dark rounded-pill" type="submit">
                         <i class="bi bi-search"></i>
                     </button>
@@ -64,39 +70,64 @@
                     </a>
                 </li>
                 <li class="nav-item mx-1">
-                    <a class="nav-link position-relative" href="" title="Сообщения">
+                    <a class="nav-link position-relative" href="{{ url_for('main.chat') }}" title="Сообщения">
                         <i class="bi bi-chat-text-fill icon-nav"></i>
                         <span class="nav-indicator"></span>
-                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">3</span>
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"></span>
                     </a>
                 </li>
-                <li class="nav-item mx-1">
-                    <a class="nav-link position-relative" href="" title="Уведомления">
+                <li class="nav-item mx-1 dropdown">
+                    <a class="nav-link position-relative dropdown-toggle" id="notificationsDropdown"
+                       role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Уведомления">
                         <i class="bi bi-bell-fill icon-nav"></i>
                         <span class="nav-indicator"></span>
-                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">5+</span>
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"></span>
                     </a>
+                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2"
+                        style="background-color: #ffffff; opacity: 1;" aria-labelledby="notificationsDropdown">
+                        <li class="dropdown-header">
+                            <h6 class="text-center py-2 mb-0">Уведомления</h6>
+                        </li>
+                        <li class="px-3 py-2 text-center">
+                            <div class="d-flex flex-column align-items-center justify-content-center">
+                                <i class="bi bi-tools" style="font-size: 2rem; color: #6c757d;"></i>
+                                <p class="text-muted mb-0 mt-2">Раздел в разработке</p>
+                            </div>
+                        </li>
+                        <li class="text-center">
+                            <a href="#" class="dropdown-item small text-primary">Понятно</a>
+                        </li>
+                    </ul>
                 </li>
             </ul>
 
             <!-- Профиль пользователя -->
             {% if current_user.is_authenticated %}
             <div class="dropdown ms-lg-3">
-                <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle p-1 rounded" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                <a href="#"
+                   class="d-flex align-items-center text-white text-decoration-none dropdown-toggle p-1 rounded"
+                   id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                     <div class="position-relative">
-                        <img src="{{ url_for('static', filename='uploads/profile_images/' + current_user.profile_image) }}" alt="Аватар" width="36" height="36" class="rounded-circle border border-2 border-primary object-fit-cover">
+                        <img src="{{ url_for('static', filename='uploads/profile_images/' + current_user.profile_image) }}"
+                             alt="Аватар" width="36" height="36"
+                             class="rounded-circle border border-2 border-primary object-fit-cover">
                         <span class="position-absolute bottom-0 end-0 p-1 bg-success rounded-circle border border-2 border-dark"></span>
                     </div>
                     <span class="ms-2 d-none d-lg-inline">{{ current_user.username }}</span>
                 </a>
-                <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2">
-                    <li><a class="dropdown-item d-flex align-items-center" href="{{ url_for('main.profile', user_id_or_username=current_user.id)}}">
-                        <i class="bi bi-person-fill me-2"></i>Профиль</a></li>
-                    <li><a class="dropdown-item d-flex align-items-center" href="">
-                        <i class="bi bi-gear-fill me-2"></i>Настройки</a></li>
-                    <li><hr class="dropdown-divider mx-3 my-1"></li>
-                    <li><a class="dropdown-item d-flex align-items-center text-danger" href="{{ url_for('auth.logout') }}">
-                        <i class="bi bi-box-arrow-right me-2"></i>Выйти</a></li>
+                <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 bg-white">
+                    <li><a class="dropdown-item d-flex align-items-center text-dark"
+                           href="{{ url_for('main.profile', user_id_or_username=current_user.id)}}">
+                        <i class="bi bi-person-fill me-2 text-dark"></i>Профиль</a></li>
+                    <li><a class="dropdown-item d-flex align-items-center text-dark"
+                           href="{{ url_for('main.settings') }}">
+                        <i class="bi bi-gear-fill me-2 text-dark"></i>Настройки</a></li>
+                    <li>
+                        <hr class="dropdown-divider mx-3 my-1 border-dark">
+                    </li>
+                    <li><a class="dropdown-item d-flex align-items-center text-danger"
+                           href="{{ url_for('auth.logout') }}">
+                        <i class="bi bi-box-arrow-right me-2 text-danger"></i>Выйти</a></li>
                 </ul>
             </div>
             {% else %}
