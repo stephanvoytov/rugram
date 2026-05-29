@@ -7,7 +7,7 @@ from app.models import User
 from app.filters import filters_bp
 from app.resources import post_resources
 from app.routes import posts_bp
-from extencions import db
+from extensions import db
 from config import Config
 
 login_manager = LoginManager()
@@ -19,7 +19,7 @@ def create_app():
     api.add_resource(post_resources.PostListResource, '/api/v1/posts')
     api.add_resource(post_resources.PostResource, '/api/v1/posts/<int:post_id>')
     app.config.from_object(Config)
-    crsf = CSRFProtect(app)
+    CSRFProtect(app)
 
     db.init_app(app)
 
