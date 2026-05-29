@@ -104,7 +104,7 @@ def register():
     if form.validate_on_submit():
         user = User()
         if not (
-                (User.query.filter(User.username == form.username.data).first()) and
+                (User.query.filter(User.username == form.username.data).first()) or
                 (User.query.filter(User.email == form.email.data).first())
         ):
             user.username = form.username.data
