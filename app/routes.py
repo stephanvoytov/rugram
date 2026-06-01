@@ -42,7 +42,38 @@ def process_avatar(image_file):
     # Сохраняем
     filename = f"avatar_{current_user.id}.jpg"
     save_path = os.path.join(Config.UPLOAD_FOLDER, 'profile_images', filename)
-    img.save(save_path, "JPEG", quality=85)
+    img.save(save_path, "JPEG", quality=85, optimize=True)
+
+    return filename
+
+
+def process_post_image(image_file, filename):
+    """Сохраняет две версии изображения поста:
+    - {filename} — ресайз до 1200px по ширине (для детальной страницы)
+    - thumb_{filename} — ресайз до 400px (для ленты)
+    """
+    img = Image.open(image_file)
+    if img.mode == 'RGBA':
+        img = img.convert('RGB')
+
+    # Полный размер: максимум 1200px по ширине
+    img_full = img.copy()
+    if img_full.width > 1200:
+        ratio = 1200 / img_full.width
+        img_full = img_full.resize((1200, int(img_full.height * ratio)), Image.Resampling.LANCZOS)
+
+    save_path = os.path.join(Config.UPLOAD_FOLDER, 'posts', filename)
+    img_full.save(save_path, 'JPEG', quality=85, optimize=True)
+
+    # Превью: максимум 400px по ширине
+    img_thumb = img.copy()
+    if img_thumb.width > 400:
+        ratio = 400 / img_thumb.width
+        img_thumb = img_thumb.resize((400, int(img_thumb.height * ratio)), Image.Resampling.LANCZOS)
+
+    thumb_filename = f'thumb_{filename}'
+    thumb_path = os.path.join(Config.UPLOAD_FOLDER, 'posts', thumb_filename)
+    img_thumb.save(thumb_path, 'JPEG', quality=80, optimize=True)
 
     return filename
 
@@ -155,10 +186,9 @@ def create_post():
             image = form.image.data
             filename = secure_filename(image.filename)
             unique_filename = f'{current_user.id}_{int(time.time())}_{filename}'
-            save_path = os.path.join(Config.UPLOAD_FOLDER, 'posts', unique_filename)
 
-            os.makedirs(os.path.dirname(save_path), exist_ok=True)
-            image.save(save_path)
+            os.makedirs(os.path.join(Config.UPLOAD_FOLDER, 'posts'), exist_ok=True)
+            process_post_image(image, unique_filename)
 
             post.image = unique_filename
 
@@ -183,18 +213,19 @@ def edit_post(post_id):
 
             if form.image.data:
                 if post.image:
-                    old_image_path = os.path.join(Config.UPLOAD_FOLDER, 'posts', post.image)
-                    if os.path.exists(old_image_path):
-                        os.remove(old_image_path)
+                    # Удаляем старые файлы (полный + превью)
+                    for fname in [post.image, f'thumb_{post.image}']:
+                        old_path = os.path.join(Config.UPLOAD_FOLDER, 'posts', fname)
+                        if os.path.exists(old_path):
+                            os.remove(old_path)
 
                 image = form.image.data
                 if image.filename:
                     filename = secure_filename(image.filename)
                     unique_filename = f'{current_user.id}_{int(time.time())}_{filename}'
-                    save_path = os.path.join(Config.UPLOAD_FOLDER, 'posts', unique_filename)
 
-                    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-                    image.save(save_path)
+                    os.makedirs(os.path.join(Config.UPLOAD_FOLDER, 'posts'), exist_ok=True)
+                    process_post_image(image, unique_filename)
                     post.image = unique_filename
 
             db.session.commit()
@@ -809,6 +840,9 @@ def chat_list():
             
             if other_participation:
                 other_user = other_participation.user
+                # Если пользователь был удалён — пропускаем чат
+                if not other_user:
+                    continue
                 last_message = Message.query.filter_by(
                     chat_id=participation.chat_id
                 ).order_by(Message.created_date.desc()).first()

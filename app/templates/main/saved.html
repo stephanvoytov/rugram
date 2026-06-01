@@ -13,7 +13,7 @@
             <a href="{{ url_for('posts.get_post', post_id=item.post.id) }}" class="text-decoration-none">
                 <div class="card shadow-sm h-100">
                     {% if item.post.image %}
-<img src="{{ url_for('static', filename='uploads/' + item.post.image) }}"
+<img src="{{ url_for('static', filename='uploads/posts/thumb_' + item.post.image) }}"
      class="card-img-top saved-grid-img" style="height: 200px; object-fit: cover;" alt="">
                     {% endif %}
                     <div class="card-body p-3">
