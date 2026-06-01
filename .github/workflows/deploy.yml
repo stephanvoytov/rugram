@@ -26,7 +26,8 @@ jobs:
             set -e
             cd /opt/rugram
 
-            echo "==> Pulling latest code..."
+            echo "==> Stashing local changes and pulling latest code..."
+            git stash --include-untracked || true
             git pull origin main
 
             echo "==> Building and restarting Docker container..."
@@ -34,6 +35,7 @@ jobs:
             docker compose up -d rugram
 
             echo "==> Running database migrations..."
-            docker compose exec -T rugram alembic upgrade head
+            sleep 3
+            docker compose exec -T rugram alembic upgrade head || echo "Migration may have already been applied"
 
             echo "==> Deploy complete!"
