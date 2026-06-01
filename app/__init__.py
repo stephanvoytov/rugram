@@ -57,6 +57,8 @@ def create_app():
         os.path.join(Config.UPLOAD_FOLDER, 'posts'),
         os.path.join(Config.UPLOAD_FOLDER, 'profile_images'),
         os.path.join(app.instance_path),
+        # Директория instance в корне проекта (там лежит SQLite)
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'instance'),
     ])
 
     from app.routes import main_bp, auth_bp
