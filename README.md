@@ -1,68 +1,41 @@
-# Rugram - фотохостинг на Flask
+# Rugram — социальная сеть на Flask
 
-## Описание проекта
+Социальная сеть с возможностью публикации постов, лайков, комментариев, подписок, поиска и настройки профиля.
 
-Проект предоставляет полный функционал для создания фотохостинга с авторизацией, загрузкой изображений, лентой публикаций, лайками и комментариями.
+## Функционал
 
-## Основной функционал
+- **Регистрация и авторизация** — вход по email или username, запоминание сессии
+- **Лента постов** — с бесконечной подгрузкой (infinite scroll), фильтром «Все / Подписки»
+- **Публикация постов** — с изображениями, редактирование и удаление
+- **Лайки** — анимация pop + ripple через Web Animations API, единый обработчик
+- **Комментарии** — inline-форма с auto-expand textarea, AJAX-отправка, удаление
+- **Подписки** — AJAX follow/unfollow, страницы followers/following
+- **Поиск** — по пользователям
+- **Профиль** — смена аватарки, имени, описания; счётчики подписчиков/подписок
+- **Тёмная тема** — переключатель в навбаре, сохраняется в localStorage, учитывает системные настройки
+- **Lightbox** — просмотр изображений в полном размере, закрытие по Escape/клику
+- **REST API** — `/api/v1/posts`
 
-- Регистрация и авторизация пользователей
-- Загрузка и просмотр изображений
-- Лента публикаций с сортировкой
-- Лайки и комментарии
-- Профили пользователей
-- REST API для расширяемости
+## Технологии
 
-[В разработке]
-- Панель администратора
-- Система тегов
-- Поиск по изображениям
-- Продвинутые настройки приватности
+**Backend:** Python 3.12, Flask, SQLAlchemy, Flask-Login, Flask-WTF, SQLite  
+**Frontend:** Jinja2, Bootstrap 5.3, Bootstrap Icons, чистый CSS/JS
 
-## Технологический стек
+## Установка
 
-**Backend:**
-- Python 3.12
-- Flask
-- Flask-Login (аутентификация)
-- SQLAlchemy (ORM)
-- SQLite (база данных)
+```bash
+git clone https://github.com/stephanvoytov/rugram.git
+cd rugram
+python -m venv venv
 
-**Frontend:**
-- Jinja2 (шаблонизатор)
-- JavaScript (динамический контент)
-- CSS (стилизация)
+# Windows:
+venv\Scripts\activate
+# Linux/Mac:
+# source venv/bin/activate
 
-## Установка и запуск
+pip install -r requirements.txt
+echo 'SECRET_KEY=your-secret-key' > .env
+python run.py
+```
 
-1. Клонируйте репозиторий:
-   ```bash
-   git clone https://github.com/stephanvoytov/rugram.git
-   cd rugram
-   ```
-
-2. Создайте виртуальное окружение:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # Linux/Mac
-   # venv\Scripts\activate  # Windows
-   ```
-
-3. Установите зависимости:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. Настройте переменные окружения:
-   Создайте файл `.env` с SECRET_KEY:
-   ```bash
-   echo 'SECRET_KEY=your-secret-key' > .env
-   # Отредактируйте .env файл при необходимости
-   ```
-
-5. Запустите приложение:
-   ```bash
-   python run.py
-   ```
-
-Приложение будет доступно по адресу http://localhost:5000
+Откройте `http://localhost:5000`

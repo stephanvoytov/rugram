@@ -28,6 +28,34 @@ class User(db.Model, UserMixin, SerializerMixin):
     posts: Mapped[list["Post"]] = relationship(back_populates='author')
     likes: Mapped[list["Like"]] = relationship(back_populates='user')
     comments: Mapped[list['Comment']] = relationship(back_populates='author')
+    followers: Mapped[list['Follow']] = relationship(
+        foreign_keys='Follow.followed_id',
+        back_populates='followed',
+        lazy='dynamic',
+        viewonly=True
+    )
+    following: Mapped[list['Follow']] = relationship(
+        foreign_keys='Follow.follower_id',
+        back_populates='follower',
+        lazy='dynamic',
+        viewonly=True
+    )
+
+    @property
+    def followers_count(self):
+        return self.followers.count()
+
+    @property
+    def following_count(self):
+        return self.following.count()
+
+    def is_followed_by(self, user):
+        if not user.is_authenticated:
+            return False
+        return Follow.query.filter_by(
+            follower_id=user.id,
+            followed_id=self.id
+        ).first() is not None
 
     def get_id(self):
         return str(self.id)
@@ -74,6 +102,17 @@ class Like(db.Model, SerializerMixin):
 
     user: Mapped["User"] = relationship(back_populates="likes")
     post: Mapped["Post"] = relationship(back_populates="likes")
+
+
+class Follow(db.Model, SerializerMixin):
+    __tablename__ = 'follows'
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    follower_id: Mapped[int] = mapped_column(db.ForeignKey('users.id'))
+    followed_id: Mapped[int] = mapped_column(db.ForeignKey('users.id'))
+    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+
+    follower: Mapped["User"] = relationship(foreign_keys=[follower_id], back_populates="following")
+    followed: Mapped["User"] = relationship(foreign_keys=[followed_id], back_populates="followers")
 
 
 class Comment(db.Model, SerializerMixin):
