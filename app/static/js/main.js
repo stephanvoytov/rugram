@@ -392,7 +392,34 @@ document.addEventListener('click', async function(e) {
     }
 })();
 
-// ── Browser Notifications ──
+// ── In-page toast уведомления ──
+window.showToast = function(title, message, type) {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    const id = 'toast-' + Date.now();
+    const bgClass = type === 'danger' ? 'bg-danger text-white' :
+                    type === 'success' ? 'bg-success text-white' :
+                    type === 'info' ? 'bg-info' :
+                    'bg-dark text-white';
+    const html = `
+        <div id="${id}" class="toast align-items-center ${bgClass} border-0 mb-2" role="alert">
+            <div class="d-flex">
+                <div class="toast-body">
+                    <strong>${title}</strong><br>
+                    <small>${message}</small>
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    `;
+    container.insertAdjacentHTML('beforeend', html);
+    const toastEl = document.getElementById(id);
+    const toast = new bootstrap.Toast(toastEl, { delay: 5000 });
+    toast.show();
+    toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+};
+
+// ── Браузерные уведомления (всегда) ──
 (function() {
     let lastBadgeCount = 0;
 
@@ -403,14 +430,16 @@ document.addEventListener('click', async function(e) {
         }
     }, { once: true });
 
-    // Следим за изменением бейджа уведомлений
+    // Следим за изменением бейджа уведомлений (каждые 10с)
     setInterval(async function() {
         if (!window.isAuthenticated) return;
         try {
             const response = await fetch('/api/notifications/unread-count');
             const data = await response.json();
-            if (data.count > lastBadgeCount && document.hidden) {
-                showBrowserNotification('Rugram', 'У вас новые уведомления');
+            if (data.count > lastBadgeCount) {
+                // Всегда показываем уведомление (и тост, и браузерное)
+                showToast('Rugram', 'У вас новые уведомления');
+                window._showBrowserNotification('Rugram', 'У вас новые уведомления');
             }
             lastBadgeCount = data.count;
             // Синхронизируем бейдж в шапке
@@ -427,13 +456,13 @@ document.addEventListener('click', async function(e) {
     }, 10000);
 })();
 
-// Глобальная функция для показа уведомлений (вызывается из чата)
-window.showBrowserNotification = function(title, body) {
-    if (Notification.permission === 'granted' && document.hidden) {
+// Глобальная функция для браузерных уведомлений (всегда)
+window._showBrowserNotification = function(title, body, tag) {
+    if (Notification.permission === 'granted') {
         try {
             const n = new Notification(title, {
                 body: body,
-                tag: 'rugram',
+                tag: tag || 'rugram',
                 silent: false
             });
             setTimeout(() => n.close(), 5000);
@@ -441,17 +470,41 @@ window.showBrowserNotification = function(title, body) {
     }
 };
 
+// Глобальная функция для показа уведомлений (вызывается из чата)
+window.showBrowserNotification = function(title, body) {
+    // Показываем и тост, и браузерное уведомление
+    showToast(title, body);
+    window._showBrowserNotification(title, body);
+};
+
 // ── Push-уведомления (Service Worker) ──
 (function() {
+    // Конвертирует VAPID public key (base64url string) в Uint8Array
+    function urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding)
+            .replace(/\-/g, '+')
+            .replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+    }
+
     async function subscribeToPush() {
         try {
-            // Ждём регистрацию SW (из base.html)
+            // Ждём регистрацию SW
             const registration = await navigator.serviceWorker.ready;
+
+            // Конвертируем VAPID ключ в Uint8Array
+            const applicationServerKey = urlBase64ToUint8Array(window.VAPID_PUBLIC_KEY);
 
             // Подписываемся на push
             const subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
-                applicationServerKey: window.VAPID_PUBLIC_KEY
+                applicationServerKey: applicationServerKey
             });
 
             // Отправляем подписку на сервер
@@ -468,7 +521,6 @@ window.showBrowserNotification = function(title, body) {
 
         } catch (error) {
             if (error.name === 'NotAllowedError') {
-                // Пользователь отклонил разрешение — ничего не делаем
                 console.log('Push permission denied');
             } else if (error.name === 'InvalidStateError') {
                 // Уже подписан — обновим подписку
@@ -512,9 +564,9 @@ window.showBrowserNotification = function(title, body) {
         };
         document.addEventListener('click', clickHandler);
 
-        // Также пробуем при загрузке, если permission уже есть
+        // Если разрешение уже есть — подписываемся сразу
         if (Notification.permission === 'granted') {
-            subscribeToPush();
+            setTimeout(subscribeToPush, 1000); // Небольшая задержка чтобы SW успел
         }
     }
 })();
