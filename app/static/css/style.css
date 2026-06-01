@@ -324,11 +324,15 @@
     color: #e0e0e0;
 }
 
-/* Make main a flex container so chat-layout can fill available space */
+/* Make pages fill viewport for scrollable layouts (chat) */
+html, body {
+    height: 100%;
+}
 main {
     display: flex;
     flex-direction: column;
     min-height: 0;
+    flex: 1 1 auto;
 }
 
 /* Chat styling */
@@ -360,6 +364,8 @@ main {
 #messagesContainer {
     background-color: #f8f9fa;
     min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
 }
 
 #chatList {
