@@ -4,7 +4,7 @@
     <div class="row">
         <div class="col-md-4">
             <!-- Аватар -->
-            <img src="{{ url_for('static', filename='uploads/profile_images/' + user.profile_image) }}"
+            <img src="{{ url_for('static', filename='uploads/profile_images/' + user.profile_image) if user.profile_image else url_for('static', filename='default-profile.png') }}"
                  class="rounded-circle img-thumbnail object-fit-cover" width="200" height="200">
 
             <h2>{{ user.username }}</h2>
@@ -24,7 +24,8 @@
             <div class="card mb-4 shadow-sm post-card">
                 <!-- Шапка поста -->
                 <div class="card-header bg-transparent d-flex align-items-center justify-content-between">
-                    <div class="d-flex align-items-center">
+                    <a href="{{ url_for('main.profile', user_id_or_username=post.author.username) }}"
+                       class="d-flex align-items-center text-decoration-none text-dark">
                         <img src="{{ url_for('static', filename='uploads/profile_images/' + post.author.profile_image) if post.author.profile_image else url_for('static', filename='default-profile.png') }}"
                              class="rounded-circle me-2"
                              width="32"
@@ -34,7 +35,7 @@
                             <strong>{{ post.author.username }}</strong>
                             <small class="text-muted d-block">{{ post.created_date|time_ago }}</small>
                         </div>
-                    </div>
+                    </a>
 
                     {% if current_user.is_authenticated and (current_user == post.author) %}
                     <div class="d-inline-flex align-items-center gap-1">  <!-- Обертка для выравнивания -->
@@ -91,4 +92,106 @@
         </div>
     </div>
 </div>
+</div>
+</div>
+
+<script>
+// Глобальная функция удаления (вызывается из onclick в HTML)
+function deletePost(postId) {
+    if (confirm('Удалить пост?')) {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+        fetch(`/delete/${postId}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+        })
+        .then(response => {
+            if (response.ok) {
+                window.location.reload();
+            } else if (response.status === 401) {
+                window.location.href = window.LOGIN_URL || '/login';
+            } else {
+                alert('Ошибка удаления!');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Ошибка удаления!');
+        });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Like handler
+    document.querySelectorAll('button.like-btn[data-post-id]').forEach(btn => {
+        btn.addEventListener('click', async function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            if (!window.isAuthenticated) {
+                alert('Чтобы поставить лайк, необходимо войти в систему');
+                window.location.href = window.LOGIN_URL || '/login';
+                return;
+            }
+
+            if (!this.dataset.postId) return;
+
+            const postId = this.dataset.postId;
+            const likeIcon = this.querySelector('i');
+            const likeCount = this.querySelector('.like-count');
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+            const originalIconClass = likeIcon.className;
+            const originalText = likeCount.textContent;
+
+            this.disabled = true;
+            likeIcon.className = 'bi bi-arrow-repeat fs-5';
+
+            try {
+                const response = await fetch(`/post/${postId}/like`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({}),
+                    credentials: 'same-origin'
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        window.location.href = window.LOGIN_URL || '/login';
+                        return;
+                    }
+                    throw new Error('Network response was not ok');
+                }
+
+                const data = await response.json();
+
+                if (data.status === 'liked') {
+                    likeIcon.className = 'bi bi-heart-fill fs-5 text-danger';
+                    this.dataset.liked = 'true';
+                } else {
+                    likeIcon.className = 'bi bi-heart fs-5 text-muted';
+                    this.dataset.liked = 'false';
+                }
+
+                likeCount.textContent = data.likes_count;
+
+            } catch (error) {
+                console.error('Error:', error);
+                likeIcon.className = originalIconClass;
+                likeCount.textContent = originalText;
+            } finally {
+                this.disabled = false;
+            }
+        });
+    });
+});
+</script>
 {% endblock %}

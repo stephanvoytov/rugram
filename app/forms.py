@@ -5,7 +5,7 @@ from wtforms.fields.simple import StringField, BooleanField, SubmitField, Passwo
 from wtforms.validators import DataRequired, Length, Email, EqualTo
 
 
-class Loginform(FlaskForm):
+class LoginForm(FlaskForm):
     email_or_username = StringField('Почта или логин', validators=[Length(max=50),
         DataRequired(message='Введите почту или логин')
     ])
@@ -18,7 +18,7 @@ class Loginform(FlaskForm):
 
 class RegistrationForm(FlaskForm):
     username = StringField('Логин', validators=[
-        DataRequired(message='Придумайте пароль'),
+        DataRequired(message='Введите логин'),
         Length(3, 20, message='Логин должен быть от 3 до 20 символов')
     ])
     email = StringField('Почта', validators=[
@@ -51,3 +51,4 @@ class ProfileForm(FlaskForm):
     description = TextAreaField('О себе', validators=[Length(max=500)])
     profile_image = FileField('Аватар')
     password = PasswordField('Новый пароль (оставьте пустым, если не меняется)')
+    submit = SubmitField('Сохранить изменения')

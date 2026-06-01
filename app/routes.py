@@ -7,8 +7,8 @@ from flask import render_template, flash, redirect, url_for, Blueprint, request,
 from flask_login import login_user, login_required, logout_user, current_user
 from werkzeug.utils import secure_filename
 
-import config
-from app.forms import Loginform, RegistrationForm, PostForm, ProfileForm
+from config import Config
+from app.forms import LoginForm, RegistrationForm, PostForm, ProfileForm
 from app.models import User, Post, Like, Comment
 from extensions import db
 
@@ -40,7 +40,7 @@ def process_avatar(image_file):
 
     # Сохраняем
     filename = f"avatar_{current_user.id}.jpg"
-    save_path = os.path.join(config.Config.UPLOAD_FOLDER, 'profile_images', filename)
+    save_path = os.path.join(Config.UPLOAD_FOLDER, 'profile_images', filename)
     img.save(save_path, "JPEG", quality=85)
 
     return filename
@@ -74,7 +74,7 @@ def index():
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
-    form = Loginform()
+    form = LoginForm()
     if form.validate_on_submit():
         user = User.query.filter(
             (User.email == form.email_or_username.data) |
@@ -84,7 +84,7 @@ def login():
             flash('Неверная почта/логин или пароль', 'danger')
             return redirect(url_for('auth.login'))
 
-        login_user(user, remember=form.remember.data, force=True)
+        login_user(user, remember=form.remember.data)
         return redirect(url_for('main.index'))
 
     return render_template('auth/login.html', form=form)
@@ -102,19 +102,28 @@ def logout():
 def register():
     form = RegistrationForm()
     if form.validate_on_submit():
+        username_exists = User.query.filter(User.username == form.username.data).first()
+        email_exists = User.query.filter(User.email == form.email.data).first()
+
+        if username_exists or email_exists:
+            if username_exists:
+                flash('Этот логин уже занят', 'danger')
+            if email_exists:
+                flash('Эта почта уже зарегистрирована', 'danger')
+            return render_template('auth/register.html', form=form)
+
         user = User()
-        if not (
-                (User.query.filter(User.username == form.username.data).first()) or
-                (User.query.filter(User.email == form.email.data).first())
-        ):
-            user.username = form.username.data
-            user.email = form.email.data
-            user.set_password(form.password.data)
+        user.username = form.username.data
+        user.email = form.email.data
+        user.set_password(form.password.data)
+        try:
             db.session.add(user)
             db.session.commit()
             flash('Регистрация прошла успешно! Теперь вы можете войти.', 'success')
             return redirect(url_for('auth.login'))
-        flash('Такая почта или такой логин уже существуют', 'danger')
+        except Exception:
+            db.session.rollback()
+            flash('Ошибка при регистрации. Попробуйте снова.', 'danger')
     return render_template('auth/register.html', form=form)
 
 
@@ -132,7 +141,7 @@ def create_post():
             image = form.image.data
             filename = secure_filename(image.filename)
             unique_filename = f'{current_user.id}_{int(time.time())}_{filename}'
-            save_path = os.path.join(config.Config.UPLOAD_FOLDER, 'posts', unique_filename)
+            save_path = os.path.join(Config.UPLOAD_FOLDER, 'posts', unique_filename)
 
             os.makedirs(os.path.dirname(save_path), exist_ok=True)
             image.save(save_path)
@@ -153,11 +162,6 @@ def create_post():
 def edit_post(post_id):
     post = Post.query.filter(Post.id == post_id, Post.author == current_user).first_or_404()
     form = PostForm(obj=post)
-    if request.method == "GET":
-
-        if post:
-            form.text.data = post.text
-            form.image.data = post.image
 
     if form.validate_on_submit():
         try:
@@ -165,7 +169,7 @@ def edit_post(post_id):
 
             if form.image.data:
                 if post.image:
-                    old_image_path = os.path.join(config.Config.UPLOAD_FOLDER, 'posts', post.image)
+                    old_image_path = os.path.join(Config.UPLOAD_FOLDER, 'posts', post.image)
                     if os.path.exists(old_image_path):
                         os.remove(old_image_path)
 
@@ -173,7 +177,7 @@ def edit_post(post_id):
                 if image.filename:
                     filename = secure_filename(image.filename)
                     unique_filename = f'{current_user.id}_{int(time.time())}_{filename}'
-                    save_path = os.path.join(config.Config.UPLOAD_FOLDER, 'posts', unique_filename)
+                    save_path = os.path.join(Config.UPLOAD_FOLDER, 'posts', unique_filename)
 
                     os.makedirs(os.path.dirname(save_path), exist_ok=True)
                     image.save(save_path)
@@ -302,7 +306,7 @@ def add_comment(post_id):
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'error': 'Текст комментария не может быть пустым'}), 400
         flash('Текст комментария не может быть пустым', 'danger')
-        return redirect(url_for('posts.post_detail', post_id=post_id))
+        return redirect(url_for('posts.get_post', post_id=post_id))
 
     new_comment = Comment(
         author_id=current_user.id,
@@ -331,7 +335,7 @@ def add_comment(post_id):
         })
 
     flash('Комментарий успешно добавлен', 'success')
-    return redirect(url_for('posts.post_detail', post_id=post_id))
+    return redirect(url_for('posts.get_post', post_id=post_id))
 
 
 @posts_bp.route('/delete/<int:post_id>', methods=['DELETE'])
@@ -349,10 +353,12 @@ def delete_post(post_id):
 
 
 @main_bp.route('/chat')
+@login_required
 def chat():
     return render_template('main/chat.html')
 
 
 @main_bp.route('/settings')
+@login_required
 def settings():
     return render_template('main/settings.html')

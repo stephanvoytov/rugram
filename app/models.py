@@ -1,4 +1,5 @@
 import datetime
+from datetime import timezone
 
 from flask_login import UserMixin
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -16,7 +17,7 @@ class User(db.Model, UserMixin, SerializerMixin):
     username: Mapped[str] = mapped_column(index=True, unique=True)
     email: Mapped[str] = mapped_column(index=True, unique=True)
     hashed_password: Mapped[str] = mapped_column()
-    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.utcnow)
+    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
 
     name: Mapped[str] = mapped_column(nullable=True)
     surname: Mapped[str] = mapped_column(nullable=True)
@@ -44,7 +45,7 @@ class Post(db.Model, SerializerMixin):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     image: Mapped[str] = mapped_column(nullable=True)
     text: Mapped[str] = mapped_column()
-    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.utcnow)
+    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
     likes_count: Mapped[int] = mapped_column(default=0)
     comments_count: Mapped[int] = mapped_column(default=0)
     is_deleted: Mapped[bool] = mapped_column(default=False)
@@ -69,7 +70,7 @@ class Like(db.Model, SerializerMixin):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(db.ForeignKey('users.id'))
     post_id: Mapped[int] = mapped_column(db.ForeignKey('posts.id'))
-    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.utcnow)
+    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
 
     user: Mapped["User"] = relationship(back_populates="likes")
     post: Mapped["Post"] = relationship(back_populates="likes")
@@ -81,7 +82,7 @@ class Comment(db.Model, SerializerMixin):
     author_id: Mapped[int] = mapped_column(db.ForeignKey('users.id'))
     post_id: Mapped[int] = mapped_column(db.ForeignKey('posts.id'))
     text: Mapped[str] = mapped_column()
-    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.utcnow)
+    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
 
     author: Mapped["User"] = relationship(back_populates="comments")
     post: Mapped["Post"] = relationship(back_populates="comments")

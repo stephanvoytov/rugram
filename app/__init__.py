@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, request, jsonify, redirect, url_for
 from flask_login import LoginManager
 from flask_restful import Api
 from flask_wtf import CSRFProtect
@@ -11,6 +11,16 @@ from extensions import db
 from config import Config
 
 login_manager = LoginManager()
+login_manager.login_view = 'auth.login'
+login_manager.login_message = 'Для доступа к этой странице необходимо войти в систему'
+login_manager.login_message_category = 'info'
+
+
+@login_manager.unauthorized_handler
+def unauthorized():
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'error': 'Unauthorized'}), 401
+    return redirect(url_for('auth.login', next=request.url))
 
 
 def create_app():
@@ -19,7 +29,13 @@ def create_app():
     api.add_resource(post_resources.PostListResource, '/api/v1/posts')
     api.add_resource(post_resources.PostResource, '/api/v1/posts/<int:post_id>')
     app.config.from_object(Config)
-    CSRFProtect(app)
+
+    csrf = CSRFProtect(app)
+
+    @app.before_request
+    def csrf_exempt_api():
+        if request.path.startswith('/api/'):
+            request._csrf_exempt = True
 
     db.init_app(app)
 

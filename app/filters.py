@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import Blueprint
 
@@ -7,7 +7,9 @@ filters_bp = Blueprint('filters', __name__)
 
 @filters_bp.app_template_filter('time_ago')
 def time_ago_filter(dt):
-    now = datetime.now()
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    now = datetime.now(timezone.utc)
     diff = now - dt
 
     periods = [
