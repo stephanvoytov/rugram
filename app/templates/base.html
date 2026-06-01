@@ -24,7 +24,7 @@
     <!-- CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='lib/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='lib/bootstrap-icons.min.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ static_version }}">
     {% block styles %}{% endblock %}
 </head>
 <body class="d-flex flex-column min-vh-100">
@@ -204,7 +204,7 @@
 
 <!-- JavaScript -->
 <script src="{{ url_for('static', filename='lib/bootstrap.bundle.min.js') }}"></script>
-<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/main.js') }}?v={{ static_version }}"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
