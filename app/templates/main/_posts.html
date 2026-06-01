@@ -2,7 +2,7 @@
 <div class="card mb-4 shadow-sm post-card" data-post-url="{{ url_for('posts.get_post', post_id=post.id) }}">
     <div class="card-header bg-transparent d-flex align-items-center justify-content-between">
         <a href="{{ url_for('main.profile', user_id_or_username=post.author.username) }}"
-           class="d-flex align-items-center text-decoration-none text-dark">
+           class="d-flex align-items-center text-decoration-none">
             <img src="{{ url_for('static', filename='uploads/profile_images/' + post.author.profile_image) if post.author.profile_image else url_for('static', filename='default-profile.png') }}"
                  class="rounded-circle me-2" width="32" height="32" alt="{{ post.author.username }}">
             <div>

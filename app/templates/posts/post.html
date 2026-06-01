@@ -16,7 +16,7 @@
                 <!-- Шапка поста -->
                 <div class="card-header bg-transparent d-flex align-items-center justify-content-between">
                     <a href="{{ url_for('main.profile', user_id_or_username=post.author.username) }}"
-                       class="d-flex align-items-center text-decoration-none text-dark">
+                       class="d-flex align-items-center text-decoration-none">
                         <img src="{{ url_for('static', filename='uploads/profile_images/' + post.author.profile_image) if post.author.profile_image else url_for('static', filename='default-profile.png') }}"
                              class="rounded-circle me-2"
                              width="32"
@@ -144,7 +144,7 @@
                             <div class="flex-grow-1 comment-body">
                                 <div class="comment-header">
                                     <a href="{{ url_for('main.profile', user_id_or_username=comment.author.username) }}"
-                                       class="fw-semibold text-dark text-decoration-none">
+                                       class="fw-semibold text-decoration-none comment-username">
                                         {{ comment.author.username }}
                                     </a>
                                     <span class="text-muted comment-time">{{ comment.created_date|time_ago }}</span>
@@ -411,7 +411,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="flex-grow-1 comment-body">
                         <div class="comment-header">
                             <a href="/profile/${comment.author.username}"
-                               class="fw-semibold text-dark text-decoration-none">
+                               class="fw-semibold text-decoration-none comment-username">
                                 ${comment.author.username}
                             </a>
                             <span class="text-muted comment-time">только что</span>

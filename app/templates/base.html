@@ -89,7 +89,7 @@
                               id="notificationBadge" style="display: none;">0</span>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 notification-dropdown"
-                        style="background-color: #ffffff; opacity: 1; max-height: 400px; overflow-y: auto;" 
+                        style="max-height: 400px; overflow-y: auto;" 
                         aria-labelledby="notificationsDropdown">
                         <li class="dropdown-header">
                             <h6 class="text-center py-2 mb-0">Уведомления</h6>
@@ -138,18 +138,18 @@
                        id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                         <span class="d-none d-lg-inline">{{ current_user.username }}</span>
                     </a>
-                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 bg-white">
-                        <li><a class="dropdown-item d-flex align-items-center text-dark"
+                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 user-dropdown-menu">
+                        <li><a class="dropdown-item d-flex align-items-center"
                                href="{{ url_for('main.profile', user_id_or_username=current_user.id)}}">
-                            <i class="bi bi-person-fill me-2 text-dark"></i>Профиль</a></li>
-                        <li><a class="dropdown-item d-flex align-items-center text-dark"
+                            <i class="bi bi-person-fill me-2"></i>Профиль</a></li>
+                        <li><a class="dropdown-item d-flex align-items-center"
                                href="{{ url_for('main.saved_posts') }}">
-                            <i class="bi bi-bookmark-fill me-2 text-dark"></i>Сохранённое</a></li>
-                        <li><a class="dropdown-item d-flex align-items-center text-dark"
+                            <i class="bi bi-bookmark-fill me-2"></i>Сохранённое</a></li>
+                        <li><a class="dropdown-item d-flex align-items-center"
                                href="{{ url_for('main.settings') }}">
-                            <i class="bi bi-gear-fill me-2 text-dark"></i>Настройки</a></li>
+                            <i class="bi bi-gear-fill me-2"></i>Настройки</a></li>
                         <li>
-                            <hr class="dropdown-divider mx-3 my-1 border-dark">
+                            <hr class="dropdown-divider mx-3 my-1">
                         </li>
                         <li><a class="dropdown-item d-flex align-items-center text-danger"
                                href="{{ url_for('auth.logout') }}">

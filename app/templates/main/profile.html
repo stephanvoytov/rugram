@@ -3,18 +3,20 @@
 <div class="container mt-4">
     <div class="row">
         <div class="col-md-4">
+            <div class="profile-page-img-container">
             <img src="{{ url_for('static', filename='uploads/profile_images/' + user.profile_image) if user.profile_image else url_for('static', filename='default-profile.png') }}"
-                 class="rounded-circle img-thumbnail object-fit-cover" width="200" height="200">
+                 class="rounded-circle img-thumbnail object-fit-cover profile-page-img" width="200" height="200">
+            </div>
 
             <h2>{{ user.username }}</h2>
             <p class="text-muted">{{ user.email }}</p>
             <p>{{ user.description }}</p>
 
-            <div class="d-flex gap-3 mb-3">
-                <a href="{{ url_for('main.followers_page', username=user.username) }}" class="text-decoration-none text-dark">
+            <div class="d-flex gap-3 mb-3 profile-counts">
+                <a href="{{ url_for('main.followers_page', username=user.username) }}" class="text-decoration-none">
                     <strong>{{ user.followers_count }}</strong> <span class="text-muted">подписчиков</span>
                 </a>
-                <a href="{{ url_for('main.following_page', username=user.username) }}" class="text-decoration-none text-dark">
+                <a href="{{ url_for('main.following_page', username=user.username) }}" class="text-decoration-none">
                     <strong>{{ user.following_count }}</strong> <span class="text-muted">подписок</span>
                 </a>
             </div>
@@ -45,7 +47,7 @@
             <div class="card mb-4 shadow-sm post-card" data-post-url="{{ url_for('posts.get_post', post_id=post.id) }}">
                 <div class="card-header bg-transparent d-flex align-items-center justify-content-between">
                     <a href="{{ url_for('main.profile', user_id_or_username=post.author.username) }}"
-                       class="d-flex align-items-center text-decoration-none text-dark">
+                       class="d-flex align-items-center text-decoration-none">
                         <img src="{{ url_for('static', filename='uploads/profile_images/' + post.author.profile_image) if post.author.profile_image else url_for('static', filename='default-profile.png') }}"
                              class="rounded-circle me-2"
                              width="32" height="32"
