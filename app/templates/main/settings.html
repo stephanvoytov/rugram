@@ -23,7 +23,7 @@
                                 <div class="col-md-8">
                                     <div class="input-group">
                                         <span class="input-group-text">@</span>
-                                        {{ form.new_email(class="form-control", placeholder="Новый email") }}
+                                        {{ form.new_email(class="form-control", placeholder="Новый email", autocomplete="new-email") }}
                                     </div>
                                     <small class="text-muted mt-1 d-block">Текущий: {{ current_user.email }}</small>
                                     {% if form.new_email.errors %}
@@ -47,7 +47,7 @@
                             </h5>
                             <div class="row">
                                 <div class="col-md-4">
-                                    {{ form.current_password(class="form-control", placeholder="Текущий пароль") }}
+                                    {{ form.current_password(class="form-control", placeholder="Текущий пароль", autocomplete="current-password") }}
                                     {% if form.current_password.errors %}
                                     <div class="text-danger small mt-1">
                                         {% for error in form.current_password.errors %}
@@ -57,7 +57,7 @@
                                     {% endif %}
                                 </div>
                                 <div class="col-md-4">
-                                    {{ form.new_password(class="form-control", placeholder="Новый пароль") }}
+                                    {{ form.new_password(class="form-control", placeholder="Новый пароль", autocomplete="new-password") }}
                                     {% if form.new_password.errors %}
                                     <div class="text-danger small mt-1">
                                         {% for error in form.new_password.errors %}
@@ -232,6 +232,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     newPassword.addEventListener('input', validatePasswords);
     confirmPassword.addEventListener('input', validatePasswords);
+    
+    // Сбрасываем автозаполнение email (браузеры любят вставлять туда логин)
+    const emailField = document.getElementById('{{ form.new_email.id }}');
+    if (emailField) {
+        setTimeout(function() { emailField.value = ''; }, 50);
+    }
 });
 </script>
 {% endblock %}
