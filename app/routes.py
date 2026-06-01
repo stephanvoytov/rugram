@@ -10,7 +10,7 @@ from werkzeug.utils import secure_filename
 import config
 from app.forms import Loginform, RegistrationForm, PostForm, ProfileForm
 from app.models import User, Post, Like, Comment
-from extencions import db
+from extensions import db
 
 main_bp = Blueprint('main', __name__, template_folder='../templates')
 auth_bp = Blueprint('auth', __name__, template_folder='../templates')
