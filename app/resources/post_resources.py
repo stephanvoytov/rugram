@@ -2,7 +2,7 @@ from flask import abort, jsonify
 from flask_restful import Resource, reqparse
 
 from app.models import Post
-from extencions import db
+from extensions import db
 
 parser = reqparse.RequestParser()
 parser.add_argument('text', required=True)
