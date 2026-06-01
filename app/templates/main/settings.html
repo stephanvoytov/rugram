@@ -87,8 +87,8 @@
                                 <i class="bi bi-bell me-2"></i>Уведомления
                             </h5>
                             <div class="form-check form-switch">
-                                {{ form.notifications_enabled(class="form-check-input", id="notifications_enabled") }}
-                                <label class="form-check-label" for="notifications_enabled">
+                                {{ form.notifications_enabled(class="form-check-input") }}
+                                <label class="form-check-label" for="{{ form.notifications_enabled.id }}">
                                     Push-уведомления
                                 </label>
                                 <br>
