@@ -185,6 +185,25 @@
 [data-bs-theme="dark"] .page-link:hover {
     background-color: #333;
 }
+[data-bs-theme="dark"] .profile-counts a {
+    color: #e0e0e0 !important;
+}
+.comment-username {
+    color: var(--bs-body-color);
+}
+/* Post header links (author name) */
+.post-card .card-header a,
+.post-header a {
+    color: var(--bs-body-color);
+}
+/* Saved post text */
+.saved-grid .card-text {
+    color: var(--bs-body-color);
+}
+/* Following/followers user links */
+.user-list-link {
+    color: var(--bs-body-color);
+}
 [data-bs-theme="dark"] .page-item.active .page-link {
     background-color: #0d6efd;
     border-color: #0d6efd;
@@ -298,6 +317,11 @@
 
 [data-bs-theme="dark"] .notification-item img {
     border-color: #444;
+}
+[data-bs-theme="dark"] .list-group-item {
+    background-color: #1e1e1e;
+    border-color: #333;
+    color: #e0e0e0;
 }
 
 /* Make main a flex container so chat-layout can fill available space */
@@ -483,4 +507,143 @@ main {
 
 [data-bs-theme="dark"] .danger-zone h5 {
     color: #d4af37;
+}
+
+/* ── Dark theme: dropdowns ── */
+[data-bs-theme="dark"] .notification-dropdown {
+    background-color: #1e1e1e !important;
+    border-color: #333 !important;
+}
+[data-bs-theme="dark"] .user-dropdown-menu {
+    background-color: #1e1e1e !important;
+    border-color: #333 !important;
+}
+[data-bs-theme="dark"] .user-dropdown-menu .dropdown-item {
+    color: #e0e0e0;
+}
+[data-bs-theme="dark"] .user-dropdown-menu .dropdown-item i {
+    color: #e0e0e0;
+}
+[data-bs-theme="dark"] .user-dropdown-menu .dropdown-divider {
+    border-color: #444;
+}
+[data-bs-theme="dark"] .notification-dropdown .dropdown-header h6 {
+    color: #e0e0e0;
+}
+[data-bs-theme="dark"] .notification-dropdown .text-muted {
+    color: #aaa !important;
+}
+[data-bs-theme="dark"] #notificationEmpty p {
+    color: #aaa !important;
+}
+[data-bs-theme="dark"] #notificationLoading .spinner-border {
+    color: #0d6efd;
+}
+
+/* ── Mobile: chat master-detail layout ── */
+@media (max-width: 767.98px) {
+    /* Chat list колонка */
+    #chatListColumn {
+        display: block;
+    }
+    #chatListColumn.d-none {
+        display: none !important;
+    }
+    /* Chat detail колонка */
+    #chatDetailColumn {
+        display: none;
+    }
+    #chatDetailColumn.active {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+    /* Back button в заголовке чата */
+    .chat-back-btn {
+        display: inline-flex !important;
+    }
+    /* Уменьшаем отступы */
+    .chat-layout > .row {
+        flex-direction: column;
+    }
+    #chatListColumn,
+    #chatDetailColumn {
+        width: 100%;
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+    #chatDetailColumn.active + #noChatSelected {
+        display: none !important;
+    }
+}
+@media (min-width: 768px) {
+    .chat-back-btn {
+        display: none !important;
+    }
+}
+
+/* ── Mobile: general responsive ── */
+@media (max-width: 575.98px) {
+    .container {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+    /* Profile image */
+    .profile-page-img {
+        width: 120px !important;
+        height: 120px !important;
+    }
+    /* Settings form */
+    .settings-card .row > [class*="col-"] {
+        margin-bottom: 0.5rem;
+    }
+    .settings-card .input-group {
+        flex-wrap: nowrap;
+    }
+    /* Saved posts grid: denser on mobile */
+    .saved-grid-img {
+        height: 140px !important;
+    }
+    /* Notifications */
+    .notification-item .d-flex {
+        flex-wrap: nowrap;
+    }
+    .notification-item .mark-read-btn {
+        padding: 0.25rem 0.4rem;
+    }
+    /* Post cards */
+    .post-card .card-body {
+        padding: 0.75rem;
+    }
+    /* Navbar search */
+    .search-group {
+        max-width: 100%;
+    }
+    /* Followers/Following counts */
+    .profile-counts {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    .profile-counts a {
+        font-size: 0.9rem;
+    }
+}
+
+/* Profile page responsive image */
+@media (max-width: 767.98px) {
+    .profile-page-img-container {
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+}
+
+/* Chat back button */
+.chat-back-btn {
+    background: none;
+    border: none;
+    font-size: 1.3rem;
+    color: inherit;
+    padding: 0;
+    margin-right: 0.75rem;
+    cursor: pointer;
 }

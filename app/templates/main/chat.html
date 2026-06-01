@@ -6,7 +6,7 @@
 <div class="container-fluid chat-layout">
     <div class="row">
         <!-- Список диалогов -->
-        <div class="col-md-4 border-end px-0">
+        <div class="col-12 col-md-4 border-end px-0" id="chatListColumn">
             <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Сообщения</h5>
                 <button class="btn btn-sm btn-outline-primary" id="newChatBtnLeft">
@@ -23,9 +23,12 @@
         </div>
         
         <!-- Область чата -->
-        <div class="col-md-8 px-0">
+        <div class="col-12 col-md-8 px-0" id="chatDetailColumn">
             <div class="d-none flex-column flex-grow-1" id="chatArea">
                 <div class="p-3 border-bottom d-flex align-items-center">
+                    <button class="chat-back-btn d-md-none" id="chatBackBtn" title="Назад">
+                        <i class="bi bi-arrow-left"></i>
+                    </button>
                     <img id="chatAvatar" src="" alt="" width="40" height="40" 
                          class="rounded-circle me-3 object-fit-cover"
                          onerror="this.src='/static/default-profile.png'">
@@ -133,6 +136,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     document.getElementById('startChatBtn').addEventListener('click', startNewChat);
+    
+    // Кнопка "Назад" на мобильных
+    document.getElementById('chatBackBtn').addEventListener('click', closeChatMobile);
 });
 
 // Загрузка списка чатов
@@ -226,6 +232,9 @@ async function selectChat(chatId, otherUser) {
         `/static/uploads/profile_images/${otherUser.profile_image}` : '/static/default-profile.png';
     document.getElementById('chatUsername').textContent = otherUser.username;
     updateChatStatus(otherUser.is_online, otherUser.last_seen);
+    
+    // Показываем чат на мобильных (скрываем список)
+    showChatOnMobile();
     
     // Загружаем сообщения
     await loadMessages();
@@ -568,6 +577,31 @@ async function startNewChat() {
     } catch (error) {
         console.error('Error starting chat:', error);
     }
+}
+
+// ── Mobile: master-detail ──
+function isMobile() {
+    return window.innerWidth < 768;
+}
+
+function showChatOnMobile() {
+    if (!isMobile()) return;
+    document.getElementById('chatListColumn').classList.add('d-none');
+    document.getElementById('chatDetailColumn').classList.add('active');
+}
+
+function closeChatMobile() {
+    if (!isMobile()) return;
+    document.getElementById('chatListColumn').classList.remove('d-none');
+    document.getElementById('chatDetailColumn').classList.remove('active');
+    document.getElementById('chatArea').classList.remove('d-flex');
+    document.getElementById('chatArea').classList.add('d-none');
+    document.getElementById('noChatSelected').classList.remove('d-none');
+    if (pollingInterval) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+    }
+    currentChatId = null;
 }
 
 // Polling для новых сообщений

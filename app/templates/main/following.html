@@ -13,7 +13,7 @@
             {% for follow in follows %}
             <div class="d-flex align-items-center justify-content-between mb-3 p-2 rounded border">
                 <a href="{{ url_for('main.profile', user_id_or_username=follow.followed.username) }}"
-                   class="d-flex align-items-center text-decoration-none text-dark gap-2">
+                   class="d-flex align-items-center text-decoration-none user-list-link gap-2">
                     <img src="{{ url_for('static', filename='uploads/profile_images/' + follow.followed.profile_image) if follow.followed.profile_image else url_for('static', filename='default-profile.png') }}"
                          class="rounded-circle object-fit-cover" width="40" height="40" alt="">
                     <div>
