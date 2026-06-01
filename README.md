@@ -36,32 +36,32 @@
 ## Установка и запуск
 
 1. Клонируйте репозиторий:
-   `bash
+   ```bash
    git clone https://github.com/stephanvoytov/rugram.git
    cd rugram
-   `
+   ```
 
 2. Создайте виртуальное окружение:
-   `bash
+   ```bash
    python -m venv venv
    source venv/bin/activate  # Linux/Mac
    # venv\Scripts\activate  # Windows
-   `
+   ```
 
 3. Установите зависимости:
-   `bash
+   ```bash
    pip install -r requirements.txt
-   `
+   ```
 
 4. Настройте переменные окружения:
-   `bash
+   ```bash
    cp .env.example .env
    # Отредактируйте .env файл при необходимости
-   `
+   ```
 
 5. Запустите приложение:
-   `bash
+   ```bash
    python run.py
-   `
+   ```
 
 Приложение будет доступно по адресу http://localhost:5000
