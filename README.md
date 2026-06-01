@@ -1,4 +1,5 @@
 # Rugram — социальная сеть на Flask
+[![Flask](https://img.shields.io/badge/Flask-000000?logo=flask&logoColor=white)](https://flask.palletsprojects.com/) [![Stars](https://img.shields.io/github/stars/stephanvoytov/rugram)](https://github.com/stephanvoytov/rugram/stargazers)
 
 Социальная сеть с возможностью публикации постов, лайков, комментариев, подписок, поиска и настройки профиля.
 
