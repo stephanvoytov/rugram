@@ -1,7 +1,5 @@
 # Rugram — социальная сеть на Flask
-[![Flask](https://img.shields.io/badge/Flask-000000?logo=flask&logoColor=white)](https://flask.palletsprojects.com/) [![Stars](https://img.shields.io/github/stars/stephanvoytov/rugram)](https://github.com/stephanvoytov/rugram/stargazers) [![Deployed on PythonAnywhere](https://img.shields.io/badge/Deployed%20on-PythonAnywhere-1DA1F2)](https://pythonanywhere.com)
-
-🔗 **https://stephanv.pythonanywhere.com/**
+[![Flask](https://img.shields.io/badge/Flask-000000?logo=flask&logoColor=white)](https://flask.palletsprojects.com/) [![Stars](https://img.shields.io/github/stars/stephanvoytov/rugram)](https://github.com/stephanvoytov/rugram/stargazers)
 
 Rugram — социальная сеть с мессенджером, уведомлениями, закладками и полным управлением аккаунтом.
 
@@ -12,7 +10,7 @@ Rugram — социальная сеть с мессенджером, уведо
 - **Лента постов** — с бесконечной подгрузкой (infinite scroll), фильтром «Все / Подписки»
 - **Публикация постов** — с изображениями, редактирование и удаление
 - **Лайки** — анимация pop + ripple через Web Animations API, единый обработчик
-- **Комментарии** — inline-форма с auto-expand textarea, AJAX-отправка, удаление и **редактирование** своих комментариев
+- **Комментарии** — inline-форма с auto-expand textarea, AJAX-отправка, удаление и редактирование своих комментариев
 - **Подписки** — AJAX follow/unfollow, страницы followers/following
 - **Поиск** — по пользователям
 - **Профиль** — смена аватарки, имени, описания; счётчики подписчиков/подписок
@@ -23,10 +21,12 @@ Rugram — социальная сеть с мессенджером, уведо
 - **«Печатает...»** — анимированный индикатор при наборе текста собеседником
 - **Пагинация** — подгрузка старых сообщений при скролле вверх
 - **Дата-разделители** — «Сегодня», «Вчера», «15 мая 2026» между группами сообщений
+- **Прочитано** — отметка прочитанных сообщений (read receipts)
 - **Шифрование** — все сообщения шифруются в БД (Fernet, ключ от SECRET_KEY)
 
 ### Уведомления
 - **Система уведомлений** — лайки, комментарии, подписки; непрочитанные — бейдж в навбаре
+- **Браузерные уведомления** — Notification API при новых сообщениях / лайках (когда вкладка не активна)
 - **Дропдаун** — последние уведомления в выпадающем списке
 - **Страница уведомлений** — полный список, отметка «прочитано»
 
@@ -48,9 +48,55 @@ Rugram — социальная сеть с мессенджером, уведо
 
 **Backend:** Python 3.12, Flask, SQLAlchemy, Flask-Login, Flask-WTF, SQLite, cryptography (Fernet)  
 **Frontend:** Jinja2, Bootstrap 5.3, Bootstrap Icons, чистый CSS/JS  
-**Хостинг:** Сайт работает на PythonAnywhere
 
-## Установка (локальная)
+## Быстрый старт (Docker)
+
+```bash
+# 1. Клонируйте репозиторий
+git clone https://github.com/stephanvoytov/rugram.git
+cd rugram
+
+# 2. Создайте .env с секретным ключом
+python -c "import secrets; print(f'SECRET_KEY={secrets.token_hex(32)}')" > .env
+
+# 3. Создайте директории для данных
+mkdir -p instance uploads
+
+# 4. Соберите и запустите
+docker compose up -d --build
+```
+
+Сайт будет доступен на **http://localhost:8000**.
+
+Для production за контейнером поставьте reverse proxy (Caddy, Nginx) на порт `8000`.
+
+### Переменные окружения (.env)
+
+| Переменная | Обязательно | По умолчанию | Описание |
+|------------|-------------|-------------|----------|
+| `SECRET_KEY` | ✅ | — | Ключ для подписи сессий и шифрования сообщений |
+
+### Volumes
+
+| Путь в контейнере | Назначение |
+|-------------------|------------|
+| `/app/instance` | SQLite база данных |
+| `/app/app/static/uploads` | Загруженные изображения (аватарки, посты) |
+
+### Обновление
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+### Логи
+
+```bash
+docker compose logs -f
+```
+
+## Локальная разработка
 
 ```bash
 git clone https://github.com/stephanvoytov/rugram.git
@@ -68,62 +114,3 @@ python run.py
 ```
 
 Откройте `http://localhost:5000`
-
-## Деплой
-
-### PythonAnywhere (рекомендую, самый простой)
-
-1. Зарегистрируйтесь на [pythonanywhere.com](https://www.pythonanywhere.com)
-2. Откройте **Dashboard → Consoles → Bash**
-3. Клонируйте репозиторий:
-   ```bash
-   git clone https://github.com/stephanvoytov/rugram.git
-   cd rugram
-   ```
-4. Создайте виртуальное окружение и установите зависимости:
-   ```bash
-   python3.12 -m venv venv
-   source venv/bin/activate
-   pip install -r requirements.txt
-   ```
-5. Создайте `.env` с автоматически сгенерированным ключом:
-   ```bash
-   python -c "import secrets; print(f'SECRET_KEY={secrets.token_hex(32)}')" > .env
-   ```
-6. Создайте директорию для данных:
-   ```bash
-   mkdir -p ~/rugram/instance
-   ```
-7. Откройте **Web → Add new web app → Manual configuration → Python 3.12**
-8. В **Code**:
-   - Source code: `/home/ваш-username/rugram`
-   - Working directory: `/home/ваш-username/rugram`
-9. В **WSGI configuration file**:
-   ```python
-   import sys
-   sys.path.insert(0, '/home/ваш-username/rugram')
-   from wsgi import application
-   ```
-10. Нажмите **Reload** — готово 🎉
-
-### Fly.io
-
-```bash
-# Установите flyctl: https://fly.io/docs/hands-on/install-flyctl/
-fly launch
-fly secrets set SECRET_KEY=$(python -c "import secrets; print(secrets.token_hex(32))")
-fly deploy
-```
-
-Стартовая команда (в `Dockerfile`): `gunicorn --bind 0.0.0.0:5000 wsgi:app`
-
-### Render
-
-1. Fork репозитория на GitHub
-2. На [render.com](https://render.com) → **New + Web Service** → подключите репозиторий
-3. **Settings**:
-   - Runtime: Python 3
-   - Build command: `pip install -r requirements.txt`
-   - Start command: `gunicorn wsgi:app`
-4. **Environment Variables**: `SECRET_KEY=your-secret-key`
-5. **Deploy** — готово (первый запуск ~3 мин, потом холодный старт ~30 сек)

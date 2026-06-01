@@ -391,3 +391,52 @@ document.addEventListener('click', async function(e) {
         updateNotificationBadge();
     }
 })();
+
+// ── Browser Notifications ──
+(function() {
+    let lastBadgeCount = 0;
+
+    // Запрашиваем разрешение при первом клике
+    document.addEventListener('click', function() {
+        if (Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+    }, { once: true });
+
+    // Следим за изменением бейджа уведомлений
+    setInterval(async function() {
+        if (!window.isAuthenticated) return;
+        try {
+            const response = await fetch('/api/notifications/unread-count');
+            const data = await response.json();
+            if (data.count > lastBadgeCount && document.hidden) {
+                showBrowserNotification('Rugram', 'У вас новые уведомления');
+            }
+            lastBadgeCount = data.count;
+            // Синхронизируем бейдж в шапке
+            const badge = document.getElementById('notificationsBadge');
+            if (badge) {
+                if (data.count > 0) {
+                    badge.textContent = data.count;
+                    badge.style.display = 'inline-block';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+        } catch (e) {}
+    }, 10000);
+})();
+
+// Глобальная функция для показа уведомлений (вызывается из чата)
+window.showBrowserNotification = function(title, body) {
+    if (Notification.permission === 'granted' && document.hidden) {
+        try {
+            const n = new Notification(title, {
+                body: body,
+                tag: 'rugram',
+                silent: false
+            });
+            setTimeout(() => n.close(), 5000);
+        } catch (e) {}
+    }
+};
