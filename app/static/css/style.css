@@ -326,7 +326,7 @@
 
 /* Make pages fill viewport for scrollable layouts (chat) */
 html, body {
-    height: 100%;
+    min-height: 100%;
 }
 main {
     display: flex;
