@@ -203,22 +203,23 @@
     <img id="lightboxImg" src="" alt="Полный размер">
 </div>
 
+<!-- Toast container для всплывающих уведомлений -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer" style="z-index: 9999;">
+</div>
+
 <!-- JavaScript -->
 <script src="{{ url_for('static', filename='lib/bootstrap.bundle.min.js') }}"></script>
 <script defer src="{{ url_for('static', filename='js/main.js') }}?v={{ static_version }}"></script>
 <script defer>
-// Регистрация Service Worker для push-уведомлений
+// Регистрация Service Worker для push-уведомлений — сразу, без window.load
 if ('serviceWorker' in navigator && window.isAuthenticated && window.VAPID_PUBLIC_KEY) {
-    window.addEventListener('load', function() {
-        navigator.serviceWorker.register('/static/sw.js?v={{ static_version }}')
-            .then(function(registration) {
-                window.swRegistration = registration;
-                console.log('SW registered:', registration.scope);
-            })
-            .catch(function(error) {
-                console.error('SW registration failed:', error);
-            });
-    });
+    navigator.serviceWorker.register('/static/sw.js?v={{ static_version }}')
+        .then(function(registration) {
+            window.swRegistration = registration;
+        })
+        .catch(function(error) {
+            console.error('SW registration failed:', error);
+        });
 }
 </script>
 {% block scripts %}{% endblock %}

@@ -705,13 +705,9 @@ function startChatListPolling() {
                 const isNewChat = !prev && chat.last_message;
                 
                 if ((isNewMessage || isNewChat) && chat.other_user) {
-                    // Показываем уведомление если вкладка не активна
-                    // или если пользователь не в этом чате
-                    const isCurrentChat = currentChatId === chat.chat_id;
-                    if (document.hidden || !isCurrentChat) {
-                        const sender = chat.other_user.username || 'Пользователь';
-                        showBrowserNotification(sender, chat.last_message);
-                    }
+                    // Всегда показываем уведомление (тост + браузерное)
+                    const sender = chat.other_user.username || 'Пользователь';
+                    showBrowserNotification(sender, chat.last_message);
                 }
             });
             
