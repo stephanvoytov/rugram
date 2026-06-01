@@ -419,30 +419,144 @@ window.showToast = function(title, message, type) {
     toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
 };
 
-// ── Браузерные уведомления (всегда) ──
+// ── Notification: запрос разрешения через баннер ──
+(function() {
+    if (!window.isAuthenticated) return;
+    if (!('Notification' in window)) return;
+
+    const PERMISSION_KEY = 'rugram_notification_permission';
+    const stored = localStorage.getItem(PERMISSION_KEY);
+
+    // Если уже разрешил — подписываемся на push, не показываем баннер
+    if (Notification.permission === 'granted' || stored === 'granted') {
+        if (Notification.permission === 'granted') {
+            enablePushNotifications();
+        }
+        return;
+    }
+
+    // Если запретил или "больше не спрашивать" — не показываем
+    if (stored === 'denied' || stored === 'dismissed') return;
+
+    // Иначе — показываем баннер
+    showNotificationBanner();
+
+    function showNotificationBanner() {
+        const container = document.getElementById('toastContainer');
+        if (!container) return;
+
+        const id = 'notif-banner';
+
+        // Проверяем, не показан ли уже
+        if (document.getElementById(id)) return;
+
+        const html = `
+            <div id="${id}" class="toast show align-items-center border-0 mb-2" role="alert" style="min-width: 300px;" data-bs-autohide="false">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <strong>🔔 Включить уведомления?</strong><br>
+                        <small>Получайте уведомления даже когда сайт не открыт</small>
+                        <div class="mt-2 d-flex gap-2">
+                            <button class="btn btn-sm btn-primary" id="notifAllowBtn">Разрешить</button>
+                            <button class="btn btn-sm btn-outline-secondary" id="notifLaterBtn">Позже</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', html);
+
+        document.getElementById('notifAllowBtn').addEventListener('click', async function() {
+            try {
+                const permission = await Notification.requestPermission();
+                if (permission === 'granted') {
+                    localStorage.setItem(PERMISSION_KEY, 'granted');
+                    enablePushNotifications();
+                    showToast('✅ Уведомления включены', 'Теперь вы будете получать уведомления даже когда сайт не открыт', 'success');
+                } else {
+                    localStorage.setItem(PERMISSION_KEY, 'denied');
+                    showToast('❌ Уведомления отключены', 'Изменить можно в настройках браузера', 'danger');
+                }
+            } catch (e) {
+                console.error('Permission request error:', e);
+            }
+            const banner = document.getElementById(id);
+            if (banner) banner.remove();
+        });
+
+        document.getElementById('notifLaterBtn').addEventListener('click', function() {
+            localStorage.setItem(PERMISSION_KEY, 'dismissed');
+            const banner = document.getElementById(id);
+            if (banner) banner.remove();
+        });
+    }
+
+    async function enablePushNotifications() {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window) || !window.VAPID_PUBLIC_KEY) return;
+
+        // Конвертирует VAPID public key (base64url string) в Uint8Array
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding)
+                .replace(/\-/g, '+')
+                .replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+        }
+
+        try {
+            const registration = await navigator.serviceWorker.ready;
+            const applicationServerKey = urlBase64ToUint8Array(window.VAPID_PUBLIC_KEY);
+
+            let subscription;
+            try {
+                subscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: applicationServerKey
+                });
+            } catch (err) {
+                if (err.name === 'InvalidStateError') {
+                    subscription = await registration.pushManager.getSubscription();
+                } else {
+                    throw err;
+                }
+            }
+
+            if (subscription) {
+                await fetch('/api/push/subscribe', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify({ subscription: subscription.toJSON() })
+                });
+            }
+        } catch (error) {
+            console.error('Push setup error:', error);
+        }
+    }
+})();
+
+// ── Следим за новыми уведомлениями (каждые 10с) ──
 (function() {
     let lastBadgeCount = 0;
 
-    // Запрашиваем разрешение при первом клике
-    document.addEventListener('click', function() {
-        if (Notification.permission === 'default') {
-            Notification.requestPermission();
-        }
-    }, { once: true });
-
-    // Следим за изменением бейджа уведомлений (каждые 10с)
     setInterval(async function() {
         if (!window.isAuthenticated) return;
         try {
             const response = await fetch('/api/notifications/unread-count');
             const data = await response.json();
             if (data.count > lastBadgeCount) {
-                // Всегда показываем уведомление (и тост, и браузерное)
                 showToast('Rugram', 'У вас новые уведомления');
-                window._showBrowserNotification('Rugram', 'У вас новые уведомления');
+                sendBrowserNotification('Rugram', 'У вас новые уведомления');
             }
             lastBadgeCount = data.count;
-            // Синхронизируем бейдж в шапке
+
             const badge = document.getElementById('notificationBadge');
             if (badge) {
                 if (data.count > 0) {
@@ -456,8 +570,8 @@ window.showToast = function(title, message, type) {
     }, 10000);
 })();
 
-// Глобальная функция для браузерных уведомлений (всегда)
-window._showBrowserNotification = function(title, body, tag) {
+// ── Браузерные уведомления ──
+function sendBrowserNotification(title, body, tag) {
     if (Notification.permission === 'granted') {
         try {
             const n = new Notification(title, {
@@ -468,105 +582,10 @@ window._showBrowserNotification = function(title, body, tag) {
             setTimeout(() => n.close(), 5000);
         } catch (e) {}
     }
-};
+}
 
-// Глобальная функция для показа уведомлений (вызывается из чата)
+// Глобальная функция (вызывается из чата)
 window.showBrowserNotification = function(title, body) {
-    // Показываем и тост, и браузерное уведомление
     showToast(title, body);
-    window._showBrowserNotification(title, body);
+    sendBrowserNotification(title, body);
 };
-
-// ── Push-уведомления (Service Worker) ──
-(function() {
-    // Конвертирует VAPID public key (base64url string) в Uint8Array
-    function urlBase64ToUint8Array(base64String) {
-        const padding = '='.repeat((4 - base64String.length % 4) % 4);
-        const base64 = (base64String + padding)
-            .replace(/\-/g, '+')
-            .replace(/_/g, '/');
-        const rawData = window.atob(base64);
-        const outputArray = new Uint8Array(rawData.length);
-        for (let i = 0; i < rawData.length; ++i) {
-            outputArray[i] = rawData.charCodeAt(i);
-        }
-        return outputArray;
-    }
-
-    async function subscribeToPush() {
-        try {
-            // Ждём регистрацию SW
-            const registration = await navigator.serviceWorker.ready;
-
-            // Конвертируем VAPID ключ в Uint8Array
-            const applicationServerKey = urlBase64ToUint8Array(window.VAPID_PUBLIC_KEY);
-
-            // Подписываемся на push
-            const subscription = await registration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: applicationServerKey
-            });
-
-            // Отправляем подписку на сервер
-            await fetch('/api/push/subscribe', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-                },
-                body: JSON.stringify({
-                    subscription: subscription.toJSON()
-                })
-            });
-
-        } catch (error) {
-            if (error.name === 'NotAllowedError') {
-                console.log('Push permission denied');
-            } else if (error.name === 'InvalidStateError') {
-                // Уже подписан — обновим подписку
-                try {
-                    const registration = await navigator.serviceWorker.ready;
-                    const existingSub = await registration.pushManager.getSubscription();
-                    if (existingSub) {
-                        await fetch('/api/push/subscribe', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-                            },
-                            body: JSON.stringify({
-                                subscription: existingSub.toJSON()
-                            })
-                        });
-                    }
-                } catch (e) {
-                    console.error('Push resubscribe error:', e);
-                }
-            } else {
-                console.error('Push subscribe error:', error);
-            }
-        }
-    }
-
-    // Запускаем подписку при первой возможности
-    if ('serviceWorker' in navigator && 'PushManager' in window && window.isAuthenticated && window.VAPID_PUBLIC_KEY) {
-        // Запрашиваем разрешение при первом клике
-        const clickHandler = async function() {
-            if (Notification.permission === 'default') {
-                const permission = await Notification.requestPermission();
-                if (permission === 'granted') {
-                    subscribeToPush();
-                }
-            } else if (Notification.permission === 'granted') {
-                subscribeToPush();
-            }
-            document.removeEventListener('click', clickHandler);
-        };
-        document.addEventListener('click', clickHandler);
-
-        // Если разрешение уже есть — подписываемся сразу
-        if (Notification.permission === 'granted') {
-            setTimeout(subscribeToPush, 1000); // Небольшая задержка чтобы SW успел
-        }
-    }
-})();
