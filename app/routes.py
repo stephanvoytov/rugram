@@ -1040,6 +1040,7 @@ def settings():
     form = SettingsForm()
     
     # Pre-populate form with current user data
+    form.new_username.data = current_user.username
     form.notifications_enabled.data = current_user.notifications_enabled
     if form.new_email.errors:
         pass  # keep submitted data
@@ -1050,6 +1051,16 @@ def settings():
             if not current_user.check_password(form.current_password.data):
                 flash('Неверный текущий пароль', 'danger')
                 return render_template('main/settings.html', form=form)
+            
+            # Обновление логина
+            if form.new_username.data and form.new_username.data != current_user.username:
+                existing_user = User.query.filter(User.username == form.new_username.data).first()
+                if existing_user:
+                    flash('Этот логин уже используется', 'danger')
+                    return render_template('main/settings.html', form=form)
+                
+                current_user.username = form.new_username.data
+                flash('Логин успешно изменен', 'success')
             
             # Обновление email
             if form.new_email.data and form.new_email.data != current_user.email:

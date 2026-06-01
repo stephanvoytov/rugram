@@ -58,6 +58,9 @@ class SettingsForm(FlaskForm):
     current_password = PasswordField('Текущий пароль', validators=[
         DataRequired(message='Введите текущий пароль')
     ])
+    new_username = StringField('Новый логин', validators=[
+        Length(3, 20, message='Логин должен быть от 3 до 20 символов')
+    ])
     new_email = StringField('Новый email', validators=[
         Email(message='Неверный email адрес')
     ])
