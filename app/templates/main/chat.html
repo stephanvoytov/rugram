@@ -1,12 +1,615 @@
 {% extends "base.html" %}
 
+{% block title %}Сообщения - Rugram{% endblock %}
+
 {% block content %}
-<div class="container">
-    <div class="row justify-content-center mt-5">
-        <div class="col-md-8 text-center p-4">
-            <h1 class="mb-3">🚧 Страница в разработке</h1>
-            <a href="{{ url_for('main.index') }}" class="btn btn-primary mt-3">Вернуться на главную</a>
+<div class="container-fluid chat-layout">
+    <div class="row">
+        <!-- Список диалогов -->
+        <div class="col-md-4 border-end px-0">
+            <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Сообщения</h5>
+                <button class="btn btn-sm btn-outline-primary" id="newChatBtnLeft">
+                    <i class="bi bi-plus-circle me-1"></i>Новый чат
+                </button>
+            </div>
+            <div class="flex-grow-1 overflow-y-auto" id="chatList">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Загрузка...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Область чата -->
+        <div class="col-md-8 px-0">
+            <div class="d-none flex-column flex-grow-1" id="chatArea">
+                <div class="p-3 border-bottom d-flex align-items-center">
+                    <img id="chatAvatar" src="" alt="" width="40" height="40" 
+                         class="rounded-circle me-3 object-fit-cover"
+                         onerror="this.src='/static/default-profile.png'">
+                    <div>
+                        <h6 class="mb-0" id="chatUsername"></h6>
+                        <small class="text-muted" id="chatStatus"></small>
+                    </div>
+                </div>
+                
+                <div class="flex-grow-1 overflow-y-auto p-3" id="messagesContainer">
+                    <!-- Сообщения будут загружены сюда -->
+                </div>
+                
+                <div class="p-3 border-top">
+                    <form id="messageForm" class="d-flex">
+                        <input type="text" class="form-control me-2" id="messageInput" 
+                               placeholder="Введите сообщение..." autocomplete="off">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-send"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Экран выбора чата -->
+            <div class="d-flex flex-column align-items-center justify-content-center flex-grow-1" id="noChatSelected">
+                <i class="bi bi-chat-dots" style="font-size: 4rem; color: #6c757d;"></i>
+                <h4 class="mt-3 mb-0">Выберите диалог</h4>
+                <p class="text-muted">Начните общение с пользователями</p>
+            </div>
         </div>
     </div>
 </div>
+
+<!-- Модальное окно для нового чата -->
+<div class="modal fade" id="newChatModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Новый чат</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <input type="text" class="form-control" id="newChatUsername" 
+                           placeholder="Имя пользователя" autocomplete="off">
+                    <button class="btn btn-primary" type="button" id="searchUserBtn">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+                <div id="searchResults" class="mt-2"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" id="startChatBtn" disabled>
+                    Начать чат
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentChatId = null;
+let pollingInterval = null;
+let currentUser = null;
+let hasMoreMessages = true;
+let isLoadingOlder = false;
+let typingTimeout = null;
+let otherUsername = '';
+
+// Инициализация
+document.addEventListener('DOMContentLoaded', function() {
+    currentUser = {{ current_user.id|tojson if current_user.is_authenticated else 'null' }};
+    
+    if (!currentUser) {
+        window.location.href = '{{ url_for("auth.login") }}';
+        return;
+    }
+    
+    loadChatList();
+    
+    // Signal "печатает"
+    setupTypingSignal();
+    
+    // Обработчики событий
+    document.getElementById('messageForm').addEventListener('submit', sendMessage);
+    
+    // Пагинация при скролле вверх
+    document.getElementById('messagesContainer').addEventListener('scroll', function() {
+        if (this.scrollTop < 80 && hasMoreMessages && !isLoadingOlder) {
+            loadOlderMessages();
+        }
+    });
+    
+    document.getElementById('newChatBtnLeft').addEventListener('click', () => {
+        new bootstrap.Modal(document.getElementById('newChatModal')).show();
+    });
+    document.getElementById('searchUserBtn').addEventListener('click', searchUser);
+    document.getElementById('newChatUsername').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            searchUser();
+        }
+    });
+    document.getElementById('startChatBtn').addEventListener('click', startNewChat);
+});
+
+// Загрузка списка чатов
+async function loadChatList() {
+    try {
+        const response = await fetch('/api/chat/list');
+        const data = await response.json();
+        
+        const chatList = document.getElementById('chatList');
+        chatList.innerHTML = '';
+        
+        if (data.chats.length === 0) {
+            chatList.innerHTML = `
+                <div class="text-center py-5">
+                    <i class="bi bi-inbox" style="font-size: 3rem; color: #6c757d;"></i>
+                    <p class="text-muted mt-3">Нет диалогов</p>
+                </div>
+            `;
+            return;
+        }
+        
+        data.chats.forEach(chat => {
+            const chatItem = createChatItem(chat);
+            chatList.appendChild(chatItem);
+        });
+        
+    } catch (error) {
+        console.error('Error loading chat list:', error);
+        document.getElementById('chatList').innerHTML = `
+            <div class="text-center py-5">
+                <p class="text-danger">Ошибка загрузки чатов</p>
+            </div>
+        `;
+    }
+}
+
+// Создание элемента чата
+function createChatItem(chat) {
+    const div = document.createElement('div');
+    div.className = `chat-item p-3 border-bottom ${currentChatId === chat.chat_id ? 'active' : ''}`;
+    div.dataset.chatId = chat.chat_id;
+    
+    const unreadBadge = chat.unread_count > 0 ? 
+        `<span class="badge bg-danger rounded-pill ms-2">${chat.unread_count}</span>` : '';
+    
+    const onlineDot = chat.other_user.is_online
+        ? '<span class="position-absolute bottom-0 end-0 p-1 bg-success rounded-circle border border-2 border-white" style="transform: translate(-2px, -2px);"></span>'
+        : '';
+    
+    div.innerHTML = `
+        <div class="d-flex align-items-center">
+            <div class="position-relative me-3 flex-shrink-0">
+                <img src="${chat.other_user.profile_image ? `/static/uploads/profile_images/${chat.other_user.profile_image}` : '/static/default-profile.png'}"
+                     alt="${chat.other_user.username}" width="48" height="48" class="rounded-circle object-fit-cover">
+                ${onlineDot}
+            </div>
+            <div class="flex-grow-1 min-width-0">
+                <div class="d-flex justify-content-between align-items-start">
+                    <h6 class="mb-1">${chat.other_user.username}</h6>
+                    <small class="text-muted flex-shrink-0 ms-2">${formatDate(chat.last_message_date)}</small>
+                </div>
+                <p class="mb-0 text-muted small text-truncate">${chat.last_message || 'Нет сообщений'}</p>
+            </div>
+            ${unreadBadge}
+        </div>
+    `;
+    
+    div.addEventListener('click', () => selectChat(chat.chat_id, chat.other_user));
+    
+    return div;
+}
+
+// Выбор чата
+async function selectChat(chatId, otherUser) {
+    currentChatId = chatId;
+    otherUsername = otherUser.username;
+    
+    // Обновляем активный элемент в списке
+    document.querySelectorAll('.chat-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    document.querySelector(`[data-chat-id="${chatId}"]`).classList.add('active');
+    
+    // Показываем область чата, прячем заглушку
+    document.getElementById('chatArea').classList.remove('d-none');
+    document.getElementById('chatArea').classList.add('d-flex');
+    document.getElementById('noChatSelected').classList.add('d-none');
+    
+    // Обновляем заголовок чата
+    document.getElementById('chatAvatar').src = otherUser.profile_image ? 
+        `/static/uploads/profile_images/${otherUser.profile_image}` : '/static/default-profile.png';
+    document.getElementById('chatUsername').textContent = otherUser.username;
+    updateChatStatus(otherUser.is_online, otherUser.last_seen);
+    
+    // Загружаем сообщения
+    await loadMessages();
+    
+    // Запускаем polling
+    startPolling();
+}
+
+// Отправка сигнала "печатает"
+function setupTypingSignal() {
+    const input = document.getElementById('messageInput');
+    input.addEventListener('input', function() {
+        if (!currentChatId) return;
+        
+        // Отправляем сигнал (не чаще чем раз в 3 сек)
+        if (typingTimeout) return;
+        typingTimeout = setTimeout(() => { typingTimeout = null; }, 3000);
+        
+        fetch(`/chat/${currentChatId}/typing`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+            }
+        }).catch(() => {});
+    });
+}
+
+// Обновление статуса в заголовке чата
+function updateChatStatus(isOnline, lastSeen) {
+    const statusEl = document.getElementById('chatStatus');
+    if (isOnline) {
+        statusEl.innerHTML = '<span class="text-success">онлайн</span>';
+    } else {
+        statusEl.textContent = lastSeen || 'был(а) давно';
+    }
+}
+
+// Обновление индикатора "печатает"
+function updateTypingIndicator(isTyping) {
+    const statusEl = document.getElementById('chatStatus');
+    const typingEl = document.getElementById('typingIndicator');
+    
+    if (isTyping) {
+        if (!typingEl) {
+            const el = document.createElement('small');
+            el.id = 'typingIndicator';
+            el.className = 'text-muted typing-indicator';
+            el.innerHTML = '<span class="text-success">печатает</span><span class="typing-dots"><span>.</span><span>.</span><span>.</span></span>';
+            statusEl.parentElement.appendChild(el);
+        }
+        statusEl.style.display = 'none';
+    } else {
+        const el = document.getElementById('typingIndicator');
+        if (el) el.remove();
+        statusEl.style.display = '';
+    }
+}
+
+// Загрузка сообщений
+async function loadMessages() {
+    if (!currentChatId) return;
+    
+    try {
+        const response = await fetch(`/chat/${currentChatId}/messages?limit=50`);
+        const data = await response.json();
+        
+        // Обновляем статус собеседника из ответа
+        if (data.other_user) {
+            updateChatStatus(data.other_user.is_online, data.other_user.last_seen);
+        }
+        
+        // Индикатор "печатает"
+        updateTypingIndicator(data.is_typing);
+        
+        hasMoreMessages = data.has_more;
+        
+        const container = document.getElementById('messagesContainer');
+        container.innerHTML = '';
+        
+        appendMessages(container, data.messages);
+        
+        // Прокручиваем вниз
+        container.scrollTop = container.scrollHeight;
+        
+    } catch (error) {
+        console.error('Error loading messages:', error);
+    }
+}
+
+// Загрузка старых сообщений (пагинация вверх)
+async function loadOlderMessages() {
+    if (!currentChatId || !hasMoreMessages || isLoadingOlder) return;
+    isLoadingOlder = true;
+    
+    const container = document.getElementById('messagesContainer');
+    const firstMsg = container.querySelector('.message-item');
+    if (!firstMsg) {
+        isLoadingOlder = false;
+        return;
+    }
+    const firstMsgId = parseInt(firstMsg.dataset.messageId);
+    
+    // Показываем индикатор загрузки сверху
+    const loader = document.createElement('div');
+    loader.className = 'text-center py-2';
+    loader.id = 'olderLoader';
+    loader.innerHTML = '<div class="spinner-border spinner-border-sm text-primary" role="status"></div>';
+    container.insertBefore(loader, container.firstChild);
+    
+    try {
+        const response = await fetch(`/chat/${currentChatId}/messages?before=${firstMsgId}&limit=30`);
+        const data = await response.json();
+        
+        loader.remove();
+        
+        if (data.messages.length === 0) {
+            hasMoreMessages = false;
+            isLoadingOlder = false;
+            return;
+        }
+        
+        hasMoreMessages = data.has_more;
+        
+        // Сохраняем высоту прокрутки до вставки
+        const prevScrollHeight = container.scrollHeight;
+        
+        // Вставляем старые сообщения в начало
+        appendMessages(container, data.messages, true);
+        
+        // Восстанавливаем позицию прокрутки
+        const newScrollHeight = container.scrollHeight;
+        container.scrollTop = newScrollHeight - prevScrollHeight;
+        
+    } catch (error) {
+        console.error('Error loading older messages:', error);
+        const existing = document.getElementById('olderLoader');
+        if (existing) existing.remove();
+    }
+    
+    isLoadingOlder = false;
+}
+
+// Вставка сообщений в контейнер с дата-разделителями
+function appendMessages(container, messages, prepend = false) {
+    let lastDate = null;
+    // При prepend берём дату первого вставляемого сообщения
+    if (prepend && container.firstChild) {
+        // Находим дату уже отрисованного первого сообщения для корректного разделителя
+        const firstExisting = container.querySelector('.message-item');
+        if (firstExisting) {
+            lastDate = getMessageDate(firstExisting.dataset.messageDate);
+        }
+    }
+    
+    // Для prepend проходим в обратном порядке (чтобы старые сверху)
+    const msgs = prepend ? [...messages].reverse() : messages;
+    
+    msgs.forEach(message => {
+        const msgDate = getMessageDate(message.created_date);
+        if (!lastDate || msgDate !== lastDate) {
+            if (prepend) {
+                container.insertBefore(createDateDivider(msgDate), container.firstChild);
+            } else {
+                container.appendChild(createDateDivider(msgDate));
+            }
+            lastDate = msgDate;
+        }
+        const messageDiv = createMessageElement(message);
+        if (prepend) {
+            container.insertBefore(messageDiv, container.firstChild);
+        } else {
+            container.appendChild(messageDiv);
+        }
+    });
+}
+
+// Форматирование даты для разделителя
+function getMessageDate(isoDate) {
+    const date = new Date(isoDate);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    if (date.toDateString() === today.toDateString()) return 'Сегодня';
+    if (date.toDateString() === yesterday.toDateString()) return 'Вчера';
+    
+    return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+// Создание разделителя даты
+function createDateDivider(text) {
+    const div = document.createElement('div');
+    div.className = 'text-center my-3';
+    div.innerHTML = `<span class="badge bg-secondary bg-opacity-25 text-secondary px-3 py-2 rounded-pill" style="font-size: 0.75rem;">${text}</span>`;
+    return div;
+}
+
+// Создание элемента сообщения
+function createMessageElement(message) {
+    const div = document.createElement('div');
+    div.className = `mb-3 message-item ${message.author.id === currentUser ? 'text-end' : 'text-start'}`;
+    div.dataset.messageId = message.id;
+    div.dataset.messageDate = message.created_date;
+    
+    const time = formatTime(message.created_date);
+    const isOwn = message.author.id === currentUser;
+    
+    div.innerHTML = `
+        <div class="d-flex ${isOwn ? 'justify-content-end' : 'justify-content-start'}">
+            <div class="message-container ${isOwn ? 'bg-primary text-white' : 'bg-light'} rounded-3 px-3 py-2" style="display: flex; align-items: flex-end;">
+                <p class="mb-0 text-break flex-shrink-1" style="min-width: 0;">${escapeHtml(message.text)}</p>
+                <small class="flex-shrink-0 text-nowrap ms-2 ${isOwn ? 'text-white-50' : 'text-muted'}" style="font-size: 0.7rem; line-height: 1.2;">${time}</small>
+            </div>
+        </div>
+    `;
+    
+    return div;
+}
+
+// Отправка сообщения
+async function sendMessage(e) {
+    e.preventDefault();
+    
+    const input = document.getElementById('messageInput');
+    const text = input.value.trim();
+    
+    if (!text || !currentChatId) return;
+    
+    try {
+        const response = await fetch(`/chat/${currentChatId}/send`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({ text })
+        });
+        
+        if (response.ok) {
+            input.value = '';
+            await loadMessages();
+        }
+        
+    } catch (error) {
+        console.error('Error sending message:', error);
+    }
+}
+
+// Поиск пользователя
+async function searchUser() {
+    const username = document.getElementById('newChatUsername').value.trim();
+    if (!username) return;
+    
+    try {
+        const response = await fetch(`/api/users/search?q=${encodeURIComponent(username)}`);
+        const data = await response.json();
+        
+        const results = document.getElementById('searchResults');
+        results.innerHTML = '';
+        
+        if (data.users.length === 0) {
+            results.innerHTML = '<p class="text-muted">Пользователь не найден</p>';
+            return;
+        }
+        
+        data.users.forEach(user => {
+            if (user.id !== currentUser) {
+                const userDiv = document.createElement('div');
+                userDiv.className = 'search-result d-flex align-items-center p-2';
+                userDiv.dataset.username = user.username;
+                userDiv.innerHTML = `
+                    <img src="${user.profile_image ? `/static/uploads/profile_images/${user.profile_image}` : '/static/default-profile.png'}"
+                         alt="${user.username}" width="32" height="32" class="rounded-circle me-2 object-fit-cover">
+                    <span>${user.username}</span>
+                `;
+                userDiv.addEventListener('click', () => selectUserForChat(user));
+                results.appendChild(userDiv);
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error searching user:', error);
+    }
+}
+
+// Выбор пользователя для нового чата (с визуальным выделением)
+function selectUserForChat(user) {
+    // Снять выделение со всех результатов
+    document.querySelectorAll('.search-result').forEach(el => {
+        el.classList.remove('selected');
+    });
+    
+    // Выделить выбранный результат
+    const selected = document.querySelector(`.search-result[data-username="${user.username}"]`);
+    if (selected) {
+        selected.classList.add('selected');
+    }
+    
+    document.getElementById('newChatUsername').value = user.username;
+    document.getElementById('startChatBtn').disabled = false;
+}
+
+// Начать новый чат
+async function startNewChat() {
+    const username = document.getElementById('newChatUsername').value.trim();
+    if (!username) return;
+    
+    // Сброс выделения
+    document.querySelectorAll('.search-result').forEach(el => el.classList.remove('selected'));
+    
+    try {
+        const response = await fetch(`/chat/start/${username}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            bootstrap.Modal.getInstance(document.getElementById('newChatModal')).hide();
+            
+            // Загружаем обновленный список чатов
+            await loadChatList();
+            
+            // Находим и выбираем новый чат
+            const chatsResponse = await fetch('/api/chat/list');
+            const chatsData = await chatsResponse.json();
+            const newChat = chatsData.chats.find(chat => chat.chat_id === data.chat_id);
+            if (newChat) {
+                selectChat(data.chat_id, newChat.other_user);
+            }
+        } else {
+            const err = await response.json();
+            console.error('Error starting chat:', err.error || err);
+        }
+        
+    } catch (error) {
+        console.error('Error starting chat:', error);
+    }
+}
+
+// Polling для новых сообщений
+function startPolling() {
+    if (pollingInterval) {
+        clearInterval(pollingInterval);
+    }
+    
+    pollingInterval = setInterval(async () => {
+        if (currentChatId) {
+            await loadMessages();
+        }
+    }, 3000); // Каждые 3 секунды
+}
+
+// Форматирование даты
+function formatDate(dateString) {
+    if (!dateString) return '';
+    
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now - date;
+    
+    if (diff < 60000) return 'только что';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)} мин`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)} ч`;
+    if (diff < 604800000) return `${Math.floor(diff / 86400000)} дн`;
+    
+    return date.toLocaleDateString('ru-RU');
+}
+
+// Форматирование времени
+function formatTime(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+}
+
+// Экранирование HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
 {% endblock %}

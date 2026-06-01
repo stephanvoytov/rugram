@@ -85,21 +85,28 @@
                        role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Уведомления">
                         <i class="bi bi-bell-fill icon-nav"></i>
                         <span class="nav-indicator"></span>
-                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"></span>
+                        <span class="notification-badge position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" 
+                              id="notificationBadge" style="display: none;">0</span>
                     </a>
-                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2"
-                        style="background-color: #ffffff; opacity: 1;" aria-labelledby="notificationsDropdown">
+                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 notification-dropdown"
+                        style="background-color: #ffffff; opacity: 1; max-height: 400px; overflow-y: auto;" 
+                        aria-labelledby="notificationsDropdown">
                         <li class="dropdown-header">
                             <h6 class="text-center py-2 mb-0">Уведомления</h6>
                         </li>
-                        <li class="px-3 py-2 text-center">
-                            <div class="d-flex flex-column align-items-center justify-content-center">
-                                <i class="bi bi-tools" style="font-size: 2rem; color: #6c757d;"></i>
-                                <p class="text-muted mb-0 mt-2">Раздел в разработке</p>
+                        <li id="notificationLoading" class="px-3 py-2 text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Загрузка...</span>
                             </div>
                         </li>
-                        <li class="text-center">
-                            <a href="#" class="dropdown-item small text-primary">Понятно</a>
+                        <li id="notificationEmpty" class="px-3 py-2 text-center" style="display: none;">
+                            <p class="text-muted mb-0">Нет новых уведомлений</p>
+                        </li>
+                        <li id="notificationList"></li>
+                        <li class="text-center border-top">
+                            <a href="{{ url_for('main.notifications_page') }}" class="dropdown-item small text-primary">
+                                Все уведомления
+                            </a>
                         </li>
                     </ul>
                 </li>
@@ -135,6 +142,9 @@
                         <li><a class="dropdown-item d-flex align-items-center text-dark"
                                href="{{ url_for('main.profile', user_id_or_username=current_user.id)}}">
                             <i class="bi bi-person-fill me-2 text-dark"></i>Профиль</a></li>
+                        <li><a class="dropdown-item d-flex align-items-center text-dark"
+                               href="{{ url_for('main.saved_posts') }}">
+                            <i class="bi bi-bookmark-fill me-2 text-dark"></i>Сохранённое</a></li>
                         <li><a class="dropdown-item d-flex align-items-center text-dark"
                                href="{{ url_for('main.settings') }}">
                             <i class="bi bi-gear-fill me-2 text-dark"></i>Настройки</a></li>

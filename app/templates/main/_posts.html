@@ -47,6 +47,22 @@
                 <i class="bi bi-chat-left-text fs-5"></i>
                 <span class="ms-1">{{ post.comments_count }}</span>
             </a>
+            
+            {% if current_user.is_authenticated %}
+            <button class="btn btn-sm text-muted ms-2 repost-btn"
+                    data-post-id="{{ post.id }}"
+                    data-reposted="{{ 'true' if post.is_reposted_by(current_user) else 'false' }}"
+                    title="Поделиться">
+                <i class="bi bi-repeat fs-5 {% if post.is_reposted_by(current_user) %}text-success{% endif %}"></i>
+                <span class="repost-count ms-1">{{ post.reposts_count }}</span>
+            </button>
+            <button class="btn btn-sm text-muted ms-auto save-btn"
+                    data-post-id="{{ post.id }}"
+                    data-saved="{{ 'true' if post.is_saved_by(current_user) else 'false' }}"
+                    title="Сохранить">
+                <i class="bi {% if post.is_saved_by(current_user) %}bi-bookmark-fill{% else %}bi-bookmark{% endif %} fs-5"></i>
+            </button>
+            {% endif %}
         </div>
     </div>
 </div>

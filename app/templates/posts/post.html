@@ -75,6 +75,22 @@
                             <i class="bi bi-chat-left-text fs-5"></i>
                             <span class="ms-1">{{ post.comments_count }}</span>
                         </button>
+                        
+                        {% if current_user.is_authenticated %}
+                        <button class="btn btn-sm text-muted ms-2 repost-btn"
+                                data-post-id="{{ post.id }}"
+                                data-reposted="{{ 'true' if post.is_reposted_by(current_user) else 'false' }}"
+                                title="Поделиться">
+                            <i class="bi bi-repeat fs-5 {% if post.is_reposted_by(current_user) %}text-success{% endif %}"></i>
+                            <span class="repost-count ms-1">{{ post.reposts_count }}</span>
+                        </button>
+                        <button class="btn btn-sm text-muted ms-auto save-btn"
+                                data-post-id="{{ post.id }}"
+                                data-saved="{{ 'true' if post.is_saved_by(current_user) else 'false' }}"
+                                title="Сохранить">
+                            <i class="bi {% if post.is_saved_by(current_user) %}bi-bookmark-fill{% else %}bi-bookmark{% endif %} fs-5"></i>
+                        </button>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -133,11 +149,18 @@
                                     </a>
                                     <span class="text-muted comment-time">{{ comment.created_date|time_ago }}</span>
                                     {% if current_user.is_authenticated and current_user.id == comment.author_id %}
-                                    <button class="btn btn-sm p-0 text-danger ms-auto delete-comment-btn"
-                                            data-comment-id="{{ comment.id }}"
-                                            title="Удалить комментарий">
-                                        <i class="bi bi-x-circle"></i>
-                                    </button>
+                                    <div class="ms-auto d-flex gap-1">
+                                        <button class="btn btn-sm p-0 text-secondary edit-comment-btn"
+                                                data-comment-id="{{ comment.id }}"
+                                                title="Редактировать">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-sm p-0 text-danger delete-comment-btn"
+                                                data-comment-id="{{ comment.id }}"
+                                                title="Удалить комментарий">
+                                            <i class="bi bi-x-circle"></i>
+                                        </button>
+                                    </div>
                                     {% endif %}
                                 </div>
                                 <p class="comment-text mb-0">{{ comment.text }}</p>
@@ -298,6 +321,7 @@ function deletePost(postId) {
 
 document.addEventListener('DOMContentLoaded', function() {
     const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+    window.currentUserId = {{ current_user.id|tojson if current_user.is_authenticated else 'null' }};
 
     // ── Auto-expand textarea ──
     const commentText = document.getElementById('commentText');
@@ -373,6 +397,8 @@ document.addEventListener('DOMContentLoaded', function() {
             ? `/static/uploads/profile_images/${comment.author.profile_image}`
             : '/static/default-profile.png';
 
+        const isOwn = comment.author.id === window.currentUserId;
+
         const html = `
             <div class="comment-item comment-item-new" data-comment-id="${comment.id}">
                 <div class="d-flex gap-2">
@@ -389,11 +415,19 @@ document.addEventListener('DOMContentLoaded', function() {
                                 ${comment.author.username}
                             </a>
                             <span class="text-muted comment-time">только что</span>
-                            <button class="btn btn-sm p-0 text-danger ms-auto delete-comment-btn"
-                                    data-comment-id="${comment.id}"
-                                    title="Удалить комментарий">
-                                <i class="bi bi-x-circle"></i>
-                            </button>
+                            ${isOwn ? `
+                            <div class="ms-auto d-flex gap-1">
+                                <button class="btn btn-sm p-0 text-secondary edit-comment-btn"
+                                        data-comment-id="${comment.id}"
+                                        title="Редактировать">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm p-0 text-danger delete-comment-btn"
+                                        data-comment-id="${comment.id}"
+                                        title="Удалить комментарий">
+                                    <i class="bi bi-x-circle"></i>
+                                </button>
+                            </div>` : ''}
                         </div>
                         <p class="comment-text mb-0">${comment.text}</p>
                     </div>
@@ -402,8 +436,77 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
 
         container.insertAdjacentHTML('beforeend', html);
-        bindDeleteComment(container.lastElementChild.querySelector('.delete-comment-btn'));
+        const newItem = container.lastElementChild;
+        bindDeleteComment(newItem.querySelector('.delete-comment-btn'));
+        bindEditComment(newItem.querySelector('.edit-comment-btn'));
     }
+
+    // ── Edit comment ──
+    function bindEditComment(btn) {
+        if (!btn) return;
+        btn.addEventListener('click', function() {
+            const commentId = this.dataset.commentId;
+            const item = this.closest('.comment-item');
+            const body = item.querySelector('.comment-body');
+            const textEl = body.querySelector('.comment-text');
+            const currentText = textEl.textContent;
+
+            // Переключаемся в режим редактирования
+            textEl.innerHTML = `
+                <div class="d-flex gap-2">
+                    <textarea class="form-control form-control-sm edit-comment-textarea" rows="2">${currentText}</textarea>
+                    <div class="d-flex flex-column gap-1">
+                        <button class="btn btn-sm btn-primary save-edit-btn" data-comment-id="${commentId}">
+                            <i class="bi bi-check-lg"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary cancel-edit-btn">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            const textarea = textEl.querySelector('.edit-comment-textarea');
+            textarea.focus();
+            textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+
+            // Сохранить
+            textEl.querySelector('.save-edit-btn').addEventListener('click', function() {
+                const newText = textarea.value.trim();
+                if (!newText || newText === currentText) {
+                    textEl.textContent = currentText;
+                    return;
+                }
+
+                fetch(`/comment/${commentId}/edit`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ text: newText })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        textEl.textContent = data.comment.text;
+                    } else {
+                        textEl.textContent = currentText;
+                    }
+                })
+                .catch(() => { textEl.textContent = currentText; });
+            });
+
+            // Отмена
+            textEl.querySelector('.cancel-edit-btn').addEventListener('click', function() {
+                textEl.textContent = currentText;
+            });
+        });
+    }
+
+    // Привязываем редактирование к существующим кнопкам
+    document.querySelectorAll('.edit-comment-btn').forEach(bindEditComment);
 
     // ── Delete comment ──
     function bindDeleteComment(btn) {
