@@ -223,8 +223,8 @@ document.addEventListener('click', async function(e) {
             const response = await fetch('/api/notifications');
             const data = await response.json();
             
-            const dropdownMenu = dropdown.querySelector('.notification-dropdown');
-            const listContainer = dropdown.querySelector('#notificationList');
+            const listContainer = document.getElementById('notificationList');
+            if (!listContainer) return;
             
             // Очистить существующий контент
             listContainer.innerHTML = '';
@@ -253,8 +253,10 @@ document.addEventListener('click', async function(e) {
             
         } catch (error) {
             console.error('Error loading notifications:', error);
-            const listContainer = dropdown.querySelector('#notificationList');
-            listContainer.innerHTML = '<li class="px-3 py-2 text-center"><p class="text-danger mb-0">Ошибка загрузки</p></li>';
+            const listContainer = document.getElementById('notificationList');
+            if (listContainer) {
+                listContainer.innerHTML = '<li class="px-3 py-2 text-center"><p class="text-danger mb-0">Ошибка загрузки</p></li>';
+            }
         }
     });
 

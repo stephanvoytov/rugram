@@ -1,5 +1,7 @@
 # Rugram — социальная сеть на Flask
-[![Flask](https://img.shields.io/badge/Flask-000000?logo=flask&logoColor=white)](https://flask.palletsprojects.com/) [![Stars](https://img.shields.io/github/stars/stephanvoytov/rugram)](https://github.com/stephanvoytov/rugram/stargazers)
+[![Flask](https://img.shields.io/badge/Flask-000000?logo=flask&logoColor=white)](https://flask.palletsprojects.com/) [![Stars](https://img.shields.io/github/stars/stephanvoytov/rugram)](https://github.com/stephanvoytov/rugram/stargazers) [![Deployed on PythonAnywhere](https://img.shields.io/badge/Deployed%20on-PythonAnywhere-1DA1F2)](https://pythonanywhere.com)
+
+🔗 **https://stephanv.pythonanywhere.com/**
 
 Rugram — социальная сеть с мессенджером, уведомлениями, закладками и полным управлением аккаунтом.
 
@@ -38,7 +40,8 @@ Rugram — социальная сеть с мессенджером, уведо
 ## Технологии
 
 **Backend:** Python 3.12, Flask, SQLAlchemy, Flask-Login, Flask-WTF, SQLite  
-**Frontend:** Jinja2, Bootstrap 5.3, Bootstrap Icons, чистый CSS/JS
+**Frontend:** Jinja2, Bootstrap 5.3, Bootstrap Icons, чистый CSS/JS  
+**Хостинг:** Сайт работает на PythonAnywhere
 
 ## Установка (локальная)
 
@@ -53,7 +56,7 @@ venv\Scripts\activate
 source venv/bin/activate
 
 pip install -r requirements.txt
-echo 'SECRET_KEY=your-secret-key-here' > .env
+python -c "import secrets; print(f'SECRET_KEY={secrets.token_hex(32)}')" > .env
 python run.py
 ```
 
@@ -69,32 +72,43 @@ python run.py
    ```bash
    git clone https://github.com/stephanvoytov/rugram.git
    cd rugram
-   pip install --user -r requirements.txt
    ```
-4. Создайте `.env`:
+4. Создайте виртуальное окружение и установите зависимости:
    ```bash
-   echo 'SECRET_KEY=your-secret-key' > .env
+   python3.12 -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
    ```
-5. Откройте **Web → Add new web app → Manual configuration → Python 3.12**
-6. В **Code**:
+5. Создайте `.env` с автоматически сгенерированным ключом:
+   ```bash
+   python -c "import secrets; print(f'SECRET_KEY={secrets.token_hex(32)}')" > .env
+   ```
+6. Создайте директорию для данных:
+   ```bash
+   mkdir -p ~/rugram/instance
+   ```
+7. Откройте **Web → Add new web app → Manual configuration → Python 3.12**
+8. В **Code**:
    - Source code: `/home/ваш-username/rugram`
    - Working directory: `/home/ваш-username/rugram`
-7. В **WSGI configuration file**:
+9. В **WSGI configuration file**:
    ```python
    import sys
    sys.path.insert(0, '/home/ваш-username/rugram')
-   from wsgi import app
+   from wsgi import application
    ```
-8. Нажмите **Reload** — готово 🎉
+10. Нажмите **Reload** — готово 🎉
 
 ### Fly.io
 
 ```bash
 # Установите flyctl: https://fly.io/docs/hands-on/install-flyctl/
 fly launch
-fly secrets set SECRET_KEY=your-secret-key
+fly secrets set SECRET_KEY=$(python -c "import secrets; print(secrets.token_hex(32))")
 fly deploy
 ```
+
+Стартовая команда (в `Dockerfile`): `gunicorn --bind 0.0.0.0:5000 wsgi:app`
 
 ### Render
 
