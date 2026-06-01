@@ -30,6 +30,7 @@ class User(db.Model, UserMixin, SerializerMixin):
     profile_image: Mapped[str] = mapped_column(nullable=True)
     description: Mapped[str] = mapped_column(nullable=True)
     last_seen: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=True)
+    notifications_enabled: Mapped[bool] = mapped_column(default=True)
 
     posts: Mapped[list["Post"]] = relationship(back_populates='author')
     likes: Mapped[list["Like"]] = relationship(back_populates='user')

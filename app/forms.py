@@ -67,5 +67,6 @@ class SettingsForm(FlaskForm):
     confirm_password = PasswordField('Подтверждение пароля', validators=[
         EqualTo('new_password', message='Пароли не совпадают')
     ])
+    notifications_enabled = BooleanField('Push-уведомления')
     delete_account = BooleanField('Удалить аккаунт')
     submit = SubmitField('Сохранить изменения')

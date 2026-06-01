@@ -6,7 +6,7 @@ import logging
 from flask import current_app
 from pywebpush import webpush, WebPushException
 
-from app.models import PushSubscription, utcnow
+from app.models import PushSubscription, User, utcnow
 from extensions import db
 
 logger = logging.getLogger(__name__)
@@ -19,6 +19,12 @@ def get_vapid_claims():
 
 def send_push_to_user(user_id, title, body, url='/', tag=None, chat_id=None, notification_id=None):
     """Отправить push-уведомление всем подпискам пользователя."""
+    # Проверяем, включены ли уведомления у пользователя
+    user = User.query.get(user_id)
+    if user and not user.notifications_enabled:
+        logger.debug(f'Push notifications disabled for user {user_id}')
+        return False
+
     subscriptions = PushSubscription.query.filter_by(user_id=user_id).all()
     if not subscriptions:
         logger.debug(f'No push subscriptions for user {user_id}')

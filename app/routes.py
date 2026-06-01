@@ -11,7 +11,7 @@ from werkzeug.utils import secure_filename
 
 from config import Config
 from app.forms import LoginForm, RegistrationForm, PostForm, ProfileForm, SettingsForm
-from app.models import User, Post, Like, Comment, Follow, Notification, Chat, ChatParticipant, Message, SavedPost, Repost, PushSubscription, utcnow
+from app.models import User, Post, Like, Comment, Follow, Notification, PushSubscription, Chat, ChatParticipant, Message, SavedPost, Repost, PushSubscription, utcnow
 from app.crypto import encrypt, decrypt
 from app.push import send_message_push, send_notification_push
 from extensions import db
@@ -1037,6 +1037,11 @@ def search_users():
 def settings():
     form = SettingsForm()
     
+    # Pre-populate form with current user data
+    form.notifications_enabled.data = current_user.notifications_enabled
+    if form.new_email.errors:
+        pass  # keep submitted data
+    
     if form.validate_on_submit():
         try:
             # Проверка текущего пароля
@@ -1058,6 +1063,19 @@ def settings():
             if form.new_password.data:
                 current_user.set_password(form.new_password.data)
                 flash('Пароль успешно изменен', 'success')
+            
+            # Обновление настроек уведомлений
+            new_value = form.notifications_enabled.data
+            old_value = current_user.notifications_enabled
+            current_user.notifications_enabled = new_value
+            
+            if new_value != old_value:
+                if new_value:
+                    flash('Уведомления включены', 'success')
+                else:
+                    # Отключаем уведомления — удаляем все push-подписки пользователя
+                    PushSubscription.query.filter_by(user_id=current_user.id).delete()
+                    flash('Уведомления отключены', 'info')
             
             db.session.commit()
             
