@@ -112,6 +112,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     loadChatList();
+    startChatListPolling();
     
     // Signal "печатает"
     setupTypingSignal();
@@ -146,25 +147,7 @@ async function loadChatList() {
     try {
         const response = await fetch('/api/chat/list');
         const data = await response.json();
-        
-        const chatList = document.getElementById('chatList');
-        chatList.innerHTML = '';
-        
-        if (data.chats.length === 0) {
-            chatList.innerHTML = `
-                <div class="text-center py-5">
-                    <i class="bi bi-inbox" style="font-size: 3rem; color: #6c757d;"></i>
-                    <p class="text-muted mt-3">Нет диалогов</p>
-                </div>
-            `;
-            return;
-        }
-        
-        data.chats.forEach(chat => {
-            const chatItem = createChatItem(chat);
-            chatList.appendChild(chatItem);
-        });
-        
+        updateChatList(data.chats);
     } catch (error) {
         console.error('Error loading chat list:', error);
         document.getElementById('chatList').innerHTML = `
@@ -173,6 +156,38 @@ async function loadChatList() {
             </div>
         `;
     }
+}
+
+// Обновление списка чатов (сохраняет скролл и активный чат)
+function updateChatList(chats) {
+    const chatList = document.getElementById('chatList');
+    if (!chatList) return;
+    
+    const scrollPos = chatList.scrollTop;
+    chatList.innerHTML = '';
+    
+    if (chats.length === 0) {
+        chatList.innerHTML = `
+            <div class="text-center py-5">
+                <i class="bi bi-inbox" style="font-size: 3rem; color: #6c757d;"></i>
+                <p class="text-muted mt-3">Нет диалогов</p>
+            </div>
+        `;
+        return;
+    }
+    
+    chats.forEach(chat => {
+        const chatItem = createChatItem(chat);
+        chatList.appendChild(chatItem);
+    });
+    
+    // Восстанавливаем активный чат
+    if (currentChatId) {
+        const activeItem = chatList.querySelector(`[data-chat-id="${currentChatId}"]`);
+        if (activeItem) activeItem.classList.add('active');
+    }
+    
+    chatList.scrollTop = scrollPos;
 }
 
 // Создание элемента чата
@@ -602,6 +617,33 @@ function closeChatMobile() {
         pollingInterval = null;
     }
     currentChatId = null;
+    // Перезагружаем список чатов при возврате
+    loadChatList();
+}
+
+// Polling для списка чатов (онлайн-статус, новые сообщения)
+let chatListPollInterval = null;
+
+function startChatListPolling() {
+    if (chatListPollInterval) {
+        clearInterval(chatListPollInterval);
+    }
+    chatListPollInterval = setInterval(async () => {
+        try {
+            const response = await fetch('/api/chat/list');
+            const data = await response.json();
+            updateChatList(data.chats);
+        } catch (error) {
+            console.error('Error polling chat list:', error);
+        }
+    }, 5000);
+}
+
+function stopChatListPolling() {
+    if (chatListPollInterval) {
+        clearInterval(chatListPollInterval);
+        chatListPollInterval = null;
+    }
 }
 
 // Polling для новых сообщений
