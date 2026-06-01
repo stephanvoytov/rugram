@@ -6,7 +6,7 @@ from sqlalchemy_serializer import SerializerMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from sqlalchemy import DateTime
-from extencions import db
+from extensions import db
 
 
 class User(db.Model, UserMixin, SerializerMixin):
