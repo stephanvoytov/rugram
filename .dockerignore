@@ -1,4 +1,5 @@
 instance/
+uploads/
 app/static/uploads/
 __pycache__/
 *.pyc
