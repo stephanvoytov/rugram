@@ -7,6 +7,7 @@ load_dotenv(os.path.join(_basedir, '.env'))
 
 
 class Config:
+    # Для генерации ключа: python -c "import secrets; print(f'SECRET_KEY={secrets.token_hex(32)}')" > .env
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
