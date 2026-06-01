@@ -3,7 +3,6 @@
 <div class="container mt-4">
     <div class="row">
         <div class="col-md-4">
-            <!-- Аватар -->
             <img src="{{ url_for('static', filename='uploads/profile_images/' + user.profile_image) if user.profile_image else url_for('static', filename='default-profile.png') }}"
                  class="rounded-circle img-thumbnail object-fit-cover" width="200" height="200">
 
@@ -11,25 +10,39 @@
             <p class="text-muted">{{ user.email }}</p>
             <p>{{ user.description }}</p>
 
+            <div class="d-flex gap-3 mb-3">
+                <a href="{{ url_for('main.followers_page', username=user.username) }}" class="text-decoration-none text-dark">
+                    <strong>{{ user.followers_count }}</strong> <span class="text-muted">подписчиков</span>
+                </a>
+                <a href="{{ url_for('main.following_page', username=user.username) }}" class="text-decoration-none text-dark">
+                    <strong>{{ user.following_count }}</strong> <span class="text-muted">подписок</span>
+                </a>
+            </div>
+
             {% if current_user == user %}
             <a href="{{ url_for('main.edit_profile') }}" class="btn btn-primary">Редактировать</a>
+            {% elif current_user.is_authenticated %}
+            <button class="btn {% if is_following %}btn-outline-secondary{% else %}btn-primary{% endif %} follow-btn"
+                    data-username="{{ user.username }}"
+                    data-following="{{ 'true' if is_following else 'false' }}">
+                {% if is_following %}Отписаться{% else %}Подписаться{% endif %}
+            </button>
+            {% else %}
+            <a href="{{ url_for('auth.login') }}" class="btn btn-primary">Подписаться</a>
             {% endif %}
         </div>
 
         <div class="col-md-8">
-            <!-- Посты пользователя -->
             <h4>Посты</h4>
             {% for post in user.posts %}
             {% if not post.is_deleted %}
-            <div class="card mb-4 shadow-sm post-card">
-                <!-- Шапка поста -->
+            <div class="card mb-4 shadow-sm post-card" data-post-url="{{ url_for('posts.get_post', post_id=post.id) }}">
                 <div class="card-header bg-transparent d-flex align-items-center justify-content-between">
                     <a href="{{ url_for('main.profile', user_id_or_username=post.author.username) }}"
                        class="d-flex align-items-center text-decoration-none text-dark">
                         <img src="{{ url_for('static', filename='uploads/profile_images/' + post.author.profile_image) if post.author.profile_image else url_for('static', filename='default-profile.png') }}"
                              class="rounded-circle me-2"
-                             width="32"
-                             height="32"
+                             width="32" height="32"
                              alt="{{ post.author.username }}">
                         <div>
                             <strong>{{ post.author.username }}</strong>
@@ -38,7 +51,7 @@
                     </a>
 
                     {% if current_user.is_authenticated and (current_user == post.author) %}
-                    <div class="d-inline-flex align-items-center gap-1">  <!-- Обертка для выравнивания -->
+                    <div class="d-inline-flex align-items-center gap-1">
                         <a href="{{ url_for('posts.edit_post', post_id=post.id) }}" class="btn btn-sm p-0"
                            title="Редактировать">
                             <i class="bi bi-pencil"></i>
@@ -50,22 +63,17 @@
                     {% endif %}
                 </div>
 
-                <!-- Кликабельное изображение поста -->
-                <a href="{{ url_for('posts.get_post', post_id=post.id) }}">
-                    {% if post.image %}
-                    <img src="{{ url_for('static', filename='uploads/posts/' + post.image) }}"
-                         class="card-img-top post-image"
-                         loading="lazy">
-                    {% endif %}
-                </a>
+                {% if post.image %}
+                <img src="{{ url_for('static', filename='uploads/posts/' + post.image) }}"
+                     class="card-img-top post-image post-img-clickable"
+                     loading="lazy"
+                     data-full-img="{{ url_for('static', filename='uploads/posts/' + post.image) }}"
+                     style="cursor:pointer">
+                {% endif %}
 
-                <!-- Тело карточки -->
                 <div class="card-body">
-                    <a href="{{ url_for('posts.get_post', post_id=post.id) }}" class="text-decoration-none text-dark">
-                        <p class="card-text text-muted">{{ post.text|truncate(200) }}</p>
-                    </a>
+                    <p class="card-text text-muted">{{ post.text|truncate(200) }}</p>
 
-                    <!-- Действия с постом -->
                     <div class="post-actions border-top pt-2">
                         <button class="btn btn-sm like-btn {% if post.is_liked_by(current_user) %}text-danger{% else %}text-muted{% endif %}"
                                 data-post-id="{{ post.id }}"
@@ -95,8 +103,13 @@
 </div>
 </div>
 
+<!-- Lightbox -->
+<div class="lightbox-overlay" id="lightbox">
+    <button class="lightbox-close" id="lightboxClose">&times;</button>
+    <img id="lightboxImg" src="" alt="Полный размер">
+</div>
+
 <script>
-// Глобальная функция удаления (вызывается из onclick в HTML)
 function deletePost(postId) {
     if (confirm('Удалить пост?')) {
         const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
@@ -126,72 +139,58 @@ function deletePost(postId) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Like handler
-    document.querySelectorAll('button.like-btn[data-post-id]').forEach(btn => {
-        btn.addEventListener('click', async function(e) {
-            e.preventDefault();
+    // Clickable post card: navigate unless clicking a link/button
+    document.querySelectorAll('.post-card').forEach(card => {
+        card.addEventListener('click', function(e) {
+            if (e.target.closest('a') || e.target.closest('button') || e.target.closest('.post-actions')) return;
+            const url = this.dataset.postUrl;
+            if (url) window.location.href = url;
+        });
+    });
+
+    // Follow button
+    const followBtn = document.querySelector('.follow-btn');
+    if (followBtn) {
+        followBtn.addEventListener('click', async function(e) {
             e.stopPropagation();
-
-            if (!window.isAuthenticated) {
-                alert('Чтобы поставить лайк, необходимо войти в систему');
-                window.location.href = window.LOGIN_URL || '/login';
-                return;
-            }
-
-            if (!this.dataset.postId) return;
-
-            const postId = this.dataset.postId;
-            const likeIcon = this.querySelector('i');
-            const likeCount = this.querySelector('.like-count');
+            const username = this.dataset.username;
             const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
-            const originalIconClass = likeIcon.className;
-            const originalText = likeCount.textContent;
-
-            this.disabled = true;
-            likeIcon.className = 'bi bi-arrow-repeat fs-5';
-
             try {
-                const response = await fetch(`/post/${postId}/like`, {
+                const response = await fetch(`/follow/${username}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-Requested-With': 'XMLHttpRequest',
                         'X-CSRFToken': csrfToken
                     },
-                    body: JSON.stringify({}),
                     credentials: 'same-origin'
                 });
 
-                if (!response.ok) {
-                    if (response.status === 401) {
-                        window.location.href = window.LOGIN_URL || '/login';
-                        return;
-                    }
-                    throw new Error('Network response was not ok');
-                }
+                if (!response.ok) throw new Error('Follow failed');
 
                 const data = await response.json();
 
-                if (data.status === 'liked') {
-                    likeIcon.className = 'bi bi-heart-fill fs-5 text-danger';
-                    this.dataset.liked = 'true';
+                if (data.status === 'followed') {
+                    this.textContent = 'Отписаться';
+                    this.className = 'btn btn-outline-secondary follow-btn';
+                    this.dataset.following = 'true';
                 } else {
-                    likeIcon.className = 'bi bi-heart fs-5 text-muted';
-                    this.dataset.liked = 'false';
+                    this.textContent = 'Подписаться';
+                    this.className = 'btn btn-primary follow-btn';
+                    this.dataset.following = 'false';
                 }
 
-                likeCount.textContent = data.likes_count;
+                // Update followers count in the UI
+                const countEl = document.querySelector('a[href*="followers"] strong');
+                if (countEl) countEl.textContent = data.followers_count;
 
             } catch (error) {
                 console.error('Error:', error);
-                likeIcon.className = originalIconClass;
-                likeCount.textContent = originalText;
-            } finally {
-                this.disabled = false;
+                alert('Ошибка при выполнении действия');
             }
         });
-    });
+    }
 });
 </script>
 {% endblock %}

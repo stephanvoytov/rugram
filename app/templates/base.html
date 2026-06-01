@@ -105,6 +105,11 @@
                 </li>
             </ul>
 
+            <!-- Темная тема -->
+            <button class="theme-toggle ms-2" id="themeToggle" title="Сменить тему">
+                <i class="bi bi-moon-fill" id="themeIcon"></i>
+            </button>
+
             <!-- Профиль пользователя -->
             {% if current_user.is_authenticated %}
             <div class="d-flex align-items-center ms-lg-3 gap-1">
@@ -181,8 +186,15 @@
     </div>
 </footer>
 
+<!-- Lightbox -->
+<div class="lightbox-overlay" id="lightbox">
+    <button class="lightbox-close" id="lightboxClose">&times;</button>
+    <img id="lightboxImg" src="" alt="Полный размер">
+</div>
+
 <!-- JavaScript -->
 <script src="{{ url_for('static', filename='lib/bootstrap.bundle.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

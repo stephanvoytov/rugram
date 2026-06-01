@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="d-flex align-items-center gap-2 mb-4">
+                <a href="{{ url_for('main.profile', user_id_or_username=user.username) }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
+                <h4 class="mb-0">Подписчики <span class="text-muted">@{{ user.username }}</span></h4>
+            </div>
+
+            {% for follow in follows %}
+            <div class="d-flex align-items-center justify-content-between mb-3 p-2 rounded border">
+                <a href="{{ url_for('main.profile', user_id_or_username=follow.follower.username) }}"
+                   class="d-flex align-items-center text-decoration-none text-dark gap-2">
+                    <img src="{{ url_for('static', filename='uploads/profile_images/' + follow.follower.profile_image) if follow.follower.profile_image else url_for('static', filename='default-profile.png') }}"
+                         class="rounded-circle object-fit-cover" width="40" height="40" alt="">
+                    <div>
+                        <strong>{{ follow.follower.username }}</strong>
+                        <br>
+                        <small class="text-muted">{{ follow.follower.description|truncate(50) if follow.follower.description else '' }}</small>
+                    </div>
+                </a>
+            </div>
+            {% else %}
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-people fs-1"></i>
+                <p class="mt-2">Пока нет подписчиков</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

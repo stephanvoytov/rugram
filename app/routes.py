@@ -9,7 +9,7 @@ from werkzeug.utils import secure_filename
 
 from config import Config
 from app.forms import LoginForm, RegistrationForm, PostForm, ProfileForm
-from app.models import User, Post, Like, Comment
+from app.models import User, Post, Like, Comment, Follow
 from extensions import db
 
 main_bp = Blueprint('main', __name__, template_folder='../templates')
@@ -52,8 +52,14 @@ def index():
     search_query = request.args.get('q', '').strip().lower()
     page = request.args.get('page', 1, type=int)
     per_page = 15
+    followed_only = request.args.get('followed') == '1'
 
     base_query = Post.query.filter(Post.is_deleted == False)
+
+    if followed_only and current_user.is_authenticated:
+        followed_ids = [f.followed_id for f in Follow.query.filter_by(follower_id=current_user.id).all()]
+        followed_ids.append(current_user.id)
+        base_query = base_query.filter(Post.author_id.in_(followed_ids))
 
     if search_query:
         search_filter = Post.text.like(f'%{search_query}%')
@@ -64,11 +70,18 @@ def index():
         pagination = base_query.order_by(Post.created_date.desc()) \
             .paginate(page=page, per_page=per_page)
 
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.args.get('ajax') == '1':
+        return render_template(
+            'main/_posts.html',
+            posts=pagination.items
+        )
+
     return render_template(
         'main/index.html',
         posts=pagination.items,
         pagination=pagination,
-        search_query=search_query
+        search_query=search_query,
+        followed_only=followed_only
     )
 
 
@@ -209,7 +222,8 @@ def profile(user_id_or_username):
     else:
         user = User.query.filter(User.username == user_id_or_username).first()
     if user:
-        return render_template('main/profile.html', user=user)
+        is_following = user.is_followed_by(current_user) if current_user.is_authenticated else False
+        return render_template('main/profile.html', user=user, is_following=is_following)
     return abort(404, description='Такого пользователя не существует')
 
 
@@ -338,6 +352,19 @@ def add_comment(post_id):
     return redirect(url_for('posts.get_post', post_id=post_id))
 
 
+@posts_bp.route('/comment/<int:comment_id>', methods=['DELETE'])
+@login_required
+def delete_comment(comment_id):
+    comment = Comment.query.get_or_404(comment_id)
+    if comment.author_id != current_user.id:
+        return jsonify({'error': 'Недостаточно прав'}), 403
+    post = comment.post
+    db.session.delete(comment)
+    post.comments_count = max(0, post.comments_count - 1)
+    db.session.commit()
+    return jsonify({'status': 'deleted', 'comments_count': post.comments_count})
+
+
 @posts_bp.route('/delete/<int:post_id>', methods=['DELETE'])
 @login_required
 def delete_post(post_id):
@@ -350,6 +377,49 @@ def delete_post(post_id):
     db.session.commit()
 
     return jsonify({'success': True})
+
+
+@main_bp.route('/follow/<username>', methods=['POST'])
+@login_required
+def follow_toggle(username):
+    target = User.query.filter(User.username == username).first()
+    if not target:
+        return jsonify({'error': 'Пользователь не найден'}), 404
+    if target == current_user:
+        return jsonify({'error': 'Нельзя подписаться на себя'}), 400
+
+    existing = Follow.query.filter_by(
+        follower_id=current_user.id,
+        followed_id=target.id
+    ).first()
+
+    if existing:
+        db.session.delete(existing)
+        db.session.commit()
+        return jsonify({'status': 'unfollowed', 'followers_count': target.followers_count})
+    else:
+        follow = Follow(follower_id=current_user.id, followed_id=target.id)
+        db.session.add(follow)
+        db.session.commit()
+        return jsonify({'status': 'followed', 'followers_count': target.followers_count})
+
+
+@main_bp.route('/followers/<username>')
+def followers_page(username):
+    user = User.query.filter(User.username == username).first()
+    if not user:
+        return abort(404)
+    follows = Follow.query.filter_by(followed_id=user.id).order_by(Follow.created_date.desc()).all()
+    return render_template('main/followers.html', user=user, follows=follows)
+
+
+@main_bp.route('/following/<username>')
+def following_page(username):
+    user = User.query.filter(User.username == username).first()
+    if not user:
+        return abort(404)
+    follows = Follow.query.filter_by(follower_id=user.id).order_by(Follow.created_date.desc()).all()
+    return render_template('main/following.html', user=user, follows=follows)
 
 
 @main_bp.route('/chat')

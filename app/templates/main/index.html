@@ -4,111 +4,64 @@
 <div class="container mt-4">
     <div class="row">
         <div class="col-lg-8 mx-auto">
-            {% for post in posts %}
-            <div class="card mb-4 shadow-sm post-card">
-                <!-- Шапка поста -->
-                <div class="card-header bg-transparent d-flex align-items-center justify-content-between">
-                    <a href="{{ url_for('main.profile', user_id_or_username=post.author.username) }}"
-                       class="d-flex align-items-center text-decoration-none text-dark">
-                        <img src="{{ url_for('static', filename='uploads/profile_images/' + post.author.profile_image) if post.author.profile_image else url_for('static', filename='default-profile.png') }}"
-                             class="rounded-circle me-2"
-                             width="32"
-                             height="32"
-                             alt="{{ post.author.username }}">
-                        <div>
-                            <strong>{{ post.author.username }}</strong>
-                            <small class="text-muted d-block">{{ post.created_date|time_ago }}</small>
-                        </div>
-                    </a>
-
-                    {% if current_user.is_authenticated and (current_user == post.author) %}
-                    <div class="d-inline-flex align-items-center gap-1">  <!-- Обертка для выравнивания -->
-                        <a href="{{ url_for('posts.edit_post', post_id=post.id) }}" class="btn btn-sm p-0"
-                           title="Редактировать">
-                            <i class="bi bi-pencil"></i>
-                        </a>
-                        <button class="btn btn-sm p-0 text-danger" onclick="deletePost({{ post.id }})" title="Удалить">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </div>
-                    {% endif %}
-                </div>
-
-                <!-- Кликабельное изображение поста -->
-                <a href="{{ url_for('posts.get_post', post_id=post.id) }}">
-                    {% if post.image %}
-                    <img src="{{ url_for('static', filename='uploads/posts/' + post.image) }}"
-                         class="card-img-top post-image"
-                         loading="lazy">
-                    {% endif %}
+            {% if current_user.is_authenticated %}
+            <div class="d-flex gap-2 mb-3">
+                <a href="{{ url_for('main.index') }}"
+                   class="btn btn-sm {% if not followed_only %}btn-primary{% else %}btn-outline-primary{% endif %} rounded-pill">
+                    Всё
                 </a>
+                <a href="{{ url_for('main.index', followed='1') }}"
+                   class="btn btn-sm {% if followed_only %}btn-primary{% else %}btn-outline-primary{% endif %} rounded-pill">
+                    Подписки
+                </a>
+            </div>
+            {% endif %}
 
-                <!-- Тело карточки -->
-                <div class="card-body">
-                    <a href="{{ url_for('posts.get_post', post_id=post.id) }}" class="text-decoration-none text-dark">
-                        <p class="card-text text-muted">{{ post.text|truncate(200) }}</p>
-                    </a>
+            <div id="posts-container">
+                {% include 'main/_posts.html' %}
+            </div>
 
-                    <!-- Действия с постом -->
-                    <div class="post-actions border-top pt-2">
-                        <button class="btn btn-sm like-btn {% if post.is_liked_by(current_user) %}text-danger{% else %}text-muted{% endif %}"
-                                data-post-id="{{ post.id }}"
-                                data-liked="{{ 'true' if post.is_liked_by(current_user) else 'false' }}">
-                            <i class="bi {% if post.is_liked_by(current_user) %}bi-heart-fill{% else %}bi-heart{% endif %} fs-5"></i>
-                            <span class="like-count ms-1">{{ post.likes_count }}</span>
-                        </button>
-
-                        <a href="{{ url_for('posts.get_post', post_id=post.id) }}#comments"
-                           class="btn btn-sm text-muted ms-3">
-                            <i class="bi bi-chat-left-text fs-5"></i>
-                            <span class="ms-1">{{ post.comments_count }}</span>
-                        </a>
-                    </div>
+            {% if pagination.has_next %}
+            <div class="text-center py-3" id="load-more-sentinel">
+                <div class="spinner-border text-primary d-none" id="load-spinner" role="status">
+                    <span class="visually-hidden">Загрузка...</span>
                 </div>
             </div>
-            {% else %}
-            <div class="alert alert-info text-center py-4">
-                <i class="bi bi-info-circle fs-4"></i>
-                <p class="mt-2 mb-0">Ничего не найдено</p>
-                {% if current_user.is_authenticated %}
-                <a href="{{ url_for('posts.create_post') }}" class="btn btn-primary mt-3">Создать пост</a>
-                {% endif %}
-            </div>
-            {% endfor %}
+            {% endif %}
+
+            {% if pagination.pages > 1 %}
+            <nav aria-label="Page navigation" class="mt-4 d-none" id="pagination-nav">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                        <a class="page-link" href="{{ url_for('main.index', page=pagination.prev_num) if pagination.has_prev else '#' }}">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                    {% if page_num %}
+                    <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('main.index', page=page_num) }}">{{ page_num }}</a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                    {% endif %}
+                    {% endfor %}
+                    <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                        <a class="page-link" href="{{ url_for('main.index', page=pagination.next_num) if pagination.has_next else '#' }}">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            {% endif %}
         </div>
     </div>
+</div>
 
-    <!-- Пагинация -->
-    {% if pagination.pages > 1 %}
-    <nav aria-label="Page navigation" class="mt-4">
-        <ul class="pagination justify-content-center">
-            <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
-                <a class="page-link"
-                   href="{{ url_for('main.index', page=pagination.prev_num) if pagination.has_prev else '#' }}">
-                    <i class="bi bi-chevron-left"></i>
-                </a>
-            </li>
-
-            {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
-            {% if page_num %}
-            <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
-                <a class="page-link"
-                   href="{{ url_for('main.index', page=page_num) }}">{{ page_num }}</a>
-            </li>
-            {% else %}
-            <li class="page-item disabled"><span class="page-link">...</span></li>
-            {% endif %}
-            {% endfor %}
-
-            <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
-                <a class="page-link"
-                   href="{{ url_for('main.index', page=pagination.next_num) if pagination.has_next else '#' }}">
-                    <i class="bi bi-chevron-right"></i>
-                </a>
-            </li>
-        </ul>
-    </nav>
-    {% endif %}
+<!-- Lightbox -->
+<div class="lightbox-overlay" id="lightbox">
+    <button class="lightbox-close" id="lightboxClose">&times;</button>
+    <img id="lightboxImg" src="" alt="Полный размер">
 </div>
 
 <style>
@@ -137,107 +90,106 @@
     }
 </style>
 
-<!-- Подключение JS -->
 <script>
-    // Глобальная функция удаления (вызывается из onclick в HTML)
-    function deletePost(postId) {
-        if (confirm('Удалить пост?')) {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+function deletePost(postId) {
+    if (confirm('Удалить пост?')) {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
-            fetch(`/delete/${postId}`, {
-                method: 'DELETE',
-                headers: {
-                    'X-CSRFToken': csrfToken,
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-            })
-            .then(response => {
-                if (response.ok) {
-                    window.location.reload();
-                } else if (response.status === 401) {
-                    window.location.href = window.LOGIN_URL || '/login';
-                } else {
-                    alert('Ошибка удаления!');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
+        fetch(`/delete/${postId}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+        })
+        .then(response => {
+            if (response.ok) {
+                window.location.reload();
+            } else if (response.status === 401) {
+                window.location.href = window.LOGIN_URL || '/login';
+            } else {
                 alert('Ошибка удаления!');
-            });
-        }
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Ошибка удаления!');
+        });
     }
+}
 
-    document.addEventListener('DOMContentLoaded', function() {
-        // Обработчик лайков
-        document.querySelectorAll('button.like-btn[data-post-id]').forEach(btn => {
-            btn.addEventListener('click', async function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-
-                // Проверка авторизации
-                if (!window.isAuthenticated) {
-                    alert('Чтобы поставить лайк, необходимо войти в систему');
-                    window.location.href = window.LOGIN_URL || '/login';
-                    return;
-                }
-
-                if (!this.dataset.postId) return;
-
-                const postId = this.dataset.postId;
-                const likeIcon = this.querySelector('i');
-                const likeCount = this.querySelector('.like-count');
-                const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-
-                // Сохраняем исходное состояние
-                const originalIconClass = likeIcon.className;
-                const originalText = likeCount.textContent;
-
-                // Показываем индикатор загрузки
-                this.disabled = true;
-                likeIcon.className = 'bi bi-arrow-repeat fs-5';
-
-                try {
-                    const response = await fetch(`/post/${postId}/like`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'X-CSRFToken': csrfToken
-                        },
-                        body: JSON.stringify({}),
-                        credentials: 'same-origin'
-                    });
-
-                    if (!response.ok) {
-                        if (response.status === 401) {
-                            window.location.href = window.LOGIN_URL || '/login';
-                            return;
-                        }
-                        throw new Error('Network response was not ok');
-                    }
-
-                    const data = await response.json();
-
-                    if (data.status === 'liked') {
-                        likeIcon.className = 'bi bi-heart-fill fs-5 text-danger';
-                        this.dataset.liked = 'true';
-                    } else {
-                        likeIcon.className = 'bi bi-heart fs-5 text-muted';
-                        this.dataset.liked = 'false';
-                    }
-
-                    likeCount.textContent = data.likes_count;
-
-                } catch (error) {
-                    console.error('Error:', error);
-                    likeIcon.className = originalIconClass;
-                    likeCount.textContent = originalText;
-                } finally {
-                    this.disabled = false;
-                }
-            });
+document.addEventListener('DOMContentLoaded', function() {
+    // Clickable post cards
+    document.querySelectorAll('.post-card').forEach(card => {
+        card.addEventListener('click', function(e) {
+            if (e.target.closest('a') || e.target.closest('button') || e.target.closest('.post-actions')) return;
+            const url = this.dataset.postUrl;
+            if (url) window.location.href = url;
         });
     });
+
+    // Infinite scroll
+    const sentinel = document.getElementById('load-more-sentinel');
+    const spinner = document.getElementById('load-spinner');
+    const container = document.getElementById('posts-container');
+    let currentPage = {{ pagination.page }};
+    const totalPages = {{ pagination.pages }};
+    let loading = false;
+
+    if (sentinel && totalPages > 1) {
+        const observer = new IntersectionObserver(async (entries) => {
+            for (const entry of entries) {
+                if (entry.isIntersecting && !loading && currentPage < totalPages) {
+                    loading = true;
+                    if (spinner) spinner.classList.remove('d-none');
+
+                    try {
+                        currentPage++;
+                        const params = new URLSearchParams(window.location.search);
+                        params.set('page', currentPage);
+                        params.set('ajax', '1');
+
+                        const response = await fetch(`/index?${params.toString()}`, {
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                        });
+
+                        if (!response.ok) throw new Error('Load failed');
+
+                        const html = await response.text();
+                        const temp = document.createElement('div');
+                        temp.innerHTML = html;
+                        const newPosts = temp.querySelector('#posts-container')?.innerHTML || temp.innerHTML;
+
+                        container.insertAdjacentHTML('beforeend', newPosts);
+
+                        // Re-bind click handlers for new posts
+                        container.querySelectorAll('.post-card:not([data-bound])').forEach(card => {
+                            card.dataset.bound = 'true';
+                            card.addEventListener('click', function(e) {
+                                if (e.target.closest('a') || e.target.closest('button') || e.target.closest('.post-actions')) return;
+                                const url = this.dataset.postUrl;
+                                if (url) window.location.href = url;
+                            });
+                        });
+
+                    } catch (error) {
+                        console.error('Infinite scroll error:', error);
+                        currentPage--;
+                    } finally {
+                        loading = false;
+                        if (spinner) spinner.classList.add('d-none');
+
+                        if (currentPage >= totalPages && sentinel) {
+                            observer.unobserve(sentinel);
+                        }
+                    }
+                }
+            }
+        }, { threshold: 0.1 });
+
+        observer.observe(sentinel);
+    }
+});
 </script>
 {% endblock %}
