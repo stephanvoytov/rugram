@@ -1081,6 +1081,8 @@ def settings():
             
             db.session.commit()
             
+            flash('Настройки сохранены', 'success')
+            
             # Удаление аккаунта
             if form.delete_account.data:
                 if confirm_delete_account():
