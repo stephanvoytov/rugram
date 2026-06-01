@@ -27,7 +27,7 @@ class User(db.Model, UserMixin, SerializerMixin):
     name: Mapped[str] = mapped_column(nullable=True)
     surname: Mapped[str] = mapped_column(nullable=True)
     birthdate: Mapped[str] = mapped_column(nullable=True)
-    profile_image: Mapped[str] = mapped_column(nullable=True, default='default_profile_image.jpg')
+    profile_image: Mapped[str] = mapped_column(nullable=True)
     description: Mapped[str] = mapped_column(nullable=True)
     last_seen: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=True)
 
@@ -246,3 +246,15 @@ class Message(db.Model, SerializerMixin):
 
     chat: Mapped["Chat"] = relationship(back_populates="messages")
     author: Mapped["User"] = relationship(back_populates="messages")
+
+
+class PushSubscription(db.Model):
+    __tablename__ = 'push_subscriptions'
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(db.ForeignKey('users.id'), nullable=False, index=True)
+    endpoint: Mapped[str] = mapped_column(db.Text, nullable=False)
+    p256dh_key: Mapped[str] = mapped_column(db.String(256), nullable=False)
+    auth_key: Mapped[str] = mapped_column(db.String(64), nullable=False)
+    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
+
+    user: Mapped["User"] = relationship(backref="push_subscriptions")

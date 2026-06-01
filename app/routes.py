@@ -1,6 +1,7 @@
 import os
 import time
 import datetime
+import json
 
 from PIL import Image
 
@@ -10,8 +11,9 @@ from werkzeug.utils import secure_filename
 
 from config import Config
 from app.forms import LoginForm, RegistrationForm, PostForm, ProfileForm, SettingsForm
-from app.models import User, Post, Like, Comment, Follow, Notification, Chat, ChatParticipant, Message, SavedPost, Repost, utcnow
+from app.models import User, Post, Like, Comment, Follow, Notification, Chat, ChatParticipant, Message, SavedPost, Repost, PushSubscription, utcnow
 from app.crypto import encrypt, decrypt
+from app.push import send_message_push, send_notification_push
 from extensions import db
 
 main_bp = Blueprint('main', __name__, template_folder='../templates')
@@ -337,6 +339,15 @@ def like_post(post_id):
             post_id=post_id
         )
         db.session.add(notification)
+
+    db.session.commit()
+
+    # Push-уведомление
+    if post.author_id != current_user.id:
+        try:
+            send_notification_push(post.author_id, current_user.username, 'like', post_id)
+        except Exception:
+            pass
     
     db.session.commit()
 
@@ -432,6 +443,15 @@ def add_comment(post_id):
             post_id=post_id
         )
         db.session.add(notification)
+
+    db.session.commit()
+
+    # Push-уведомление
+    if post.author_id != current_user.id:
+        try:
+            send_notification_push(post.author_id, current_user.username, 'comment', post_id)
+        except Exception:
+            pass
     
     db.session.commit()
 
@@ -536,8 +556,14 @@ def follow_toggle(username):
             type='follow'
         )
         db.session.add(notification)
-        
+
         db.session.commit()
+
+        # Push-уведомление
+        try:
+            send_notification_push(target.id, current_user.username, 'follow')
+        except Exception:
+            pass
         return jsonify({'status': 'followed', 'followers_count': target.followers_count})
 
 
@@ -638,6 +664,81 @@ def notification_mark_read(notification_id):
 @login_required
 def notifications_page():
     return render_template('main/notifications.html')
+
+
+# Push-уведомления API
+@main_bp.route('/api/push/subscribe', methods=['POST'])
+@login_required
+def push_subscribe():
+    """Сохранить подписку на push-уведомления."""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Invalid JSON'}), 400
+
+        subscription = data.get('subscription')
+        if not subscription:
+            return jsonify({'error': 'Missing subscription'}), 400
+
+        endpoint = subscription.get('endpoint')
+        keys = subscription.get('keys', {})
+        p256dh = keys.get('p256dh')
+        auth = keys.get('auth')
+
+        if not endpoint or not p256dh or not auth:
+            return jsonify({'error': 'Incomplete subscription'}), 400
+
+        # Ищем существующую подписку с таким endpoint
+        existing = PushSubscription.query.filter_by(
+            user_id=current_user.id,
+            endpoint=endpoint
+        ).first()
+
+        if existing:
+            # Обновляем ключи
+            existing.p256dh_key = p256dh
+            existing.auth_key = auth
+        else:
+            sub = PushSubscription(
+                user_id=current_user.id,
+                endpoint=endpoint,
+                p256dh_key=p256dh,
+                auth_key=auth
+            )
+            db.session.add(sub)
+
+        db.session.commit()
+        return jsonify({'status': 'subscribed'})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@main_bp.route('/api/push/unsubscribe', methods=['POST'])
+@login_required
+def push_unsubscribe():
+    """Удалить подписку на push-уведомления."""
+    try:
+        data = request.get_json()
+        endpoint = data.get('endpoint') if data else None
+
+        if endpoint:
+            PushSubscription.query.filter_by(
+                user_id=current_user.id,
+                endpoint=endpoint
+            ).delete()
+        else:
+            PushSubscription.query.filter_by(
+                user_id=current_user.id
+            ).delete()
+
+        db.session.commit()
+        return jsonify({'status': 'unsubscribed'})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 
 
 # Chat routes
@@ -805,6 +906,23 @@ def chat_send(chat_id):
     current_user.last_seen = utcnow()
     db.session.add(new_message)
     db.session.commit()
+
+    # Отправляем push-уведомление получателю
+    try:
+        other_participant = ChatParticipant.query.filter(
+            ChatParticipant.chat_id == chat_id,
+            ChatParticipant.user_id != current_user.id
+        ).first()
+        if other_participant:
+            send_message_push(
+                chat_id=chat_id,
+                recipient_id=other_participant.user_id,
+                sender_username=current_user.username,
+                message_preview=text
+            )
+    except Exception as e:
+        # Push-уведомления не должны ломать отправку сообщения
+        pass
     
     return jsonify({
         'message': {

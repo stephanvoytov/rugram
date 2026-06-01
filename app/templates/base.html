@@ -8,6 +8,7 @@
     <script>
         window.isAuthenticated = {{ 'true' if current_user.is_authenticated else 'false' }};
         window.LOGIN_URL = "{{ url_for('auth.login') }}";
+        window.VAPID_PUBLIC_KEY = "{{ vapid_public_key }}";
     </script>
 
     <title>{% block title %}Rugram{% endblock %}</title>
@@ -205,6 +206,21 @@
 <!-- JavaScript -->
 <script src="{{ url_for('static', filename='lib/bootstrap.bundle.min.js') }}"></script>
 <script defer src="{{ url_for('static', filename='js/main.js') }}?v={{ static_version }}"></script>
+<script defer>
+// Регистрация Service Worker для push-уведомлений
+if ('serviceWorker' in navigator && window.isAuthenticated && window.VAPID_PUBLIC_KEY) {
+    window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/static/sw.js?v={{ static_version }}')
+            .then(function(registration) {
+                window.swRegistration = registration;
+                console.log('SW registered:', registration.scope);
+            })
+            .catch(function(error) {
+                console.error('SW registration failed:', error);
+            });
+    });
+}
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
