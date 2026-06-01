@@ -26,9 +26,9 @@ jobs:
             set -e
             cd /opt/rugram
 
-            echo "==> Stashing local changes and pulling latest code..."
-            git stash --include-untracked || true
-            git pull origin main
+            echo "==> Syncing code to latest..."
+            git fetch origin main
+            git reset --hard origin/main
 
             echo "==> Building and restarting Docker container..."
             docker compose build rugram
