@@ -1,4 +1,5 @@
 import os
+import time
 
 from flask import Flask, request, jsonify, redirect, url_for
 from flask_login import LoginManager
@@ -67,6 +68,11 @@ def create_app():
     app.register_blueprint(auth_bp)
     app.register_blueprint(posts_bp)
     app.register_blueprint(filters_bp)
+
+    # Версия для сброса кеша статики при каждом деплое
+    @app.context_processor
+    def inject_globals():
+        return {'static_version': int(time.time())}
 
     return app
 
