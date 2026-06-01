@@ -24,7 +24,7 @@
     </div>
 
     {% if post.image %}
-    <img src="{{ url_for('static', filename='uploads/posts/' + post.image) }}"
+    <img src="{{ url_for('static', filename='uploads/posts/thumb_' + post.image) }}"
          class="card-img-top post-image post-img-clickable"
          loading="lazy"
          data-full-img="{{ url_for('static', filename='uploads/posts/' + post.image) }}"
