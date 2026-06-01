@@ -10,7 +10,7 @@ from werkzeug.utils import secure_filename
 
 from config import Config
 from app.forms import LoginForm, RegistrationForm, PostForm, ProfileForm, SettingsForm
-from app.models import User, Post, Like, Comment, Follow, Notification, Chat, ChatParticipant, Message, SavedPost, Repost
+from app.models import User, Post, Like, Comment, Follow, Notification, Chat, ChatParticipant, Message, SavedPost, Repost, utcnow
 from extensions import db
 
 main_bp = Blueprint('main', __name__, template_folder='../templates')
@@ -722,8 +722,8 @@ def chat_messages(chat_id):
         messages.reverse()
     
     # Обновляем время последнего чтения и онлайн-статус
-    participant.last_read_at = datetime.datetime.now(datetime.timezone.utc)
-    current_user.last_seen = datetime.datetime.now(datetime.timezone.utc)
+    participant.last_read_at = utcnow()
+    current_user.last_seen = utcnow()
     db.session.commit()
     
     # Информация о собеседнике
@@ -744,7 +744,7 @@ def chat_messages(chat_id):
         }
         # Проверяем, печатает ли собеседник
         if other_participant.last_typing_at:
-            typing_delta = datetime.datetime.now(datetime.timezone.utc) - other_participant.last_typing_at
+            typing_delta = utcnow() - other_participant.last_typing_at
             is_other_typing = typing_delta.total_seconds() < 4
     
     return jsonify({
@@ -789,7 +789,7 @@ def chat_send(chat_id):
         text=text
     )
     
-    current_user.last_seen = datetime.datetime.now(datetime.timezone.utc)
+    current_user.last_seen = utcnow()
     db.session.add(new_message)
     db.session.commit()
     
@@ -817,7 +817,7 @@ def chat_typing(chat_id):
     if not participant:
         return jsonify({'error': 'Доступ запрещен'}), 403
     
-    participant.last_typing_at = datetime.datetime.now(datetime.timezone.utc)
+    participant.last_typing_at = utcnow()
     db.session.commit()
     
     return jsonify({'status': 'ok'})

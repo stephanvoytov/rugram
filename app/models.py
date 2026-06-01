@@ -10,6 +10,11 @@ from sqlalchemy import DateTime
 from extensions import db
 
 
+def utcnow():
+    """Текущее UTC время без timezone (SQLite не хранит tz)."""
+    return datetime.datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 class User(db.Model, UserMixin, SerializerMixin):
     __tablename__ = 'users'
 
@@ -17,7 +22,7 @@ class User(db.Model, UserMixin, SerializerMixin):
     username: Mapped[str] = mapped_column(index=True, unique=True)
     email: Mapped[str] = mapped_column(index=True, unique=True)
     hashed_password: Mapped[str] = mapped_column()
-    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
 
     name: Mapped[str] = mapped_column(nullable=True)
     surname: Mapped[str] = mapped_column(nullable=True)
@@ -73,7 +78,7 @@ class User(db.Model, UserMixin, SerializerMixin):
     def is_online(self):
         if not self.last_seen:
             return False
-        delta = datetime.datetime.now(datetime.timezone.utc) - self.last_seen
+        delta = utcnow() - self.last_seen
         return delta.total_seconds() < 300  # 5 минут
 
     def last_seen_str(self):
@@ -81,7 +86,7 @@ class User(db.Model, UserMixin, SerializerMixin):
             return 'никогда'
         if self.is_online:
             return 'онлайн'
-        delta = datetime.datetime.now(datetime.timezone.utc) - self.last_seen
+        delta = utcnow() - self.last_seen
         minutes = int(delta.total_seconds() / 60)
         if minutes < 60:
             return f'был(а) {minutes} мин назад'
@@ -100,7 +105,7 @@ class Post(db.Model, SerializerMixin):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     image: Mapped[str] = mapped_column(nullable=True)
     text: Mapped[str] = mapped_column()
-    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
     likes_count: Mapped[int] = mapped_column(default=0)
     comments_count: Mapped[int] = mapped_column(default=0)
     reposts_count: Mapped[int] = mapped_column(default=0)
@@ -142,7 +147,7 @@ class Like(db.Model, SerializerMixin):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(db.ForeignKey('users.id'))
     post_id: Mapped[int] = mapped_column(db.ForeignKey('posts.id'))
-    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
 
     user: Mapped["User"] = relationship(back_populates="likes")
     post: Mapped["Post"] = relationship(back_populates="likes")
@@ -153,7 +158,7 @@ class Follow(db.Model, SerializerMixin):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     follower_id: Mapped[int] = mapped_column(db.ForeignKey('users.id'))
     followed_id: Mapped[int] = mapped_column(db.ForeignKey('users.id'))
-    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
 
     follower: Mapped["User"] = relationship(foreign_keys=[follower_id], back_populates="following")
     followed: Mapped["User"] = relationship(foreign_keys=[followed_id], back_populates="followers")
@@ -165,7 +170,7 @@ class Comment(db.Model, SerializerMixin):
     author_id: Mapped[int] = mapped_column(db.ForeignKey('users.id'))
     post_id: Mapped[int] = mapped_column(db.ForeignKey('posts.id'))
     text: Mapped[str] = mapped_column()
-    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
 
     author: Mapped["User"] = relationship(back_populates="comments")
     post: Mapped["Post"] = relationship(back_populates="comments")
@@ -179,7 +184,7 @@ class Notification(db.Model, SerializerMixin):
     type: Mapped[str] = mapped_column()  # 'like', 'comment', 'follow'
     post_id: Mapped[int] = mapped_column(db.ForeignKey('posts.id'), nullable=True)
     is_read: Mapped[bool] = mapped_column(default=False)
-    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
 
     user: Mapped["User"] = relationship(foreign_keys=[user_id], backref="notifications")
     actor: Mapped["User"] = relationship(foreign_keys=[actor_id])
@@ -189,7 +194,7 @@ class Notification(db.Model, SerializerMixin):
 class Chat(db.Model, SerializerMixin):
     __tablename__ = 'chats'
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
 
     participants: Mapped[list['ChatParticipant']] = relationship(back_populates="chat")
     messages: Mapped[list['Message']] = relationship(back_populates="chat")
@@ -212,7 +217,7 @@ class Repost(db.Model, SerializerMixin):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(db.ForeignKey('users.id'))
     post_id: Mapped[int] = mapped_column(db.ForeignKey('posts.id'))
-    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
 
     user: Mapped["User"] = relationship(backref="reposts")
     post: Mapped["Post"] = relationship(backref="reposted_by")
@@ -223,7 +228,7 @@ class SavedPost(db.Model, SerializerMixin):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(db.ForeignKey('users.id'))
     post_id: Mapped[int] = mapped_column(db.ForeignKey('posts.id'))
-    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
 
     user: Mapped["User"] = relationship(backref="saved_posts")
     post: Mapped["Post"] = relationship(backref="saved_by")
@@ -235,7 +240,7 @@ class Message(db.Model, SerializerMixin):
     chat_id: Mapped[int] = mapped_column(db.ForeignKey('chats.id'))
     author_id: Mapped[int] = mapped_column(db.ForeignKey('users.id'))
     text: Mapped[str] = mapped_column()
-    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
 
     chat: Mapped["Chat"] = relationship(back_populates="messages")
     author: Mapped["User"] = relationship(back_populates="messages")
