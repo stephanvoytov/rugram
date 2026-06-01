@@ -6,32 +6,39 @@
             <div class="card shadow-sm">
                 <div class="card-header bg-primary text-white">
                     <h4 class="mb-0">
-                        <i class="bi bi-camera me-2"></i>Сменить аватар
+                        <i class="bi bi-pencil me-2"></i>Редактировать профиль
                     </h4>
                 </div>
-                <div class="card-body text-center">
+                <div class="card-body">
                     <form method="POST" enctype="multipart/form-data">
                         {{ form.hidden_tag() }}
 
                         <!-- Текущий аватар -->
-                        <div class="mb-3">
+                        <div class="text-center mb-4">
                             <img src="{{ url_for('static', filename='uploads/profile_images/' + current_user.profile_image) if current_user.profile_image else url_for('static', filename='default-profile.png') }}"
                                  class="rounded-circle border border-3 border-primary object-fit-cover mb-2"
-                                 width="120" height="120" alt="Аватар">
+                                 width="100" height="100" alt="Аватар">
                             <p class="text-muted small mb-0">{{ current_user.username }}</p>
                         </div>
 
-                        <!-- Выбор файла -->
+                        <!-- Описание -->
                         <div class="mb-3">
+                            {{ form.description.label(class="form-label") }}
+                            {{ form.description(class="form-control", rows=3, placeholder="Расскажите о себе...") }}
+                        </div>
+
+                        <!-- Аватар -->
+                        <div class="mb-3">
+                            {{ form.profile_image.label(class="form-label") }}
                             {{ form.profile_image(class="form-control") }}
                             {% for error in form.profile_image.errors %}
                             <div class="text-danger small mt-1">{{ error }}</div>
                             {% endfor %}
-                            <small class="text-muted">Поддерживаются JPG и PNG</small>
+                            <small class="text-muted">JPG, PNG. Необязательно.</small>
                         </div>
 
                         <button type="submit" class="btn btn-primary w-100">
-                            <i class="bi bi-upload me-2"></i>Загрузить
+                            <i class="bi bi-check-lg me-2"></i>Сохранить
                         </button>
                     </form>
                 </div>

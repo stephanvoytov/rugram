@@ -271,18 +271,24 @@ def edit_profile():
 
     if form.validate_on_submit():
         try:
+            # Обновление описания
+            current_user.description = form.description.data
+
             # Обработка аватара
             if form.profile_image.data:
                 filename = process_avatar(form.profile_image.data)
                 current_user.profile_image = filename
 
             db.session.commit()
-            flash('Аватар успешно обновлён!', 'success')
+            flash('Профиль обновлён!', 'success')
             return redirect(url_for('main.profile', user_id_or_username=current_user.username))
 
         except Exception as e:
             db.session.rollback()
-            flash(f'Ошибка при обновлении аватара: {str(e)}', 'danger')
+            flash(f'Ошибка при обновлении профиля: {str(e)}', 'danger')
+
+    elif request.method == 'GET':
+        form.description.data = current_user.description
 
     return render_template('main/edit_profile.html', form=form)
 

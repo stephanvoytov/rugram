@@ -47,6 +47,7 @@ class PostForm(FlaskForm):
 
 
 class ProfileForm(FlaskForm):
+    description = TextAreaField('О себе', validators=[Length(max=500)])
     profile_image = FileField('Аватар', validators=[
         FileAllowed(['jpg', 'jpeg', 'png'], 'Только изображения (jpg, png)')
     ])
