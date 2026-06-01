@@ -36,29 +36,29 @@
 ## Установка и запуск
 
 1. Клонируйте репозиторий:
-   `ash
+   `bash
    git clone https://github.com/stephanvoytov/rugram.git
    cd rugram
    `
 
 2. Создайте виртуальное окружение:
-   `ash
+   `bash
    python -m venv venv
    `
 
 3. Установите зависимости:
-   `ash
+   `bash
    pip install -r requirements.txt
    `
 
 4. Настройте переменные окружения:
-   `ash
+   `bash
    cp .env.example .env
    # Отредактируйте .env файл при необходимости
    `
 
 5. Запустите приложение:
-   `ash
+   `bash
    python run.py
    `
 
