@@ -114,6 +114,44 @@ document.addEventListener('DOMContentLoaded', function() {
     loadChatList();
     startChatListPolling();
     
+    // Автооткрытие чата из URL (?user=username)
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetUser = urlParams.get('user');
+    if (targetUser) {
+        // Ждём загрузки списка чатов и открываем нужный
+        const waitAndOpen = setInterval(async () => {
+            const chatItem = document.querySelector(`[data-username="${targetUser}"]`);
+            if (chatItem) {
+                clearInterval(waitAndOpen);
+                chatItem.click();
+                return;
+            }
+            // Если не нашли в списке — создаём чат
+            try {
+                const resp = await fetch(`/chat/start/${targetUser}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                    }
+                });
+                const data = await resp.json();
+                if (data.chat_id) {
+                    clearInterval(waitAndOpen);
+                    // Ищем пользователя в списке после обновления
+                    setTimeout(() => {
+                        const newItem = document.querySelector(`[data-username="${targetUser}"]`);
+                        if (newItem) newItem.click();
+                    }, 500);
+                }
+            } catch (e) {
+                // Если чат уже создаётся — пробуем снова
+            }
+        }, 1000);
+        // Таймаут на случай ошибки
+        setTimeout(() => clearInterval(waitAndOpen), 15000);
+    }
+    
     // Signal "печатает"
     setupTypingSignal();
     
@@ -195,6 +233,7 @@ function createChatItem(chat) {
     const div = document.createElement('div');
     div.className = `chat-item p-3 border-bottom ${currentChatId === chat.chat_id ? 'active' : ''}`;
     div.dataset.chatId = chat.chat_id;
+    div.dataset.username = chat.other_user.username;
     
     const unreadBadge = chat.unread_count > 0 ? 
         `<span class="badge bg-danger rounded-pill ms-2">${chat.unread_count}</span>` : '';
@@ -207,7 +246,9 @@ function createChatItem(chat) {
         <div class="d-flex align-items-center">
             <div class="position-relative me-3 flex-shrink-0">
                 <img src="${chat.other_user.profile_image ? `/static/uploads/profile_images/${chat.other_user.profile_image}` : '/static/default-profile.png'}"
-                     alt="${chat.other_user.username}" width="48" height="48" class="rounded-circle object-fit-cover">
+                     alt="${chat.other_user.username}" width="48" height="48" 
+                     class="rounded-circle object-fit-cover"
+                     onerror="this.src='/static/default-profile.png'">
                 ${onlineDot}
             </div>
             <div class="flex-grow-1 min-width-0">
@@ -243,8 +284,10 @@ async function selectChat(chatId, otherUser) {
     document.getElementById('noChatSelected').classList.add('d-none');
     
     // Обновляем заголовок чата
-    document.getElementById('chatAvatar').src = otherUser.profile_image ? 
+    const avatarEl = document.getElementById('chatAvatar');
+    avatarEl.src = otherUser.profile_image ? 
         `/static/uploads/profile_images/${otherUser.profile_image}` : '/static/default-profile.png';
+    avatarEl.onerror = function() { this.src = '/static/default-profile.png'; };
     document.getElementById('chatUsername').textContent = otherUser.username;
     updateChatStatus(otherUser.is_online, otherUser.last_seen);
     

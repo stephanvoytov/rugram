@@ -414,7 +414,7 @@ document.addEventListener('click', async function(e) {
             }
             lastBadgeCount = data.count;
             // Синхронизируем бейдж в шапке
-            const badge = document.getElementById('notificationsBadge');
+            const badge = document.getElementById('notificationBadge');
             if (badge) {
                 if (data.count > 0) {
                     badge.textContent = data.count;
@@ -440,3 +440,81 @@ window.showBrowserNotification = function(title, body) {
         } catch (e) {}
     }
 };
+
+// ── Push-уведомления (Service Worker) ──
+(function() {
+    async function subscribeToPush() {
+        try {
+            // Ждём регистрацию SW (из base.html)
+            const registration = await navigator.serviceWorker.ready;
+
+            // Подписываемся на push
+            const subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: window.VAPID_PUBLIC_KEY
+            });
+
+            // Отправляем подписку на сервер
+            await fetch('/api/push/subscribe', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify({
+                    subscription: subscription.toJSON()
+                })
+            });
+
+        } catch (error) {
+            if (error.name === 'NotAllowedError') {
+                // Пользователь отклонил разрешение — ничего не делаем
+                console.log('Push permission denied');
+            } else if (error.name === 'InvalidStateError') {
+                // Уже подписан — обновим подписку
+                try {
+                    const registration = await navigator.serviceWorker.ready;
+                    const existingSub = await registration.pushManager.getSubscription();
+                    if (existingSub) {
+                        await fetch('/api/push/subscribe', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                            },
+                            body: JSON.stringify({
+                                subscription: existingSub.toJSON()
+                            })
+                        });
+                    }
+                } catch (e) {
+                    console.error('Push resubscribe error:', e);
+                }
+            } else {
+                console.error('Push subscribe error:', error);
+            }
+        }
+    }
+
+    // Запускаем подписку при первой возможности
+    if ('serviceWorker' in navigator && 'PushManager' in window && window.isAuthenticated && window.VAPID_PUBLIC_KEY) {
+        // Запрашиваем разрешение при первом клике
+        const clickHandler = async function() {
+            if (Notification.permission === 'default') {
+                const permission = await Notification.requestPermission();
+                if (permission === 'granted') {
+                    subscribeToPush();
+                }
+            } else if (Notification.permission === 'granted') {
+                subscribeToPush();
+            }
+            document.removeEventListener('click', clickHandler);
+        };
+        document.addEventListener('click', clickHandler);
+
+        // Также пробуем при загрузке, если permission уже есть
+        if (Notification.permission === 'granted') {
+            subscribeToPush();
+        }
+    }
+})();

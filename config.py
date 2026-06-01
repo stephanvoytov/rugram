@@ -15,3 +15,8 @@ class Config:
 
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'app', 'static', 'uploads')
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024
+
+    # VAPID keys for Web Push (Push API)
+    VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY') or 'BOC975oopRRQxYM2f19F6AF5zxBDhZXhP1rHsezfw6el58QHhJgZhelAV4fLaPKvxMV1mMfg-c9AS2oPV4wCCDQ'
+    VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY') or 'zvbuqVF1Yi558qkLBpqCESwj5C1TLEnq2cp1LGxXsnk'
+    VAPID_CLAIMS = {'sub': 'mailto:admin@rugram.app'}

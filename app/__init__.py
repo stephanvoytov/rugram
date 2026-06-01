@@ -72,7 +72,10 @@ def create_app():
     # Версия для сброса кеша статики при каждом деплое
     @app.context_processor
     def inject_globals():
-        return {'static_version': int(time.time())}
+        return {
+            'static_version': int(time.time()),
+            'vapid_public_key': app.config.get('VAPID_PUBLIC_KEY', ''),
+        }
 
     return app
 
