@@ -8,6 +8,5 @@ __pycache__/
 .venv/
 venv/
 .idea/
-*.md
 *.sqlite
 *.sqlite-journal

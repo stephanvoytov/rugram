@@ -83,6 +83,23 @@ docker compose up -d --build
 | `/app/instance` | SQLite база данных |
 | `/app/app/static/uploads` | Загруженные изображения (аватарки, посты) |
 
+### Миграции БД (Alembic)
+
+При изменении моделей БД:
+
+```bash
+# Создать новую миграцию
+alembic revision --autogenerate -m "описание изменений"
+
+# Накатить
+alembic upgrade head
+
+# Откатить на одну
+alembic downgrade -1
+```
+
+Миграции накатываются автоматически при старте контейнера (через `start.sh`).
+
 ### Обновление
 
 ```bash
@@ -110,6 +127,7 @@ source venv/bin/activate
 
 pip install -r requirements.txt
 python -c "import secrets; print(f'SECRET_KEY={secrets.token_hex(32)}')" > .env
+alembic upgrade head
 python run.py
 ```
 
