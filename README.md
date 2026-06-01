@@ -55,7 +55,8 @@
 
 4. Настройте переменные окружения:
    ```bash
-   cp .env.example .env
+   Create a .env file with your SECRET_KEY:
+   echo 'SECRET_KEY=your-secret-key' > .env
    # Отредактируйте .env файл при необходимости
    ```
 
