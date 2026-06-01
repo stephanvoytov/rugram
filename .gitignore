@@ -72,8 +72,10 @@ db.sqlite3-journal
 instance/
 
 app/static/uploads/
-
-# Scrapy stuff:
+flask_err.txt
+flask_out.txt
+ 
+ # Scrapy stuff:
 .scrapy
 
 # Sphinx documentation

@@ -40,7 +40,7 @@ Rugram — социальная сеть с мессенджером, уведо
 **Backend:** Python 3.12, Flask, SQLAlchemy, Flask-Login, Flask-WTF, SQLite  
 **Frontend:** Jinja2, Bootstrap 5.3, Bootstrap Icons, чистый CSS/JS
 
-## Установка
+## Установка (локальная)
 
 ```bash
 git clone https://github.com/stephanvoytov/rugram.git
@@ -50,11 +50,59 @@ python -m venv venv
 # Windows:
 venv\Scripts\activate
 # Linux/Mac:
-# source venv/bin/activate
+source venv/bin/activate
 
 pip install -r requirements.txt
-echo 'SECRET_KEY=your-secret-key' > .env
+echo 'SECRET_KEY=your-secret-key-here' > .env
 python run.py
 ```
 
 Откройте `http://localhost:5000`
+
+## Деплой
+
+### PythonAnywhere (рекомендую, самый простой)
+
+1. Зарегистрируйтесь на [pythonanywhere.com](https://www.pythonanywhere.com)
+2. Откройте **Dashboard → Consoles → Bash**
+3. Клонируйте репозиторий:
+   ```bash
+   git clone https://github.com/stephanvoytov/rugram.git
+   cd rugram
+   pip install --user -r requirements.txt
+   ```
+4. Создайте `.env`:
+   ```bash
+   echo 'SECRET_KEY=your-secret-key' > .env
+   ```
+5. Откройте **Web → Add new web app → Manual configuration → Python 3.12**
+6. В **Code**:
+   - Source code: `/home/ваш-username/rugram`
+   - Working directory: `/home/ваш-username/rugram`
+7. В **WSGI configuration file**:
+   ```python
+   import sys
+   sys.path.insert(0, '/home/ваш-username/rugram')
+   from wsgi import app
+   ```
+8. Нажмите **Reload** — готово 🎉
+
+### Fly.io
+
+```bash
+# Установите flyctl: https://fly.io/docs/hands-on/install-flyctl/
+fly launch
+fly secrets set SECRET_KEY=your-secret-key
+fly deploy
+```
+
+### Render
+
+1. Fork репозитория на GitHub
+2. На [render.com](https://render.com) → **New + Web Service** → подключите репозиторий
+3. **Settings**:
+   - Runtime: Python 3
+   - Build command: `pip install -r requirements.txt`
+   - Start command: `gunicorn wsgi:app`
+4. **Environment Variables**: `SECRET_KEY=your-secret-key`
+5. **Deploy** — готово (первый запуск ~3 мин, потом холодный старт ~30 сек)
