@@ -44,7 +44,9 @@ def process_avatar(image_file):
 
     # Сохраняем
     filename = f"avatar_{current_user.id}.jpg"
-    save_path = os.path.join(Config.UPLOAD_FOLDER, 'profile_images', filename)
+    save_dir = os.path.join(Config.UPLOAD_FOLDER, 'profile_images')
+    os.makedirs(save_dir, exist_ok=True)
+    save_path = os.path.join(save_dir, filename)
     img.save(save_path, "JPEG", quality=85, optimize=True)
 
     return filename
