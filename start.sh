@@ -1,6 +1,9 @@
 #!/bin/sh
 set -e
 
+echo "==> Ensuring upload directories exist..."
+mkdir -p /app/app/static/uploads/posts /app/app/static/uploads/profile_images
+
 echo "==> Running migrations..."
 alembic upgrade head
 
