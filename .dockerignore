@@ -1,0 +1,13 @@
+instance/
+app/static/uploads/
+__pycache__/
+*.pyc
+.env
+.git
+.gitignore
+.venv/
+venv/
+.idea/
+*.md
+*.sqlite
+*.sqlite-journal

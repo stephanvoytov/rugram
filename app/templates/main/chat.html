@@ -457,12 +457,16 @@ function createMessageElement(message) {
     
     const time = formatTime(message.created_date);
     const isOwn = message.author.id === currentUser;
+    const readStatus = isOwn && message.is_read ? '<small class="text-white-50 ms-1" style="font-size: 0.6rem;">Прочитано</small>' : '';
     
     div.innerHTML = `
         <div class="d-flex ${isOwn ? 'justify-content-end' : 'justify-content-start'}">
             <div class="message-container ${isOwn ? 'bg-primary text-white' : 'bg-light'} rounded-3 px-3 py-2" style="display: flex; align-items: flex-end;">
                 <p class="mb-0 text-break flex-shrink-1" style="min-width: 0;">${escapeHtml(message.text)}</p>
-                <small class="flex-shrink-0 text-nowrap ms-2 ${isOwn ? 'text-white-50' : 'text-muted'}" style="font-size: 0.7rem; line-height: 1.2;">${time}</small>
+                <div class="flex-shrink-0 d-flex align-items-center ms-2">
+                    <small class="text-nowrap ${isOwn ? 'text-white-50' : 'text-muted'}" style="font-size: 0.7rem; line-height: 1.2;">${time}</small>
+                    ${readStatus}
+                </div>
             </div>
         </div>
     `;
@@ -621,8 +625,10 @@ function closeChatMobile() {
     loadChatList();
 }
 
-// Polling для списка чатов (онлайн-статус, новые сообщения)
+// Polling для списка чатов (онлайн-статус, новые сообщения, уведомления)
 let chatListPollInterval = null;
+let prevChats = {}; // { chat_id: { last_message, last_message_date } }
+let isFirstChatLoad = true;
 
 function startChatListPolling() {
     if (chatListPollInterval) {
@@ -632,6 +638,48 @@ function startChatListPolling() {
         try {
             const response = await fetch('/api/chat/list');
             const data = await response.json();
+            
+            // На первом запуске просто запоминаем состояние, без уведомлений
+            if (isFirstChatLoad) {
+                isFirstChatLoad = false;
+                data.chats.forEach(chat => {
+                    prevChats[chat.chat_id] = {
+                        last_message: chat.last_message,
+                        last_message_date: chat.last_message_date
+                    };
+                });
+                updateChatList(data.chats);
+                return;
+            }
+            
+            // Проверяем новые сообщения для уведомлений
+            data.chats.forEach(chat => {
+                const prev = prevChats[chat.chat_id];
+                if (!chat.other_user) return;
+                
+                // Новый чат или новое сообщение в существующем
+                const isNewMessage = prev && prev.last_message !== chat.last_message;
+                const isNewChat = !prev && chat.last_message;
+                
+                if ((isNewMessage || isNewChat) && chat.other_user) {
+                    // Показываем уведомление если вкладка не активна
+                    // или если пользователь не в этом чате
+                    const isCurrentChat = currentChatId === chat.chat_id;
+                    if (document.hidden || !isCurrentChat) {
+                        const sender = chat.other_user.username || 'Пользователь';
+                        showBrowserNotification(sender, chat.last_message);
+                    }
+                }
+            });
+            
+            // Сохраняем текущее состояние
+            data.chats.forEach(chat => {
+                prevChats[chat.chat_id] = {
+                    last_message: chat.last_message,
+                    last_message_date: chat.last_message_date
+                };
+            });
+            
             updateChatList(data.chats);
         } catch (error) {
             console.error('Error polling chat list:', error);

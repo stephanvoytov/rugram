@@ -1,0 +1,13 @@
+services:
+  rugram:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      # Данные приложения (SQLite)
+      - ./instance:/app/instance
+      # Загруженные изображения
+      - ./uploads:/app/app/static/uploads
+    env_file:
+      - .env

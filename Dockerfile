@@ -2,23 +2,20 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Устанавливаем системные зависимости
+# Системные зависимости для Pillow
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libwebp-dev \
+    libjpeg62-turbo \
+    zlib1g \
     && rm -rf /var/lib/apt/lists/*
 
-# Копируем и устанавливаем Python-зависимости
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Копируем код приложения
 COPY . .
 
-# Создаём директории для данных
-RUN mkdir -p instance app/static/uploads/profile_images app/static/uploads/posts
+# Директории для данных (примонтировать volume)
+RUN mkdir -p instance app/static/uploads/posts app/static/uploads/profile_images
 
-# Порт
-EXPOSE 5000
+EXPOSE 8000
 
-# Запуск через gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "120", "wsgi:app"]
+CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:8000", "wsgi:app"]

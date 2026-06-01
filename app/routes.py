@@ -695,7 +695,18 @@ def chat_messages(chat_id):
     after = request.args.get('after', 0, type=int)
     before = request.args.get('before', 0, type=int)
     limit = request.args.get('limit', 50, type=int)
-    
+
+    # Отмечаем чужие непрочитанные сообщения как прочитанные (кроме пагинации вверх)
+    if not before:
+        now = utcnow()
+        unread = Message.query.filter(
+            Message.chat_id == chat_id,
+            Message.author_id != current_user.id,
+            Message.is_read == False
+        ).update({'is_read': True, 'read_at': now})
+        if unread:
+            db.session.commit()
+
     query = Message.query.filter(Message.chat_id == chat_id)
     
     if before:
@@ -747,12 +758,13 @@ def chat_messages(chat_id):
         if other_participant.last_typing_at:
             typing_delta = utcnow() - other_participant.last_typing_at
             is_other_typing = typing_delta.total_seconds() < 4
-    
+
     return jsonify({
         'messages': [{
             'id': msg.id,
             'text': decrypt(msg.text),
             'created_date': msg.created_date.isoformat(),
+            'is_read': msg.is_read,
             'author': {
                 'id': msg.author.id,
                 'username': msg.author.username,
@@ -799,6 +811,7 @@ def chat_send(chat_id):
             'id': new_message.id,
             'text': text,  # исходный (незашифрованный) текст
             'created_date': new_message.created_date.isoformat(),
+            'is_read': new_message.is_read,
             'author': {
                 'id': current_user.id,
                 'username': current_user.username,
