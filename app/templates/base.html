@@ -27,6 +27,16 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='lib/bootstrap-icons.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ static_version }}">
     {% block styles %}{% endblock %}
+
+    <!-- Блокирующий скрипт темы: применяется ДО рендеринга, чтобы не было вспышки -->
+    <script>
+    (function() {
+        const stored = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const theme = stored || (prefersDark ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-bs-theme', theme);
+    })();
+    </script>
 </head>
 <body class="d-flex flex-column min-vh-100">
 <!-- Navigation Bar -->
