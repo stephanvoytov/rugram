@@ -11,6 +11,56 @@
 </style>
 {% endblock %}
 
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <h2 class="mb-4">{{ header }}</h2>
+
+            <form method="POST" enctype="multipart/form-data">
+                {{ form.hidden_tag() }}
+
+                <div class="mb-3">
+                    {{ form.text.label(class="form-label") }}
+                    {{ form.text(class="form-control", rows=2) }}
+                    {% for error in form.text.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+                <div class="mb-4">
+                    {{ form.image.label(class="form-label") }}
+                    {{ form.image(class="form-control", id="imageUpload", onchange="previewImage()") }}
+                    {% for error in form.image.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                    <div class="form-text">Максимальный размер: 5MB. Допустимые форматы: JPG, PNG.</div>
+
+                    {% if post and post.image %}
+                    <div class="mt-2">
+                        <img src="{{ url_for('static', filename='uploads/posts/' + post.image) }}"
+                             alt="Текущее изображение" class="img-fluid rounded"
+                             style="max-height: 200px;">
+                        <div class="form-text text-muted">Текущее изображение. Загрузите новое, чтобы заменить.</div>
+                    </div>
+                    {% endif %}
+
+                    <div class="mt-3 text-center">
+                        <img id="imagePreview" src="#" alt="Предпросмотр изображения"
+                             class="img-fluid rounded d-none" style="max-height: 300px;">
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <a href="{{ url_for('main.index') }}" class="btn btn-secondary me-md-2">Отмена</a>
+                    <button type="submit" class="btn btn-primary">{{ 'Сохранить' if post else 'Опубликовать' }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
 {% block scripts %}
 <script>
 function previewImage() {
