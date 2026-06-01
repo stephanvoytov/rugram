@@ -11,3 +11,9 @@ services:
       - ./uploads:/app/app/static/uploads
     env_file:
       - .env
+    networks:
+      - rugram-net
+
+networks:
+  rugram-net:
+    external: true
