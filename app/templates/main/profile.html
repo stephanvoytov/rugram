@@ -22,11 +22,17 @@
             {% if current_user == user %}
             <a href="{{ url_for('main.edit_profile') }}" class="btn btn-primary">Редактировать</a>
             {% elif current_user.is_authenticated %}
-            <button class="btn {% if is_following %}btn-outline-secondary{% else %}btn-primary{% endif %} follow-btn"
-                    data-username="{{ user.username }}"
-                    data-following="{{ 'true' if is_following else 'false' }}">
-                {% if is_following %}Отписаться{% else %}Подписаться{% endif %}
-            </button>
+            <div class="d-flex gap-2">
+                <button class="btn {% if is_following %}btn-outline-secondary{% else %}btn-primary{% endif %} follow-btn"
+                        data-username="{{ user.username }}"
+                        data-following="{{ 'true' if is_following else 'false' }}">
+                    {% if is_following %}Отписаться{% else %}Подписаться{% endif %}
+                </button>
+                <a href="{{ url_for('main.chat') }}?user={{ user.username }}" 
+                   class="btn btn-outline-info">
+                    <i class="bi bi-chat-dots me-1"></i>Написать
+                </a>
+            </div>
             {% else %}
             <a href="{{ url_for('auth.login') }}" class="btn btn-primary">Подписаться</a>
             {% endif %}

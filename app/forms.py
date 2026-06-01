@@ -52,3 +52,20 @@ class ProfileForm(FlaskForm):
     profile_image = FileField('Аватар')
     password = PasswordField('Новый пароль (оставьте пустым, если не меняется)')
     submit = SubmitField('Сохранить изменения')
+
+
+class SettingsForm(FlaskForm):
+    current_password = PasswordField('Текущий пароль', validators=[
+        DataRequired(message='Введите текущий пароль')
+    ])
+    new_email = StringField('Новый email', validators=[
+        Email(message='Неверный email адрес')
+    ])
+    new_password = PasswordField('Новый пароль', validators=[
+        Length(min=6, message='Пароль должен быть минимум 6 символов')
+    ])
+    confirm_password = PasswordField('Подтверждение пароля', validators=[
+        EqualTo('new_password', message='Пароли не совпадают')
+    ])
+    delete_account = BooleanField('Удалить аккаунт')
+    submit = SubmitField('Сохранить изменения')

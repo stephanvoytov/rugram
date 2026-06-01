@@ -101,6 +101,94 @@ document.addEventListener('click', async function(e) {
     }
 });
 
+// ── Repost handler (event delegation) ──
+document.addEventListener('click', async function(e) {
+    const btn = e.target.closest('button.repost-btn[data-post-id]');
+    if (!btn) return;
+    e.preventDefault();
+
+    const postId = btn.dataset.postId;
+    const icon = btn.querySelector('i');
+    const countEl = btn.querySelector('.repost-count');
+    const wasReposted = btn.dataset.reposted === 'true';
+
+    btn.disabled = true;
+
+    try {
+        const response = await fetch(`/post/${postId}/repost`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+            },
+            credentials: 'same-origin'
+        });
+
+        if (!response.ok) throw new Error('Repost failed');
+
+        const data = await response.json();
+
+        if (data.is_reposted) {
+            icon.className = 'bi bi-repeat fs-5 text-success';
+            btn.dataset.reposted = 'true';
+        } else {
+            icon.className = 'bi bi-repeat fs-5 text-muted';
+            btn.dataset.reposted = 'false';
+        }
+        countEl.textContent = data.reposts_count;
+
+    } catch (error) {
+        console.error('Error reposting:', error);
+        icon.className = wasReposted ? 'bi bi-repeat fs-5 text-success' : 'bi bi-repeat fs-5 text-muted';
+    } finally {
+        btn.disabled = false;
+    }
+});
+
+// ── Save handler (event delegation) ──
+document.addEventListener('click', async function(e) {
+    const btn = e.target.closest('button.save-btn[data-post-id]');
+    if (!btn) return;
+    e.preventDefault();
+
+    const postId = btn.dataset.postId;
+    const icon = btn.querySelector('i');
+    const wasSaved = btn.dataset.saved === 'true';
+
+    btn.disabled = true;
+
+    try {
+        const response = await fetch(`/post/${postId}/save`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+            },
+            credentials: 'same-origin'
+        });
+
+        if (!response.ok) throw new Error('Save failed');
+
+        const data = await response.json();
+
+        if (data.is_saved) {
+            icon.className = 'bi bi-bookmark-fill fs-5';
+            btn.dataset.saved = 'true';
+        } else {
+            icon.className = 'bi bi-bookmark fs-5';
+            btn.dataset.saved = 'false';
+        }
+
+    } catch (error) {
+        console.error('Error saving post:', error);
+        icon.className = wasSaved ? 'bi bi-bookmark-fill fs-5' : 'bi bi-bookmark fs-5';
+    } finally {
+        btn.disabled = false;
+    }
+});
+
 // ── Theme toggle ──
 (function() {
     const toggle = document.getElementById('themeToggle');
@@ -121,4 +209,183 @@ document.addEventListener('click', async function(e) {
         localStorage.setItem('theme', next);
         if (icon) icon.className = next === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-fill';
     });
+})();
+
+// ── Notifications dropdown ──
+(function() {
+    const dropdown = document.getElementById('notificationsDropdown');
+    const badge = document.getElementById('notificationBadge');
+    if (!dropdown) return;
+
+    // Загрузка уведомлений при открытии дропдауна
+    dropdown.addEventListener('shown.bs.dropdown', async function() {
+        try {
+            const response = await fetch('/api/notifications');
+            const data = await response.json();
+            
+            const dropdownMenu = dropdown.querySelector('.notification-dropdown');
+            const listContainer = dropdown.querySelector('#notificationList');
+            
+            // Очистить существующий контент
+            listContainer.innerHTML = '';
+            
+            if (data.notifications.length === 0) {
+                const emptyItem = document.createElement('li');
+                emptyItem.className = 'px-3 py-2 text-center';
+                emptyItem.innerHTML = '<p class="text-muted mb-0">Нет новых уведомлений</p>';
+                listContainer.appendChild(emptyItem);
+            } else {
+                data.notifications.forEach(notification => {
+                    const notificationHtml = createNotificationHtml(notification);
+                    listContainer.insertAdjacentHTML('beforeend', notificationHtml);
+                });
+            }
+            
+            // Обновить бейдж
+            if (badge) {
+                if (data.notifications.length > 0) {
+                    badge.textContent = data.notifications.length;
+                    badge.style.display = 'inline-block';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+            
+        } catch (error) {
+            console.error('Error loading notifications:', error);
+            const listContainer = dropdown.querySelector('#notificationList');
+            listContainer.innerHTML = '<li class="px-3 py-2 text-center"><p class="text-danger mb-0">Ошибка загрузки</p></li>';
+        }
+    });
+
+    // Создание HTML для уведомления
+    function createNotificationHtml(notification) {
+        const actorName = notification.actor.username;
+        const actorProfile = `/profile/${notification.actor.id}`;
+        const postLink = notification.post_id ? `/post/${notification.post_id}` : null;
+        
+        let message = '';
+        let icon = '';
+        let iconClass = '';
+        
+        switch (notification.type) {
+            case 'like':
+                message = `<a href="${actorProfile}" class="text-decoration-none">${actorName}</a> поставил(а) лайк`;
+                icon = 'bi-heart-fill';
+                iconClass = 'text-danger';
+                break;
+            case 'comment':
+                message = `<a href="${actorProfile}" class="text-decoration-none">${actorName}</a> оставил(а) комментарий`;
+                icon = 'bi-chat-fill';
+                iconClass = 'text-primary';
+                break;
+            case 'follow':
+                message = `<a href="${actorProfile}" class="text-decoration-none">${actorName}</a> подписался(ась) на вас`;
+                icon = 'bi-person-plus-fill';
+                iconClass = 'text-success';
+                break;
+        }
+        
+        const postLinkHtml = postLink ? ` к <a href="${postLink}" class="text-decoration-none">вашему посту</a>` : '';
+        
+        return `
+            <li class="notification-item ${notification.is_read ? 'read' : 'unread'}" data-id="${notification.id}">
+                <div class="d-flex align-items-start">
+                    <div class="flex-shrink-0">
+                        <img src="${notification.actor.profile_image ? `/static/uploads/profile_images/${notification.actor.profile_image}` : '/static/default-profile.png'}"
+                             alt="${actorName}" width="32" height="32" class="rounded-circle">
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <p class="mb-1 ${notification.is_read ? '' : 'fw-bold'}">
+                                    ${message}${postLinkHtml}
+                                </p>
+                                <small class="text-muted">${formatDate(notification.created_date)}</small>
+                            </div>
+                            ${!notification.is_read ? `
+                                <button class="btn btn-sm btn-outline-secondary mark-read-btn" data-id="${notification.id}">
+                                    <i class="bi bi-check"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            </li>
+        `;
+    }
+
+    // Форматирование даты
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diff = now - date;
+        
+        if (diff < 60000) return 'только что';
+        if (diff < 3600000) return `${Math.floor(diff / 60000)} минут назад`;
+        if (diff < 86400000) return `${Math.floor(diff / 3600000)} часов назад`;
+        if (diff < 604800000) return `${Math.floor(diff / 86400000)} дней назад`;
+        
+        return date.toLocaleDateString('ru-RU');
+    }
+
+    // Обработка клика по кнопке "отметить прочитанным"
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.mark-read-btn')) {
+            e.preventDefault();
+            const btn = e.target.closest('.mark-read-btn');
+            const notificationId = btn.dataset.id;
+            
+            markNotificationRead(notificationId, btn);
+        }
+    });
+
+    // Отметить уведомление как прочитанное
+    async function markNotificationRead(notificationId, button) {
+        try {
+            const response = await fetch(`/notifications/${notificationId}/mark-read`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                }
+            });
+            
+            if (response.ok) {
+                const notificationItem = button.closest('.notification-item');
+                notificationItem.classList.remove('unread');
+                notificationItem.classList.add('read');
+                button.remove();
+                
+                // Обновить бейдж
+                updateNotificationBadge();
+            }
+        } catch (error) {
+            console.error('Error marking notification as read:', error);
+        }
+    }
+
+    // Обновить счётчик уведомлений
+    async function updateNotificationBadge() {
+        if (!badge) return;
+        
+        try {
+            const response = await fetch('/api/notifications/unread-count');
+            const data = await response.json();
+            
+            if (data.count > 0) {
+                badge.textContent = data.count;
+                badge.style.display = 'inline-block';
+            } else {
+                badge.style.display = 'none';
+            }
+        } catch (error) {
+            console.error('Error updating notification badge:', error);
+        }
+    }
+
+    // Инициализация при загрузке страницы
+    if (window.isAuthenticated) {
+        updateNotificationBadge();
+    }
 })();

@@ -1,5 +1,6 @@
 import os
 import time
+import datetime
 
 from PIL import Image
 
@@ -8,8 +9,8 @@ from flask_login import login_user, login_required, logout_user, current_user
 from werkzeug.utils import secure_filename
 
 from config import Config
-from app.forms import LoginForm, RegistrationForm, PostForm, ProfileForm
-from app.models import User, Post, Like, Comment, Follow
+from app.forms import LoginForm, RegistrationForm, PostForm, ProfileForm, SettingsForm
+from app.models import User, Post, Like, Comment, Follow, Notification, Chat, ChatParticipant, Message, SavedPost, Repost
 from extensions import db
 
 main_bp = Blueprint('main', __name__, template_folder='../templates')
@@ -294,12 +295,71 @@ def like_post(post_id):
     )
     db.session.add(new_like)
     post.likes_count += 1
+    
+    # Создаем уведомление для автора поста
+    if post.author_id != current_user.id:
+        notification = Notification(
+            user_id=post.author_id,
+            actor_id=current_user.id,
+            type='like',
+            post_id=post_id
+        )
+        db.session.add(notification)
+    
     db.session.commit()
 
     return jsonify({
         'status': 'liked',
         'likes_count': post.likes_count
     })
+
+
+@posts_bp.route('/post/<int:post_id>/repost', methods=['POST'])
+@login_required
+def toggle_repost(post_id):
+    post = Post.query.get_or_404(post_id)
+    existing = Repost.query.filter_by(
+        user_id=current_user.id,
+        post_id=post_id
+    ).first()
+    
+    if existing:
+        db.session.delete(existing)
+        post.reposts_count -= 1
+        is_reposted = False
+    else:
+        repost = Repost(user_id=current_user.id, post_id=post_id)
+        db.session.add(repost)
+        post.reposts_count += 1
+        is_reposted = True
+    
+    db.session.commit()
+    return jsonify({
+        'status': 'reposted' if is_reposted else 'unreposted',
+        'is_reposted': is_reposted,
+        'reposts_count': post.reposts_count
+    })
+
+
+@posts_bp.route('/post/<int:post_id>/save', methods=['POST'])
+@login_required
+def toggle_save(post_id):
+    post = Post.query.get_or_404(post_id)
+    existing = SavedPost.query.filter_by(
+        user_id=current_user.id,
+        post_id=post_id
+    ).first()
+    
+    if existing:
+        db.session.delete(existing)
+        is_saved = False
+    else:
+        saved = SavedPost(user_id=current_user.id, post_id=post_id)
+        db.session.add(saved)
+        is_saved = True
+    
+    db.session.commit()
+    return jsonify({'status': 'saved' if is_saved else 'unsaved', 'is_saved': is_saved})
 
 
 @posts_bp.route('/post/<int:post_id>/comment', methods=['POST'])
@@ -330,6 +390,17 @@ def add_comment(post_id):
 
     db.session.add(new_comment)
     post.comments_count += 1
+    
+    # Создаем уведомление для автора поста
+    if post.author_id != current_user.id:
+        notification = Notification(
+            user_id=post.author_id,
+            actor_id=current_user.id,
+            type='comment',
+            post_id=post_id
+        )
+        db.session.add(notification)
+    
     db.session.commit()
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -363,6 +434,31 @@ def delete_comment(comment_id):
     post.comments_count = max(0, post.comments_count - 1)
     db.session.commit()
     return jsonify({'status': 'deleted', 'comments_count': post.comments_count})
+
+
+@posts_bp.route('/comment/<int:comment_id>/edit', methods=['POST'])
+@login_required
+def edit_comment(comment_id):
+    comment = Comment.query.get_or_404(comment_id)
+    if comment.author_id != current_user.id:
+        return jsonify({'error': 'Недостаточно прав'}), 403
+    
+    data = request.get_json()
+    text = data.get('text', '').strip()
+    
+    if not text:
+        return jsonify({'error': 'Комментарий не может быть пустым'}), 400
+    
+    comment.text = text
+    db.session.commit()
+    
+    return jsonify({
+        'status': 'success',
+        'comment': {
+            'id': comment.id,
+            'text': comment.text
+        }
+    })
 
 
 @posts_bp.route('/delete/<int:post_id>', methods=['DELETE'])
@@ -400,6 +496,15 @@ def follow_toggle(username):
     else:
         follow = Follow(follower_id=current_user.id, followed_id=target.id)
         db.session.add(follow)
+        
+        # Создаем уведомление для пользователя, на которого подписались
+        notification = Notification(
+            user_id=target.id,
+            actor_id=current_user.id,
+            type='follow'
+        )
+        db.session.add(notification)
+        
         db.session.commit()
         return jsonify({'status': 'followed', 'followers_count': target.followers_count})
 
@@ -422,13 +527,396 @@ def following_page(username):
     return render_template('main/following.html', user=user, follows=follows)
 
 
+@main_bp.route('/saved')
+@login_required
+def saved_posts():
+    page = request.args.get('page', 1, type=int)
+    saved = SavedPost.query.filter_by(user_id=current_user.id)\
+        .order_by(SavedPost.created_date.desc())\
+        .paginate(page=page, per_page=12)
+    return render_template('main/saved.html', saved=saved)
+
+
 @main_bp.route('/chat')
 @login_required
 def chat():
     return render_template('main/chat.html')
 
 
-@main_bp.route('/settings')
+# API endpoints for notifications
+@main_bp.route('/api/notifications/unread-count')
+@login_required
+def notifications_unread_count():
+    count = Notification.query.filter_by(user_id=current_user.id, is_read=False).count()
+    return jsonify({'count': count})
+
+
+@main_bp.route('/api/notifications')
+@login_required
+def notifications_list():
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+    
+    notifications = Notification.query.filter_by(user_id=current_user.id)\
+        .order_by(Notification.created_date.desc())\
+        .paginate(page=page, per_page=per_page)
+    
+    return jsonify({
+        'notifications': [{
+            'id': n.id,
+            'type': n.type,
+            'actor': {
+                'id': n.actor.id,
+                'username': n.actor.username,
+                'profile_image': n.actor.profile_image
+            },
+            'post_id': n.post_id,
+            'is_read': n.is_read,
+            'created_date': n.created_date.isoformat()
+        } for n in notifications.items],
+        'total': notifications.total,
+        'pages': notifications.pages,
+        'current_page': notifications.page
+    })
+
+
+@main_bp.route('/notifications/mark-all-read', methods=['POST'])
+@login_required
+def notifications_mark_all_read():
+    Notification.query.filter_by(user_id=current_user.id, is_read=False).update({'is_read': True})
+    db.session.commit()
+    return jsonify({'status': 'success'})
+
+
+@main_bp.route('/notifications/<int:notification_id>/mark-read', methods=['POST'])
+@login_required
+def notification_mark_read(notification_id):
+    notification = Notification.query.filter_by(
+        id=notification_id,
+        user_id=current_user.id
+    ).first_or_404()
+    
+    notification.is_read = True
+    db.session.commit()
+    
+    return jsonify({'status': 'success'})
+
+
+@main_bp.route('/notifications')
+@login_required
+def notifications_page():
+    return render_template('main/notifications.html')
+
+
+# Chat routes
+@main_bp.route('/chat/start/<username>', methods=['POST'])
+@login_required
+def chat_start(username):
+    try:
+        target = User.query.filter(User.username == username).first()
+        if not target:
+            return jsonify({'error': 'Пользователь не найден'}), 404
+        
+        # Ищем существующий чат между двумя пользователями
+        my_chat_ids = [cp.chat_id for cp in ChatParticipant.query.filter_by(user_id=current_user.id).all()]
+        if my_chat_ids:
+            common = ChatParticipant.query.filter(
+                ChatParticipant.chat_id.in_(my_chat_ids),
+                ChatParticipant.user_id == target.id
+            ).first()
+            if common:
+                return jsonify({'chat_id': common.chat_id})
+        
+        # Создаем новый чат
+        chat = Chat()
+        db.session.add(chat)
+        db.session.flush()
+        
+        participant1 = ChatParticipant(chat_id=chat.id, user_id=current_user.id)
+        participant2 = ChatParticipant(chat_id=chat.id, user_id=target.id)
+        
+        db.session.add(participant1)
+        db.session.add(participant2)
+        
+        db.session.commit()
+        
+        return jsonify({'chat_id': chat.id})
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
+
+
+@main_bp.route('/chat/<int:chat_id>/messages')
+@login_required
+def chat_messages(chat_id):
+    chat = Chat.query.get_or_404(chat_id)
+    
+    # Проверяем, что пользователь участник чата
+    participant = ChatParticipant.query.filter_by(
+        chat_id=chat_id,
+        user_id=current_user.id
+    ).first()
+    if not participant:
+        return jsonify({'error': 'Доступ запрещен'}), 403
+    
+    after = request.args.get('after', 0, type=int)
+    before = request.args.get('before', 0, type=int)
+    limit = request.args.get('limit', 50, type=int)
+    
+    query = Message.query.filter(Message.chat_id == chat_id)
+    
+    if before:
+        # Старые сообщения (пагинация вверх)
+        query = query.filter(Message.id < before)
+        query = query.order_by(Message.created_date.desc())
+    elif after:
+        # Новые сообщения (polling)
+        query = query.filter(Message.id > after)
+        query = query.order_by(Message.created_date.asc())
+    else:
+        # Первая загрузка — с конца
+        query = query.order_by(Message.created_date.desc())
+    
+    # Запрашиваем limit+1 чтобы точно знать, есть ли ещё
+    messages = query.limit(limit + 1).all()
+    has_more = len(messages) > limit
+    if has_more:
+        messages = messages[:limit]
+    
+    # Если грузили старые — переворачиваем в хронологическом порядке
+    if before:
+        messages.reverse()
+    elif not after and not before:
+        messages.reverse()
+    
+    # Обновляем время последнего чтения и онлайн-статус
+    participant.last_read_at = datetime.datetime.now(datetime.timezone.utc)
+    current_user.last_seen = datetime.datetime.now(datetime.timezone.utc)
+    db.session.commit()
+    
+    # Информация о собеседнике
+    other_participant = ChatParticipant.query.filter(
+        ChatParticipant.chat_id == chat_id,
+        ChatParticipant.user_id != current_user.id
+    ).first()
+    other_user_info = None
+    is_other_typing = False
+    if other_participant:
+        other = other_participant.user
+        other_user_info = {
+            'id': other.id,
+            'username': other.username,
+            'profile_image': other.profile_image,
+            'is_online': other.is_online,
+            'last_seen': other.last_seen_str()
+        }
+        # Проверяем, печатает ли собеседник
+        if other_participant.last_typing_at:
+            typing_delta = datetime.datetime.now(datetime.timezone.utc) - other_participant.last_typing_at
+            is_other_typing = typing_delta.total_seconds() < 4
+    
+    return jsonify({
+        'messages': [{
+            'id': msg.id,
+            'text': msg.text,
+            'created_date': msg.created_date.isoformat(),
+            'author': {
+                'id': msg.author.id,
+                'username': msg.author.username,
+                'profile_image': msg.author.profile_image
+            }
+        } for msg in messages],
+        'other_user': other_user_info,
+        'is_typing': is_other_typing,
+        'has_more': has_more
+    })
+
+
+@main_bp.route('/chat/<int:chat_id>/send', methods=['POST'])
+@login_required
+def chat_send(chat_id):
+    chat = Chat.query.get_or_404(chat_id)
+    
+    # Проверяем, что пользователь участник чата
+    participant = ChatParticipant.query.filter_by(
+        chat_id=chat_id,
+        user_id=current_user.id
+    ).first()
+    if not participant:
+        return jsonify({'error': 'Доступ запрещен'}), 403
+    
+    data = request.get_json()
+    text = data.get('text', '').strip()
+    
+    if not text:
+        return jsonify({'error': 'Сообщение не может быть пустым'}), 400
+    
+    new_message = Message(
+        chat_id=chat_id,
+        author_id=current_user.id,
+        text=text
+    )
+    
+    current_user.last_seen = datetime.datetime.now(datetime.timezone.utc)
+    db.session.add(new_message)
+    db.session.commit()
+    
+    return jsonify({
+        'message': {
+            'id': new_message.id,
+            'text': new_message.text,
+            'created_date': new_message.created_date.isoformat(),
+            'author': {
+                'id': current_user.id,
+                'username': current_user.username,
+                'profile_image': current_user.profile_image
+            }
+        }
+    })
+
+
+@main_bp.route('/chat/<int:chat_id>/typing', methods=['POST'])
+@login_required
+def chat_typing(chat_id):
+    participant = ChatParticipant.query.filter_by(
+        chat_id=chat_id,
+        user_id=current_user.id
+    ).first()
+    if not participant:
+        return jsonify({'error': 'Доступ запрещен'}), 403
+    
+    participant.last_typing_at = datetime.datetime.now(datetime.timezone.utc)
+    db.session.commit()
+    
+    return jsonify({'status': 'ok'})
+
+
+@main_bp.route('/api/chat/list')
+@login_required
+def chat_list():
+    try:
+        # Получаем все чаты, где пользователь является участником
+        participations = ChatParticipant.query.filter_by(user_id=current_user.id).all()
+        
+        chats = []
+        for participation in participations:
+            # Находим другого участника чата
+            other_participation = ChatParticipant.query.filter(
+                ChatParticipant.chat_id == participation.chat_id,
+                ChatParticipant.user_id != current_user.id
+            ).first()
+            
+            if other_participation:
+                other_user = other_participation.user
+                last_message = Message.query.filter_by(
+                    chat_id=participation.chat_id
+                ).order_by(Message.created_date.desc()).first()
+                
+                # Проверяем, есть ли непрочитанные сообщения
+                unread_query = Message.query.filter(
+                    Message.chat_id == participation.chat_id,
+                    Message.author_id != current_user.id
+                )
+                if participation.last_read_at:
+                    unread_query = unread_query.filter(Message.created_date > participation.last_read_at)
+                unread_count = unread_query.count()
+                
+                chats.append({
+                    'chat_id': participation.chat_id,
+                    'other_user': {
+                        'id': other_user.id,
+                        'username': other_user.username,
+                        'profile_image': other_user.profile_image,
+                        'is_online': other_user.is_online,
+                        'last_seen': other_user.last_seen_str()
+                    },
+                    'last_message': last_message.text if last_message else None,
+                    'last_message_date': last_message.created_date.isoformat() if last_message else None,
+                    'unread_count': unread_count
+                })
+        
+        # Сортируем по последнему сообщению
+        chats.sort(key=lambda x: x['last_message_date'] or '1970-01-01', reverse=True)
+        
+        return jsonify({'chats': chats})
+    except Exception as e:
+        import traceback
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
+
+
+@main_bp.route('/api/users/search')
+@login_required
+def search_users():
+    query = request.args.get('q', '').strip().lower()
+    
+    if not query:
+        return jsonify({'users': []})
+    
+    users = User.query.filter(
+        User.username.ilike(f'%{query}%')
+    ).limit(10).all()
+    
+    return jsonify({
+        'users': [{
+            'id': user.id,
+            'username': user.username,
+            'profile_image': user.profile_image
+        } for user in users]
+    })
+
+
+@main_bp.route('/settings', methods=['GET', 'POST'])
 @login_required
 def settings():
-    return render_template('main/settings.html')
+    form = SettingsForm()
+    
+    if form.validate_on_submit():
+        try:
+            # Проверка текущего пароля
+            if not current_user.check_password(form.current_password.data):
+                flash('Неверный текущий пароль', 'danger')
+                return render_template('main/settings.html', form=form)
+            
+            # Обновление email
+            if form.new_email.data and form.new_email.data != current_user.email:
+                existing_user = User.query.filter(User.email == form.new_email.data).first()
+                if existing_user:
+                    flash('Этот email уже используется', 'danger')
+                    return render_template('main/settings.html', form=form)
+                
+                current_user.email = form.new_email.data
+                flash('Email успешно обновлен', 'success')
+            
+            # Обновление пароля
+            if form.new_password.data:
+                current_user.set_password(form.new_password.data)
+                flash('Пароль успешно изменен', 'success')
+            
+            db.session.commit()
+            
+            # Удаление аккаунта
+            if form.delete_account.data:
+                if confirm_delete_account():
+                    # Удаляем пользователя и все связанные данные
+                    User.query.filter_by(id=current_user.id).delete()
+                    db.session.commit()
+                    logout_user()
+                    flash('Аккаунт успешно удален', 'success')
+                    return redirect(url_for('auth.login'))
+                else:
+                    flash('Удаление аккаунта отменено', 'info')
+            
+            return redirect(url_for('main.settings'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Ошибка при обновлении настроек: {str(e)}', 'danger')
+    
+    return render_template('main/settings.html', form=form)
+
+
+def confirm_delete_account():
+    """Подтверждение удаления аккаунта"""
+    # В реальном приложении здесь может быть дополнительная логика проверки
+    return True
