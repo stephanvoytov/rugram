@@ -11,6 +11,7 @@ from werkzeug.utils import secure_filename
 from config import Config
 from app.forms import LoginForm, RegistrationForm, PostForm, ProfileForm, SettingsForm
 from app.models import User, Post, Like, Comment, Follow, Notification, Chat, ChatParticipant, Message, SavedPost, Repost, utcnow
+from app.crypto import encrypt, decrypt
 from extensions import db
 
 main_bp = Blueprint('main', __name__, template_folder='../templates')
@@ -750,7 +751,7 @@ def chat_messages(chat_id):
     return jsonify({
         'messages': [{
             'id': msg.id,
-            'text': msg.text,
+            'text': decrypt(msg.text),
             'created_date': msg.created_date.isoformat(),
             'author': {
                 'id': msg.author.id,
@@ -786,7 +787,7 @@ def chat_send(chat_id):
     new_message = Message(
         chat_id=chat_id,
         author_id=current_user.id,
-        text=text
+        text=encrypt(text)
     )
     
     current_user.last_seen = utcnow()
@@ -796,7 +797,7 @@ def chat_send(chat_id):
     return jsonify({
         'message': {
             'id': new_message.id,
-            'text': new_message.text,
+            'text': text,  # исходный (незашифрованный) текст
             'created_date': new_message.created_date.isoformat(),
             'author': {
                 'id': current_user.id,
@@ -865,7 +866,7 @@ def chat_list():
                         'is_online': other_user.is_online,
                         'last_seen': other_user.last_seen_str()
                     },
-                    'last_message': last_message.text if last_message else None,
+                    'last_message': decrypt(last_message.text) if last_message else None,
                     'last_message_date': last_message.created_date.isoformat() if last_message else None,
                     'unread_count': unread_count
                 })
