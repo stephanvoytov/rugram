@@ -47,11 +47,10 @@ class PostForm(FlaskForm):
 
 
 class ProfileForm(FlaskForm):
-    username = StringField('Логин', validators=[DataRequired(), Length(max=50)])
-    description = TextAreaField('О себе', validators=[Length(max=500)])
-    profile_image = FileField('Аватар')
-    password = PasswordField('Новый пароль (оставьте пустым, если не меняется)')
-    submit = SubmitField('Сохранить изменения')
+    profile_image = FileField('Аватар', validators=[
+        FileAllowed(['jpg', 'jpeg', 'png'], 'Только изображения (jpg, png)')
+    ])
+    submit = SubmitField('Сохранить')
 
 
 class SettingsForm(FlaskForm):
