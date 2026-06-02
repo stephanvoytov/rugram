@@ -22,4 +22,4 @@ services:
 
 networks:
   rugram-net:
-    name: rugram-net
+    external: true
