@@ -1,194 +1,143 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-4">
-    <div class="row">
-        <div class="col-md-4">
-            <div class="profile-page-img-container">
-            <img src="{{ url_for('static', filename='uploads/profile_images/' + user.profile_image) if user.profile_image else url_for('static', filename='default-profile.png') }}"
-                 class="rounded-circle img-thumbnail object-fit-cover profile-page-img" width="200" height="200">
+<h1 class="sr-only">{{ user.username }}</h1>
+<div class="profile-page">
+    <div class="profile-layout">
+        <!-- Sidebar -->
+        <div class="profile-sidebar">
+            <div class="profile-avatar-wrapper">
+                <img src="{{ url_for('static', filename='uploads/profile_images/' + user.profile_image) if user.profile_image else url_for('static', filename='default-profile.png') }}"
+                     alt="{{ user.username }}" class="profile-avatar">
             </div>
 
-            <h2>{{ user.username }}</h2>
-            <p class="text-muted">{{ user.email }}</p>
-            <p>{{ user.description }}</p>
-
-            <div class="d-flex gap-3 mb-3 profile-counts">
-                <a href="{{ url_for('main.followers_page', username=user.username) }}" class="text-decoration-none">
-                    <strong>{{ user.followers_count }}</strong> <span class="text-muted">подписчиков</span>
-                </a>
-                <a href="{{ url_for('main.following_page', username=user.username) }}" class="text-decoration-none">
-                    <strong>{{ user.following_count }}</strong> <span class="text-muted">подписок</span>
-                </a>
+            <div class="profile-identity">
+                <span class="profile-name">@{{ user.username }}</span>
+                {% if user.description %}
+                <span class="profile-desc">{{ user.description }}</span>
+                {% endif %}
             </div>
 
-            {% if current_user == user %}
-            <a href="{{ url_for('main.edit_profile') }}" class="btn btn-primary">Редактировать</a>
-            {% elif current_user.is_authenticated %}
-            <div class="d-flex gap-2">
-                <button class="btn {% if is_following %}btn-outline-secondary{% else %}btn-primary{% endif %} follow-btn"
+            <div class="profile-stats-box">
+                <div class="stat-row">
+                    <span class="stat-key">uid</span>
+                    <span class="stat-val">{{ user.id }}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-key">posts</span>
+                    <span class="stat-val">{{ user.posts|selectattr('is_deleted', 'none')|list|length }}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-key">followers</span>
+                    <span class="stat-val" id="profileFollowersCount">{{ user.followers_count }}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-key">following</span>
+                    <span class="stat-val">{{ user.following_count }}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-key">joined</span>
+                    <span class="stat-val">{{ user.created_date.strftime('%Y-%m-%d') if user.created_date else '?' }}</span>
+                </div>
+            </div>
+
+            <div class="profile-actions">
+                {% if current_user == user %}
+                <a href="{{ url_for('main.edit_profile') }}" class="btn-term" style="display:flex;justify-content:center;padding:8px 16px">[edit profile]</a>
+                {% elif current_user.is_authenticated %}
+                <button class="btn-term {% if is_following %}secondary{% else %}primary{% endif %} follow-btn"
                         data-username="{{ user.username }}"
-                        data-following="{{ 'true' if is_following else 'false' }}">
-                    {% if is_following %}Отписаться{% else %}Подписаться{% endif %}
+                        data-following="{{ 'true' if is_following else 'false' }}"
+                        style="display:flex;justify-content:center;padding:8px 16px;flex:1">
+                    {% if is_following %}[unfollow]{% else %}[+ follow]{% endif %}
                 </button>
-                <a href="{{ url_for('main.chat') }}?user={{ user.username }}" 
-                   class="btn btn-outline-info">
-                    <i class="bi bi-chat-dots me-1"></i>Написать
-                </a>
+                <a href="{{ url_for('main.chat') }}?user={{ user.username }}" class="btn-term secondary"
+                   style="display:flex;justify-content:center;padding:8px 16px;flex:1">[✉ message]</a>
+                {% else %}
+                <a href="{{ url_for('auth.login') }}" class="btn-term primary"
+                   style="display:flex;justify-content:center;padding:8px 16px">[+ follow]</a>
+                {% endif %}
             </div>
-            {% else %}
-            <a href="{{ url_for('auth.login') }}" class="btn btn-primary">Подписаться</a>
-            {% endif %}
         </div>
 
-        <div class="col-md-8">
-            <h4>Посты</h4>
+        <!-- Posts column -->
+        <div class="profile-posts">
+            <div class="profile-posts-header" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0 8px;border-bottom:1px solid var(--border);margin-bottom:12px">
+                <span style="font-size:0.85rem"><b>[user posts]</b> <span style="color:var(--subtle);font-weight:400">— {{ user.posts|selectattr('is_deleted', 'none')|list|length }} posts</span></span>
+            </div>
+
+{% import 'macros/_post_card.html' as macros %}
             {% for post in user.posts %}
             {% if not post.is_deleted %}
-            <div class="card mb-4 shadow-sm post-card" data-post-url="{{ url_for('posts.get_post', post_id=post.id) }}">
-                <div class="card-header bg-transparent d-flex align-items-center justify-content-between">
-                    <a href="{{ url_for('main.profile', user_id_or_username=post.author.username) }}"
-                       class="d-flex align-items-center text-decoration-none">
-                        <img src="{{ url_for('static', filename='uploads/profile_images/' + post.author.profile_image) if post.author.profile_image else url_for('static', filename='default-profile.png') }}"
-                             class="rounded-circle me-2"
-                             width="32" height="32"
-                             alt="{{ post.author.username }}">
-                        <div>
-                            <strong>{{ post.author.username }}</strong>
-                            <small class="text-muted d-block">{{ post.created_date|time_ago }}</small>
-                        </div>
-                    </a>
-
-                    {% if current_user.is_authenticated and (current_user == post.author) %}
-                    <div class="d-inline-flex align-items-center gap-1">
-                        <a href="{{ url_for('posts.edit_post', post_id=post.id) }}" class="btn btn-sm p-0"
-                           title="Редактировать">
-                            <i class="bi bi-pencil"></i>
-                        </a>
-                        <button class="btn btn-sm p-0 text-danger" onclick="deletePost({{ post.id }})" title="Удалить">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </div>
-                    {% endif %}
-                </div>
-
-                {% if post.image %}
-                <img src="{{ url_for('static', filename='uploads/posts/thumb_' + post.image) }}"
-                     class="card-img-top post-image post-img-clickable"
-                     loading="lazy"
-                     data-full-img="{{ url_for('static', filename='uploads/posts/' + post.image) }}"
-                     style="cursor:pointer">
+            {% call macros.render_post(post, current_user) %}
+                {% if current_user == post.author %}
+                <a href="{{ url_for('posts.edit_post', post_id=post.id) }}" class="post-action" style="font-size:0.68rem">[edit]</a>
+                <button class="post-action" onclick="event.stopPropagation();deletePost({{ post.id }})" style="font-size:0.68rem;color:var(--red)">[delete]</button>
                 {% endif %}
-
-                <div class="card-body">
-                    <p class="card-text text-muted">{{ post.text|truncate(200) }}</p>
-
-                    <div class="post-actions border-top pt-2">
-                        <button class="btn btn-sm like-btn {% if post.is_liked_by(current_user) %}text-danger{% else %}text-muted{% endif %}"
-                                data-post-id="{{ post.id }}"
-                                data-liked="{{ 'true' if post.is_liked_by(current_user) else 'false' }}">
-                            <i class="bi {% if post.is_liked_by(current_user) %}bi-heart-fill{% else %}bi-heart{% endif %} fs-5"></i>
-                            <span class="like-count ms-1">{{ post.likes_count }}</span>
-                        </button>
-
-                        <a href="{{ url_for('posts.get_post', post_id=post.id) }}#comments"
-                           class="btn btn-sm text-muted ms-3">
-                            <i class="bi bi-chat-left-text fs-5"></i>
-                            <span class="ms-1">{{ post.comments_count }}</span>
-                        </a>
-                    </div>
-                </div>
-            </div>
+            {% endcall %}
             {% endif %}
             {% else %}
-            <div class="alert alert-info text-center py-4">
-                <i class="bi bi-info-circle fs-4"></i>
-                <p class="mt-2 mb-0">Постов пока нет.</p>
+            <div class="empty-state" style="padding:40px 0;text-align:center">
+                <span style="color:var(--subtle);font-size:0.9rem">@{{ user.username }} {{ _('has no posts yet') }}</span>
             </div>
             {% endfor %}
         </div>
     </div>
 </div>
 
+<div style="display:flex;gap:8px;justify-content:center;margin-top:16px">
+    <a href="{{ url_for('main.followers_page', username=user.username) }}" class="btn-term" style="padding:6px 14px">[followers {{ user.followers_count }}]</a>
+    <a href="{{ url_for('main.following_page', username=user.username) }}" class="btn-term" style="padding:6px 14px">[following {{ user.following_count }}]</a>
+</div>
+
 <script>
 function deletePost(postId) {
-    if (confirm('Удалить пост?')) {
+    if (confirm('Delete post?')) {
         const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-
-        fetch(`/delete/${postId}`, {
+        fetch('{{ url_for('posts.delete_post', post_id=0) }}'.replace('/0', '/' + postId), {
             method: 'DELETE',
-            headers: {
-                'X-CSRFToken': csrfToken,
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
+            headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         })
-        .then(response => {
-            if (response.ok) {
-                window.location.reload();
-            } else if (response.status === 401) {
-                window.location.href = window.LOGIN_URL || '/login';
-            } else {
-                alert('Ошибка удаления!');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Ошибка удаления!');
-        });
+        .then(function(r) { if (r.ok) window.location.reload(); else if (r.status === 401) window.location.href = window.LOGIN_URL; else alert('Error'); })
+        .catch(function() { alert('Error'); });
     }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Clickable post card: navigate unless clicking a link/button
-    document.querySelectorAll('.post-card').forEach(card => {
+    // Post card → detail navigation
+    document.querySelectorAll('.post-card').forEach(function(card) {
         card.addEventListener('click', function(e) {
-            if (e.target.closest('a') || e.target.closest('button') || e.target.closest('.post-actions')) return;
-            const url = this.dataset.postUrl;
+            if (e.target.closest('a, button, img')) return;
+            var url = this.dataset.postUrl;
             if (url) window.location.href = url;
         });
     });
 
     // Follow button
-    const followBtn = document.querySelector('.follow-btn');
+    var followBtn = document.querySelector('.follow-btn');
     if (followBtn) {
         followBtn.addEventListener('click', async function(e) {
             e.stopPropagation();
-            const username = this.dataset.username;
-            const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-
+            var username = this.dataset.username;
+            var csrfToken = document.querySelector('meta[name="csrf-token"]').content;
             try {
-                const response = await fetch(`/follow/${username}`, {
+                var r = await fetch('{{ url_for('main.follow_toggle', username='') }}' + username, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRFToken': csrfToken
-                    },
+                    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': csrfToken },
                     credentials: 'same-origin'
                 });
-
-                if (!response.ok) throw new Error('Follow failed');
-
-                const data = await response.json();
-
+                var data = await r.json();
                 if (data.status === 'followed') {
-                    this.textContent = 'Отписаться';
-                    this.className = 'btn btn-outline-secondary follow-btn';
+                    this.textContent = '[unfollow]';
+                    this.className = 'btn-term secondary follow-btn';
                     this.dataset.following = 'true';
                 } else {
-                    this.textContent = 'Подписаться';
-                    this.className = 'btn btn-primary follow-btn';
+                    this.textContent = '[+ follow]';
+                    this.className = 'btn-term primary follow-btn';
                     this.dataset.following = 'false';
                 }
-
-                // Update followers count in the UI
-                const countEl = document.querySelector('a[href*="followers"] strong');
+                var countEl = document.getElementById('profileFollowersCount');
                 if (countEl) countEl.textContent = data.followers_count;
-
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Ошибка при выполнении действия');
-            }
+            } catch (err) { console.error(err); }
         });
     }
 });

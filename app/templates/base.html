@@ -1,27 +1,71 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="{{ 'ru' if current_lang == 'ru' else 'en' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Rugram - Социальная сеть для общения и обмена моментами">
+    <meta name="description" content="Rugram">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <script>
         window.isAuthenticated = {{ 'true' if current_user.is_authenticated else 'false' }};
         window.LOGIN_URL = "{{ url_for('auth.login') }}";
         window.VAPID_PUBLIC_KEY = "{{ vapid_public_key }}";
+        window.HOME_URL = "{{ url_for('main.index') }}";
+        window.API_ME_URL = "{{ url_for('auth.api_me') }}";
+        window.API_LOGIN_URL = "{{ url_for('auth.api_login') }}";
+        window.API_REGISTER_URL = "{{ url_for('auth.api_register') }}";
+        window.API_LOGOUT_URL = "{{ url_for('auth.api_logout') }}";
+        window.API_NOTIFICATIONS_URL = "{{ url_for('main.notifications_list') }}";
+        window.API_NOTIFICATIONS_UNREAD_URL = "{{ url_for('main.notifications_unread_count') }}";
+        window.API_USERS_SEARCH_URL = "{{ url_for('main.search_users') }}";
+        window.API_PUSH_SUBSCRIBE_URL = "{{ url_for('main.push_subscribe') }}";
+        window.API_CHAT_LIST_URL = "{{ url_for('main.chat_list') }}";
+        window.LIKE_URL = "{{ url_for('posts.like_post', post_id=0) }}";
+        window.COMMENT_URL = "{{ url_for('posts.add_comment', post_id=0) }}";
+        window.SAVE_URL = "{{ url_for('posts.toggle_save', post_id=0) }}";
+        window.REPOST_URL = "{{ url_for('posts.toggle_repost', post_id=0) }}";
+        window.DELETE_POST_URL = "{{ url_for('posts.delete_post', post_id=0) }}";
+        window.FOLLOW_URL = "{{ url_for('main.follow_toggle', username='') }}";
+        window.MARK_READ_URL = "{{ url_for('main.notification_mark_read', notification_id=0) }}";
+        window.MARK_ALL_READ_URL = "{{ url_for('main.notifications_mark_all_read') }}";
+        window.EDIT_COMMENT_URL = "{{ url_for('posts.edit_comment', comment_id=0) }}";
+        window.DELETE_COMMENT_URL = "{{ url_for('posts.delete_comment', comment_id=0) }}";
+        window.CHAT_START_URL = "{{ url_for('main.chat_start', username='') }}";
+        window.CHAT_SEND_URL = "{{ url_for('main.chat_send', chat_id=0) }}";
+        window.CHAT_MESSAGES_URL = "{{ url_for('main.chat_messages', chat_id=0) }}";
+        window.CHAT_TYPING_URL = "{{ url_for('main.chat_typing', chat_id=0) }}";
+        window.STATIC_PROFILE_IMAGES = "{{ url_for('static', filename='uploads/profile_images/') }}";
+        window.STATIC_DEFAULT_PROFILE = "{{ url_for('static', filename='default-profile.png') }}";
+        window.CURRENT_USER_ID = {{ current_user.id if current_user.is_authenticated else 0 }};
+        window.CURRENT_USERNAME = "{{ current_user.username if current_user.is_authenticated else 'guest' }}";
+        window.POST_URL = "{{ url_for('posts.get_post', post_id=0) }}";
+        window.PROFILE_URL = "{{ url_for('main.profile', user_id_or_username='') }}";
+        window.SETTINGS_URL = "{{ url_for('main.settings') }}";
+        window.SAVED_URL = "{{ url_for('main.saved_posts') }}";
+        window.CHAT_PAGE_URL = "{{ url_for('main.chat') }}";
+        window.CREATE_POST_URL = "{{ url_for('posts.create_post') }}";
+        window.EDIT_POST_URL = "{{ url_for('posts.edit_post', post_id=0) }}";
+        window.EDIT_PROFILE_URL = "{{ url_for('main.edit_profile') }}";
+        window.FOLLOWERS_URL = "{{ url_for('main.followers_page', username='') }}";
+        window.FOLLOWING_URL = "{{ url_for('main.following_page', username='') }}";
     </script>
 
     <title>{% block title %}Rugram{% endblock %}</title>
 
     <!-- Favicons -->
-    <link rel="apple-touch-icon" sizes="180x180"
-          href="{{ url_for('static', filename='images/favicon/apple-touch-icon.png') }}">
+    <link rel="icon" type="image/svg+xml"
+          href="{{ url_for('static', filename='images/favicon/favicon.svg') }}">
     <link rel="icon" type="image/png" sizes="32x32"
           href="{{ url_for('static', filename='images/favicon/favicon-32x32.png') }}">
     <link rel="icon" type="image/png" sizes="16x16"
           href="{{ url_for('static', filename='images/favicon/favicon-16x16.png') }}">
+    <link rel="apple-touch-icon" sizes="180x180"
+          href="{{ url_for('static', filename='images/favicon/apple-touch-icon.png') }}">
     <link rel="manifest" href="{{ url_for('static', filename='images/favicon/site.webmanifest') }}">
 
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
     <!-- CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='lib/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='lib/bootstrap-icons.min.css') }}">
@@ -39,178 +83,107 @@
     </script>
 </head>
 <body class="d-flex flex-column min-vh-100">
-<!-- Navigation Bar -->
-<header class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow-sm">
-    <div class="container">
-        <!-- Логотип -->
-        <a class="navbar-brand d-flex align-items-center fw-bold" href="{{ url_for('main.index') }}">
-            <img src="{{ url_for('static', filename='images/logo.png') }}" width="36" height="36"
-                 class="me-2 rounded-circle" alt="Rugram Logo">
-            <span class="gradient-text">Rugram</span>
-        </a>
-
-        <!-- Кнопка для мобильных -->
-        <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent"
-                aria-controls="navbarContent" aria-expanded="false" aria-label="Toggle navigation">
-            <i class="bi bi-list" style="font-size: 1.5rem;"></i>
-        </button>
-
-        <div class="collapse navbar-collapse" id="navbarContent">
-            <!-- Поиск -->
-            <form class="d-flex mx-lg-3 my-2 my-lg-0 flex-grow-1" action="{{ url_for('main.index') }}" method="GET">
-                <div class="input-group search-group">
-                    <input type="search"
-                           class="form-control rounded-pill ps-3"
-                           placeholder="Поиск..."
-                           name="q"
-                           value="{{ search_query|default('') }}">
-                    <button class="btn btn-dark rounded-pill" type="submit">
-                        <i class="bi bi-search"></i>
-                    </button>
-                </div>
-            </form>
-
-            <!-- Навигация -->
-            <ul class="navbar-nav nav-icons mx-auto mx-lg-0">
-                <li class="nav-item mx-1">
-                    <a class="nav-link position-relative" href="{{ url_for('main.index') }}" title="Главная">
-                        <i class="bi bi-house-door-fill icon-nav"></i>
-                        <span class="nav-indicator"></span>
-                    </a>
-                </li>
-                <li class="nav-item mx-1">
-                    <a class="nav-link position-relative" href="{{ url_for('posts.create_post') }}" title="Создать">
-                        <i class="bi bi-plus-square-fill icon-nav"></i>
-                        <span class="nav-indicator"></span>
-                    </a>
-                </li>
-                <li class="nav-item mx-1">
-                    <a class="nav-link position-relative" href="{{ url_for('main.chat') }}" title="Сообщения">
-                        <i class="bi bi-chat-text-fill icon-nav"></i>
-                        <span class="nav-indicator"></span>
-                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"></span>
-                    </a>
-                </li>
-                <li class="nav-item mx-1 dropdown">
-                    <a class="nav-link position-relative dropdown-toggle" id="notificationsDropdown"
-                       role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Уведомления">
-                        <i class="bi bi-bell-fill icon-nav"></i>
-                        <span class="nav-indicator"></span>
-                        <span class="notification-badge position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" 
-                              id="notificationBadge" style="display: none;">0</span>
-                    </a>
-                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 notification-dropdown"
-                        style="max-height: 400px; overflow-y: auto;" 
-                        aria-labelledby="notificationsDropdown">
-                        <li class="dropdown-header">
-                            <h6 class="text-center py-2 mb-0">Уведомления</h6>
-                        </li>
-                        <li id="notificationLoading" class="px-3 py-2 text-center">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Загрузка...</span>
-                            </div>
-                        </li>
-                        <li id="notificationEmpty" class="px-3 py-2 text-center" style="display: none;">
-                            <p class="text-muted mb-0">Нет новых уведомлений</p>
-                        </li>
-                        <li id="notificationList"></li>
-                        <li class="text-center border-top">
-                            <a href="{{ url_for('main.notifications_page') }}" class="dropdown-item small text-primary">
-                                Все уведомления
-                            </a>
-                        </li>
-                    </ul>
-                </li>
+<!-- Status Bar (terminal-inspired navigation) -->
+<header class="status-bar" id="statusBar">
+    <div class="status-left">
+        <a href="{{ url_for('main.index') }}" class="status-brand">[*] rugram</a>
+        <span class="status-sep">|</span>
+        <a href="{{ url_for('main.index') }}" class="status-item {% if request.endpoint == 'main.index' and not request.args.get('followed') %}active{% endif %}">feed</a>
+        {% if current_user.is_authenticated %}
+        <a href="{{ url_for('main.index', followed='1') }}" class="status-item {% if request.args.get('followed') %}active{% endif %}">~subs</a>
+        <a href="{{ url_for('main.notifications_page') }}" class="status-item {% if request.endpoint == 'main.notifications_page' %}active{% endif %}" id="notifStatusItem">~notifications<span class="notif-badge" id="notificationBadge"></span></a>
+        <a href="{{ url_for('main.chat') }}" class="status-item {% if request.endpoint == 'main.chat' %}active{% endif %}">✉ chat</a>
+        {% endif %}
+        <a href="{{ url_for('main.tty_help') }}" class="status-item" title="TTY commands">[?]</a>
+    </div>
+    <div class="status-right">
+        <button class="term-toggle-btn" id="termToggle" title="Toggle terminal mode">[>_ TTY]</button>
+        <span class="status-sep" style="opacity:0.3">|</span>
+        {% if current_user.is_authenticated %}
+        <div class="dropdown" style="display:inline-block">
+            <a href="#" class="status-user dropdown-toggle" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="text-decoration:none">{{ current_user.username }}</a>
+            <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 user-dropdown-menu">
+                <li><a class="dropdown-item" href="{{ url_for('main.profile', user_id_or_username=current_user.id)}}">[@profile]</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('main.saved_posts') }}">[*saved]</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('main.settings') }}">[settings]</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">[logout]</a></li>
             </ul>
-
-            <!-- Темная тема -->
-            <button class="theme-toggle ms-2" id="themeToggle" title="Сменить тему">
-                <i class="bi bi-moon-fill" id="themeIcon"></i>
-            </button>
-
-            <!-- Профиль пользователя -->
-            {% if current_user.is_authenticated %}
-            <div class="d-flex align-items-center ms-lg-3 gap-1">
-                <!-- Аватар — прямой переход в профиль -->
-                <a href="{{ url_for('main.profile', user_id_or_username=current_user.username) }}"
-                   class="d-flex align-items-center text-white text-decoration-none p-1 rounded"
-                   title="Мой профиль">
-                    <div class="position-relative">
-                        <img src="{{ url_for('static', filename='uploads/profile_images/' + current_user.profile_image) if current_user.profile_image else url_for('static', filename='default-profile.png') }}"
-                             alt="Аватар" width="36" height="36"
-                             class="rounded-circle border border-2 border-primary object-fit-cover">
-                        <span class="position-absolute bottom-0 end-0 p-1 bg-success rounded-circle border border-2 border-dark"></span>
-                    </div>
-                </a>
-                <!-- Имя — дропдаун с меню -->
-                <div class="dropdown">
-                    <a href="#"
-                       class="d-flex align-items-center text-white text-decoration-none dropdown-toggle p-1 rounded"
-                       id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                        <span class="d-none d-lg-inline">{{ current_user.username }}</span>
-                    </a>
-                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 user-dropdown-menu">
-                        <li><a class="dropdown-item d-flex align-items-center"
-                               href="{{ url_for('main.profile', user_id_or_username=current_user.id)}}">
-                            <i class="bi bi-person-fill me-2"></i>Профиль</a></li>
-                        <li><a class="dropdown-item d-flex align-items-center"
-                               href="{{ url_for('main.saved_posts') }}">
-                            <i class="bi bi-bookmark-fill me-2"></i>Сохранённое</a></li>
-                        <li><a class="dropdown-item d-flex align-items-center"
-                               href="{{ url_for('main.settings') }}">
-                            <i class="bi bi-gear-fill me-2"></i>Настройки</a></li>
-                        <li>
-                            <hr class="dropdown-divider mx-3 my-1">
-                        </li>
-                        <li><a class="dropdown-item d-flex align-items-center text-danger"
-                               href="{{ url_for('auth.logout') }}">
-                            <i class="bi bi-box-arrow-right me-2 text-danger"></i>Выйти</a></li>
-                    </ul>
-                </div>
-            </div>
-            {% else %}
-            <div class="d-flex ms-lg-3">
-                <a class="btn btn-outline-light rounded-pill me-2" href="{{ url_for('auth.login') }}">Войти</a>
-                <a class="btn btn-primary rounded-pill" href="{{ url_for('auth.register') }}">Регистрация</a>
-            </div>
-            {% endif %}
         </div>
+        {% else %}
+        <a href="{{ url_for('auth.login') }}" class="status-item {% if request.endpoint == 'auth.login' %}active{% endif %}">login</a>
+        {% endif %}
+        <span class="status-sep" style="opacity:0.3">|</span>
+        <button class="theme-toggle" id="themeToggle">[theme]</button>
+        {% set lang = current_lang or 'en' %}
+        <a href="?lang={{ 'ru' if lang == 'en' else 'en' }}" class="status-item lang-toggle" style="text-decoration:none">{{ 'RU' if lang == 'en' else 'EN' }}</a>
+    </div>
     </div>
 </header>
 
+<!-- Notifications dropdown (hidden, for JS) -->
+<div id="notifDropdownData" style="display:none">
+    <ul class="dropdown-menu shadow border-0 mt-2 notification-dropdown"
+        style="max-height: 400px; overflow-y: auto;">
+        <li class="dropdown-header text-center py-2">notifications <span id="notifDropdownBadge"></span></li>
+        <li id="notificationLoading" class="px-3 py-2 text-center">
+            <div class="spinner-border text-primary" role="submit">
+                <span class="visually-hidden">{{ _('Loading...') }}</span>
+            </div>
+        </li>
+        <li id="notificationEmpty" class="px-3 py-2 text-center" style="display:none;">
+            <p class="text-muted mb-0">{{ _('No new notifications') }}</p>
+        </li>
+        <li id="notificationList"></li>
+        <li class="text-center border-top">
+            <a href="{{ url_for('main.notifications_page') }}" class="dropdown-item small text-primary">{{ _('All notifications') }}</a>
+        </li>
+    </ul>
+</div>
+
 <!-- Main Content -->
 <main class="flex-grow-1">
-    <!-- Flash Messages -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-    <div class="container mt-3">
-        {% for category, message in messages %}
-        <div class="alert alert-{{ category }} alert-dismissible fade show">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    <div class="container" id="mainContainer">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="mb-3">
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
         </div>
-        {% endfor %}
-    </div>
-    {% endif %}
-    {% endwith %}
+        {% endif %}
+        {% endwith %}
 
-    <!-- Page Content -->
-    {% block content %}{% endblock %}
+        <!-- Page Content -->
+        {% block content %}{% endblock %}
+    </div>
 </main>
 
 <!-- Footer -->
-<footer class="bg-dark text-white py-4 mt-5">
-    <div class="container">
-        <div class="mt-0">
-            <p class="mb-0">&copy; 2025 Rugram. Все права защищены.</p>
-        </div>
-    </div>
+<footer class="footer">
+    <span class="brand">[*] rugram</span>
+    <span><a href="{{ url_for('main.index') }}">[feed]</a> · <a href="{{ url_for('auth.login') }}">[login]</a> · <span>&copy; 2025</span></span>
 </footer>
 
 <!-- Lightbox -->
 <div class="lightbox-overlay" id="lightbox">
     <button class="lightbox-close" id="lightboxClose">&times;</button>
-    <img id="lightboxImg" src="" alt="Полный размер">
+    <img id="lightboxImg" src="" alt="Full size">
+</div>
+
+<!-- Terminal Mode (TTY) -->
+<div id="terminal-mode">
+    <div id="termOutput"></div>
+</div>
+<div id="termBar">
+    <div style="display:flex;align-items:center;gap:6px;">
+        <span id="termPrompt">{{ current_user.username if current_user.is_authenticated else 'guest' }}@tty:~/$</span>
+        <input type="text" id="termInput" placeholder="type `help` for commands..." autocomplete="off" spellcheck="false">
+    </div>
 </div>
 
 <!-- Toast container для всплывающих уведомлений -->
@@ -219,11 +192,17 @@
 
 <!-- JavaScript -->
 <script src="{{ url_for('static', filename='lib/bootstrap.bundle.min.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/terminal.js') }}?v={{ static_version }}"></script>
+<script defer src="{{ url_for('static', filename='js/terminal-nano.js') }}?v={{ static_version }}"></script>
+<script defer src="{{ url_for('static', filename='js/terminal-chat.js') }}?v={{ static_version }}"></script>
+<script defer src="{{ url_for('static', filename='js/terminal-help.js') }}?v={{ static_version }}"></script>
+<script defer src="{{ url_for('static', filename='js/terminal-navigation.js') }}?v={{ static_version }}"></script>
+<script defer src="{{ url_for('static', filename='js/terminal-commands.js') }}?v={{ static_version }}"></script>
 <script defer src="{{ url_for('static', filename='js/main.js') }}?v={{ static_version }}"></script>
 <script defer>
 // Регистрация Service Worker для push-уведомлений — сразу, без window.load
 if ('serviceWorker' in navigator && window.isAuthenticated && window.VAPID_PUBLIC_KEY) {
-    navigator.serviceWorker.register('/static/sw.js?v={{ static_version }}')
+    navigator.serviceWorker.register('{{ url_for('static', filename='sw.js') }}?v={{ static_version }}')
         .then(function(registration) {
             window.swRegistration = registration;
         })

@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}{{ _('TTY Terminal Reference') }}{% endblock %}
+{% block content %}
+<div class="tty-help">
+  <!-- ── Hero ── -->
+  <div class="tty-help-hero">
+    <pre class="tty-help-logo">
+  █████     █    █     █████    █████      █████    █     ██
+  █    █    █    █    █         █    █    █    █    ██   ██
+  █████     █    █    █  ████   █████     ██████    █ █ █ █
+  █   █     █    █    █    █    █   █     █    █    █  █  █
+  █    █     ██████    █████    █    █    █    █    █     █
+    </pre>
+    <h1>{{ _('TTY Terminal Reference') }}</h1>
+  </div>
+
+  <!-- ── Intro ── -->
+  <div class="tty-help-section">
+    <p class="tty-help-intro">
+      {{ _('TTY (Teletype) is an alternative interface for Rugram. All functionality is available through a terminal emulator with commands like') }}
+      <code>cd</code>, <code>ls</code>, <code>grep</code>, <code>echo</code>, <code>man</code>, <code>history</code>, <code>export</code>
+      {{ _('and more — each works as close as possible to a real Unix terminal.') }}
+    </p>
+    <p class="tty-help-intro">
+      {{ _('This mode is for those who prefer the keyboard: arrow key history, --help on every command.') }}
+    </p>
+    <p class="tty-help-intro">
+      {{ _('All commands are in English — type') }}
+      <code>help</code>
+      {{ _('in the terminal to get started.') }}
+    </p>
+    <p class="tty-help-intro" style="margin-top:12px;color:var(--subtle);font-size:0.85rem">
+      {{ _('Use the') }} <strong>[>_]</strong> {{ _('button in the top bar to open the terminal, or') }}
+      <code>gui</code> / <code>exit</code> {{ _('to return.') }}
+    </p>
+  </div>
+
+  <!-- ── Command reference ── -->
+  <div class="tty-help-section">
+    <h2>{{ _('Commands') }}</h2>
+
+    {%- set sections = [
+      ('Auth', [
+        ('login', '&lt;user&gt; &lt;pass&gt;', _('Sign in to your account'), 'login alice secret123'),
+        ('register', '&lt;user&gt; &lt;email&gt; &lt;pass&gt;', _('Create a new account'), 'register alice a@b.com pass123'),
+        ('logout', '', _('Sign out'), 'logout'),
+      ]),
+      ('Posts', [
+        ('like', '&lt;id&gt;', _('Like or unlike a post'), 'like 42'),
+        ('comment', '&lt;id&gt; "&lt;text&gt;"', _('Add a comment to a post'), 'comment 42 "nice post!"'),
+        ('bookmark', '&lt;id&gt;', _('Save or unsave a post'), 'bookmark 42'),
+      ]),
+      ('Social', [
+        ('follow', '@&lt;user&gt;', _('Follow a user'), 'follow @alice'),
+        ('unfollow', '@&lt;user&gt;', _('Unfollow a user'), 'unfollow @alice'),
+        ('whoami', '', _('Show your profile (neofetch)'), 'whoami'),
+        ('neofetch', '@&lt;user&gt;', _('View any user profile'), 'neofetch @alice'),
+        ('ping', '[@user]', _('Check if a user exists'), 'ping @alice'),
+      ]),
+      ('Navigation', [
+        ('cd', '&lt;section&gt;', _('Navigate between sections'), 'cd feed / cd profile / cd @alice / cd post 42'),
+        ('cd saved', '', _('View saved posts (inline)'), 'cd saved'),
+        ('cd create', '', _('Create a post via nano editor (inline)'), 'cd create'),
+        ('cd post', '&lt;id&gt;', _('View a single post (inline)'), 'cd post 42'),
+        ('cd followers', '', _('View followers list (inline)'), 'cd followers'),
+        ('cd following', '', _('View following list (inline)'), 'cd following'),
+        ('cd chat', '&lt;id&gt; / @user', _('Open a chat or start a new one'), 'cd chat 5 / cd chat @alice'),
+        ('ls', '[-l] [section]', _('List files in current directory'), 'ls -l / ls profile'),
+        ('pwd', '', _('Show current section'), 'pwd'),
+        ('cd ..', '', _('Go up one directory'), 'cd ..'),
+      ]),
+      ('Feed', [
+        ('grep', '"&lt;text&gt;"', _('Search posts in feed'), 'grep "python"'),
+        ('head', '[-n N]', _('Show first N posts'), 'head -n 10'),
+        ('tail', '[-n N]', _('Show last N posts'), 'tail -n 5'),
+        ('feed', '', _('Show the feed'), 'feed'),
+      ]),
+      ('System', [
+        ('clear', '', _('Clear terminal screen'), 'clear'),
+        ('gui / exit', '', _('Switch back to GUI mode'), 'gui'),
+        ('help', '', _('Show this help'), 'help'),
+        ('sudo !!', '', _('Re-run the last command'), 'sudo !!'),
+        ('date', '[-u]', _('Show current date and time'), 'date -u'),
+        ('uptime', '', _('Show terminal session uptime'), 'uptime'),
+        ('history', '[-c]', _('Show or clear command history'), 'history'),
+        ('echo', '&lt;text&gt;', _('Print text with $VAR support'), 'echo $THEME'),
+        ('man', '[-k] [command]', _('Show manual pages'), 'man ls'),
+        ('export', '[VAR=value]', _('Set or view environment variables'), 'export THEME=dark'),
+        ('fortune', '', _('Random programmer quote'), 'fortune'),
+        ('watch', '[-n N] &lt;cmd&gt;', _('Execute command repeatedly'), 'watch -n 5 feed'),
+        ('top', '', _('Live activity feed'), 'top'),
+        ('nano', '&lt;file&gt;', _('Edit a post or profile (N.txt or description.txt)'), 'nano 42.txt / nano description.txt'),
+        ('say', '&lt;text&gt;', _('Send a message in the current chat'), 'say hello!'),
+        ('start', '@&lt;user&gt;', _('Start a chat with a user'), 'start @alice'),
+      ]),
+    ] -%}
+
+    {% for section_name, cmds in sections %}
+    <div class="tty-help-category">
+      <div class="tty-help-section-header">-- {{ _(section_name) }} --</div>
+      <table class="tty-help-table">
+        <thead>
+          <tr>
+            <th>{{ _('Command') }}</th>
+            <th>{{ _('Params') }}</th>
+            <th>{{ _('Description') }}</th>
+            <th>{{ _('Example') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for cmd, params, desc, example in cmds %}
+          <tr>
+            <td class="tty-help-cmd">{{ cmd }}</td>
+            <td class="tty-help-params">{{ params|safe }}</td>
+            <td class="tty-help-desc">{{ desc }}</td>
+            <td class="tty-help-example"><code>{{ example }}</code></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- ── Keyboard shortcuts ── -->
+  <div class="tty-help-section">
+    <h2>{{ _('Keyboard Shortcuts') }}</h2>
+    <table class="tty-help-table tty-help-shortcuts">
+      <thead>
+        <tr><th>{{ _('Key') }}</th><th>{{ _('Description') }}</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><kbd>/</kbd></td><td>{{ _('Focus input') }}</td></tr>
+        <tr><td><kbd>?</kbd></td><td>{{ _('Show help') }}</td></tr>
+        <tr><td><kbd>&uarr;</kbd> / <kbd>&darr;</kbd></td><td>{{ _('Command history') }}</td></tr>
+        <tr><td><kbd>Esc</kbd></td><td>{{ _('Blur input') }}</td></tr>
+        <tr><td><code>--help</code></td><td>{{ _('Per-command help') }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── Open TTY button ── -->
+  <div class="tty-help-section tty-help-cta">
+    <p>{{ _('All commands behave like a real Unix terminal: cd, ls, grep, echo, man, history, export and more.') }}</p>
+    <button class="tty-help-open-btn" id="ttyHelpOpenBtn">[ {{ _('Open TTY') }} ]</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.getElementById('ttyHelpOpenBtn')?.addEventListener('click', function() {
+  var btn = document.getElementById('termToggle');
+  if (btn) { btn.click(); window.scrollTo(0,0); }
+});
+</script>
+{% endblock %}

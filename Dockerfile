@@ -16,8 +16,13 @@ COPY . .
 # Директории для данных (примонтировать volume)
 RUN mkdir -p instance app/static/uploads/posts app/static/uploads/profile_images
 
+# Создаём непривилегированного пользователя
+RUN addgroup --system rugram && adduser --system --ingroup rugram --uid 1000 rugram && chown -R rugram:rugram /app
+
 RUN chmod +x start.sh
 
 EXPOSE 8000
+
+USER rugram
 
 CMD ["./start.sh"]

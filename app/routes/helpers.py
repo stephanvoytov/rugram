@@ -1,0 +1,104 @@
+import os
+import logging
+from typing import Optional
+
+from PIL import Image
+
+from flask import jsonify, current_app
+from flask_login import current_user
+
+logger = logging.getLogger(__name__)
+
+from config import Config
+from app.models import Notification, ChatParticipant, utcnow
+from extensions import db
+
+
+def _create_notification_and_push(user_id: int, actor_id: int, type_: str, post_id: Optional[int] = None) -> Notification:
+    """Create a notification and send push. Returns the Notification object."""
+    notification = Notification(
+        user_id=user_id,
+        actor_id=actor_id,
+        type=type_,
+        post_id=post_id
+    )
+    db.session.add(notification)
+    return notification
+
+
+def _require_chat_participant(chat_id: int) -> tuple:
+    """Check if current user is a chat participant. Returns (participant, error_response).
+    error_response is None if the user is a valid participant."""
+    participant = ChatParticipant.query.filter_by(
+        chat_id=chat_id,
+        user_id=current_user.id
+    ).first()
+    if not participant:
+        return None, (jsonify({'error': 'Access denied'}), 403)
+    return participant, None
+
+
+def process_avatar(image_file: object) -> Optional[str]:
+    """Обрезает и сохраняет аватар (500×500, JPEG)."""
+    try:
+        img = Image.open(image_file)
+
+        if img.mode == 'RGBA':
+            img = img.convert('RGB')
+
+        min_size = min(img.size)
+
+        img = img.crop((
+            (img.width - min_size) // 2,
+            (img.height - min_size) // 2,
+            (img.width + min_size) // 2,
+            (img.height + min_size) // 2
+        ))
+
+        img = img.resize((500, 500), Image.Resampling.LANCZOS)
+
+        filename = f"avatar_{current_user.id}.jpg"
+        save_dir = os.path.join(Config.UPLOAD_FOLDER, 'profile_images')
+        os.makedirs(save_dir, exist_ok=True)
+        save_path = os.path.join(save_dir, filename)
+        img.save(save_path, "JPEG", quality=85, optimize=True)
+        return filename
+    except Exception:
+        logger.exception('process_avatar failed')
+        return None
+
+
+def process_post_image(image_file: object, filename: str) -> Optional[str]:
+    """Сохраняет две версии изображения поста:
+    - {filename} — ресайз до 1200px по ширине (для детальной страницы)
+    - thumb_{filename} — ресайз до 400px (для ленты)
+    Возвращает filename при успехе или None.
+    """
+    try:
+        img = Image.open(image_file)
+        if img.mode == 'RGBA':
+            img = img.convert('RGB')
+
+        # Полный размер: максимум 1200px по ширине
+        img_full = img.copy()
+        if img_full.width > 1200:
+            ratio = 1200 / img_full.width
+            img_full = img_full.resize((1200, int(img_full.height * ratio)), Image.Resampling.LANCZOS)
+
+        save_path = os.path.join(Config.UPLOAD_FOLDER, 'posts', filename)
+        img_full.save(save_path, 'JPEG', quality=85, optimize=True)
+
+        # Превью: максимум 400px по ширине
+        img_thumb = img.copy()
+        if img_thumb.width > 400:
+            ratio = 400 / img_thumb.width
+            img_thumb = img_thumb.resize((400, int(img_thumb.height * ratio)), Image.Resampling.LANCZOS)
+
+        thumb_filename = f'thumb_{filename}'
+        thumb_path = os.path.join(Config.UPLOAD_FOLDER, 'posts', thumb_filename)
+        img_thumb.save(thumb_path, 'JPEG', quality=80, optimize=True)
+
+        return filename
+    except Exception:
+        logger.exception('process_post_image failed')
+        return None

@@ -1,0 +1,44 @@
+{% macro render_post(post, current_user) %}
+<div class="post-card" data-post-id="{{ post.id }}" data-post-url="{{ url_for('posts.get_post', post_id=post.id) }}">
+    <div class="post-header">
+        <span class="post-id"><b>[#{{ post.id }}]</b></span>
+        <div style="display:flex;align-items:center;gap:8px">
+            <span class="post-time" title="{{ (post.created_date.isoformat() + 'Z') if post.created_date else '' }}">{{ post.created_date | time_ago if post.created_date else '' }}</span>
+            {{ caller() }}
+        </div>
+    </div>
+    <div class="post-meta" style="display:flex;align-items:center;gap:8px">
+        <img src="{{ url_for('static', filename='uploads/profile_images/' + post.author.profile_image) if post.author.profile_image else url_for('static', filename='default-profile.png') }}"
+             alt="{{ post.author.username }}" class="post-avatar" loading="lazy"
+             onerror="this.src='{{ url_for('static', filename='default-profile.png') }}'">
+        <a href="{{ url_for('main.profile', user_id_or_username=post.author.username) }}" class="post-author">@{{ post.author.username }}</a>
+        <span class="post-stats">
+            <span class="post-stat {% if post.is_liked_by(current_user) %}liked{% endif %}">♥ {{ post.likes_count }}</span>
+            <span class="post-stat">💬 {{ post.comments_count }}</span>
+            <span class="post-stat">↻ {{ post.reposts_count }}</span>
+        </span>
+    </div>
+    <div class="post-body">
+        {% if post.image %}
+        <img src="{{ url_for('static', filename='uploads/posts/thumb_' + post.image) }}"
+             data-full-img="{{ url_for('static', filename='uploads/posts/' + post.image) }}"
+             alt="Post image" class="post-img-clickable mb-2" loading="lazy">
+        {% endif %}
+        {{- post.text -}}
+    </div>
+    <div class="post-actions">
+        <button class="post-action like-btn {% if post.is_liked_by(current_user) %}liked{% endif %}" data-post-id="{{ post.id }}" data-liked="{{ 'true' if post.is_liked_by(current_user) else 'false' }}">
+            [♥{% if post.likes_count > 0 %} {{ post.likes_count }}{% endif %} like]
+        </button>
+        <a href="{{ url_for('posts.get_post', post_id=post.id) }}#comments" class="post-action" style="text-decoration:none">
+            [💬{% if post.comments_count > 0 %} {{ post.comments_count }}{% endif %} comment]
+        </a>
+        <button class="post-action repost-btn" data-post-id="{{ post.id }}" data-reposted="{{ 'true' if post.is_reposted_by(current_user) else 'false' }}">
+            [↻{% if post.reposts_count > 0 %} {{ post.reposts_count }}{% endif %} repost]
+        </button>
+        <button class="post-action save-btn" data-post-id="{{ post.id }}" data-saved="{{ 'true' if post.is_saved_by(current_user) else 'false' }}" style="margin-left:auto">
+            [{% if post.is_saved_by(current_user) %}◆{% else %}◇{% endif %} save]
+        </button>
+    </div>
+</div>
+{% endmacro %}
