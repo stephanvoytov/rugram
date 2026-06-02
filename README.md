@@ -1,7 +1,12 @@
 # Rugram — терминал-нативная социальная сеть
-[![Flask](https://img.shields.io/badge/Flask-000000?logo=flask&logoColor=white)](https://flask.palletsprojects.com/) [![Stars](https://img.shields.io/github/stars/stephanvoytov/rugram)](https://github.com/stephanvoytov/rugram/stargazers)
+[![Flask](https://img.shields.io/badge/Flask-000000?logo=flask&logoColor=white)](https://flask.palletsprojects.com/) [![Stars](https://img.shields.io/github/stars/stephanvoytov/rugram)](https://github.com/stephanvoytov/rugram/stargazers) [![Site](https://img.shields.io/badge/site-rugram.mooo.com-89b4fa?logo=internetexplorer)](https://rugram.mooo.com)
 
 > **Социальная сеть, которой управляют через терминал.**  
+> **👉 [rugram.mooo.com](https://rugram.mooo.com) — живой демо-инстанс**
+
+<p align="center">
+  <img src="app/static/images/screenshot.png" alt="Rugram screenshot" width="700">
+</p>  
 > Поставить лайк → `like 42`. Написать в чат → `say привет!`.  
 > Найти пост → `grep "python"`. Посмотреть профиль → `neofetch @user`.  
 > Обычный GUI тоже есть — для тех, кто не дружит с клавиатурой.
