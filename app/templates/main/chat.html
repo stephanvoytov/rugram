@@ -1,92 +1,80 @@
 {% extends "base.html" %}
 
-{% block title %}Сообщения - Rugram{% endblock %}
+{% block title %}chat — Rugram{% endblock %}
+
+{% block styles %}
+<style>
+/* Full-width chat: override Bootstrap container */
+#mainContainer.container { max-width: 100% !important; padding: 0 !important; flex: 1; display: flex; flex-direction: column; min-height: 0; }
+main.flex-grow-1 { display: flex; flex-direction: column; min-height: 0; }
+/* Keep flash messages padded */
+#mainContainer .alert { margin: 12px 16px !important; }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid chat-layout">
-    <div class="row">
-        <!-- Список диалогов -->
-        <div class="col-12 col-md-4 border-end px-0" id="chatListColumn">
-            <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Сообщения</h5>
-                <button class="btn btn-sm btn-outline-primary" id="newChatBtnLeft">
-                    <i class="bi bi-plus-circle me-1"></i>Новый чат
-                </button>
-            </div>
-            <div class="flex-grow-1 overflow-y-auto" id="chatList">
-                <div class="text-center py-5">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Загрузка...</span>
-                    </div>
+<div class="chat-layout">
+    <!-- Chat list column -->
+    <div class="chat-list-col" id="chatListColumn">
+        <div class="chat-list-header">
+            <span><b>[chats]</b></span>
+            <button class="btn-term" id="newChatBtnLeft">[+ new]</button>
+        </div>
+        <div class="chat-list-scroll" id="chatList">
+            <div class="text-center py-5" style="color:var(--subtle)">{{ _('Loading...') }}</div>
+        </div>
+    </div>
+
+    <!-- Chat detail column -->
+    <div class="chat-detail-col" id="chatDetailColumn">
+        <!-- Active chat area -->
+        <div class="d-none flex-column flex-grow-1" id="chatArea">
+            <div class="chat-detail-header">
+                <button class="btn-term" id="chatBackBtn" title="Back">[&larr;]</button>
+                <img id="chatAvatar" src="" alt="avatar" width="32" height="32" class="chat-avatar"
+                     onerror="this.src='{{ url_for('static', filename='default-profile.png') }}'">
+                <div>
+                    <span id="chatUsername" style="font-weight:600"></span>
+                    <small id="chatStatus" style="color:var(--subtle)"></small>
                 </div>
+            </div>
+
+            <div class="chat-messages" id="messagesContainer"></div>
+
+            <div class="chat-input-area">
+                <form id="messageForm" style="display:flex;gap:4px;flex:1">
+                    <input type="text" id="messageInput" class="chat-input" placeholder="{{ _('Type a message...') }}" autocomplete="off">
+                    <button type="submit" class="btn-term primary">[>>]</button>
+                </form>
             </div>
         </div>
-        
-        <!-- Область чата -->
-        <div class="col-12 col-md-8 px-0" id="chatDetailColumn">
-            <div class="d-none flex-column flex-grow-1" id="chatArea">
-                <div class="p-3 border-bottom d-flex align-items-center">
-                    <button class="chat-back-btn d-md-none" id="chatBackBtn" title="Назад">
-                        <i class="bi bi-arrow-left"></i>
-                    </button>
-                    <img id="chatAvatar" src="" alt="" width="40" height="40" 
-                         class="rounded-circle me-3 object-fit-cover"
-                         onerror="this.src='/static/default-profile.png'">
-                    <div>
-                        <h6 class="mb-0" id="chatUsername"></h6>
-                        <small class="text-muted" id="chatStatus"></small>
-                    </div>
-                </div>
-                
-                <div class="flex-grow-1 overflow-y-auto p-3" id="messagesContainer">
-                    <!-- Сообщения будут загружены сюда -->
-                </div>
-                
-                <div class="p-3 border-top">
-                    <form id="messageForm" class="d-flex">
-                        <input type="text" class="form-control me-2" id="messageInput" 
-                               placeholder="Введите сообщение..." autocomplete="off">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-send"></i>
-                        </button>
-                    </form>
-                </div>
-            </div>
-            
-            <!-- Экран выбора чата -->
-            <div class="d-flex flex-column align-items-center justify-content-center flex-grow-1" id="noChatSelected">
-                <i class="bi bi-chat-dots" style="font-size: 4rem; color: #6c757d;"></i>
-                <h4 class="mt-3 mb-0">Выберите диалог</h4>
-                <p class="text-muted">Начните общение с пользователями</p>
-            </div>
+
+        <!-- Empty state -->
+        <div class="d-flex flex-column align-items-center justify-content-center flex-grow-1" id="noChatSelected">
+            <span style="font-size:2rem;color:var(--subtle);font-family:var(--font)">[✉]</span>
+            <div style="margin-top:12px;color:var(--fg)">select a chat</div>
+            <div style="font-size:0.8rem;color:var(--subtle)">or start a new one</div>
         </div>
     </div>
 </div>
 
-<!-- Модальное окно для нового чата -->
-<div class="modal fade" id="newChatModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Новый чат</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+<!-- New chat modal -->
+<div class="modal-overlay d-none" id="newChatModal" style="position:fixed;inset:0;z-index:1050;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center">
+    <div class="modal-box">
+        <div class="modal-box-header">
+            <span><b>[new chat]</b></span>
+            <button class="btn-term" onclick="document.getElementById('newChatModal').classList.add('d-none')">&times;</button>
+        </div>
+        <div class="modal-box-body" style="padding:12px">
+            <div style="display:flex;gap:4px;margin-bottom:8px">
+                <input type="text" class="chat-input" id="newChatUsername" placeholder="{{ _('Search users...') }}" autocomplete="off" style="flex:1">
+                <button class="btn-term" id="searchUserBtn">[search]</button>
             </div>
-            <div class="modal-body">
-                <div class="input-group">
-                    <input type="text" class="form-control" id="newChatUsername" 
-                           placeholder="Имя пользователя" autocomplete="off">
-                    <button class="btn btn-primary" type="button" id="searchUserBtn">
-                        <i class="bi bi-search"></i>
-                    </button>
-                </div>
-                <div id="searchResults" class="mt-2"></div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="button" class="btn btn-primary" id="startChatBtn" disabled>
-                    Начать чат
-                </button>
-            </div>
+            <div id="searchResults"></div>
+        </div>
+        <div class="modal-box-footer" style="padding:8px 12px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:4px">
+            <button class="btn-term" onclick="document.getElementById('newChatModal').classList.add('d-none')">[cancel]</button>
+            <button class="btn-term primary" id="startChatBtn" disabled>[start]</button>
         </div>
     </div>
 </div>
@@ -102,246 +90,132 @@ let isLoadingOlder = false;
 let typingTimeout = null;
 let otherUsername = '';
 
-// Инициализация
 document.addEventListener('DOMContentLoaded', function() {
     currentUser = {{ current_user.id|tojson if current_user.is_authenticated else 'null' }};
-    
-    if (!currentUser) {
-        window.location.href = '{{ url_for("auth.login") }}';
-        return;
-    }
-    
+    if (!currentUser) { window.location.href = '{{ url_for("auth.login") }}'; return; }
     loadChatList();
     startChatListPolling();
-    
-    // Автооткрытие чата из URL (?user=username)
+
     const urlParams = new URLSearchParams(window.location.search);
     const targetUser = urlParams.get('user');
     if (targetUser) {
-        // Ждём загрузки списка чатов и открываем нужный
         const waitAndOpen = setInterval(async () => {
             const chatItem = document.querySelector(`[data-username="${targetUser}"]`);
-            if (chatItem) {
-                clearInterval(waitAndOpen);
-                chatItem.click();
-                return;
-            }
-            // Если не нашли в списке — создаём чат
+            if (chatItem) { clearInterval(waitAndOpen); chatItem.click(); return; }
             try {
-                const resp = await fetch(`/chat/start/${targetUser}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-                    }
-                });
+                const resp = await fetch('{{ url_for('main.chat_start', username='') }}' + targetUser, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content } });
                 const data = await resp.json();
-                if (data.chat_id) {
-                    clearInterval(waitAndOpen);
-                    // Ищем пользователя в списке после обновления
-                    setTimeout(() => {
-                        const newItem = document.querySelector(`[data-username="${targetUser}"]`);
-                        if (newItem) newItem.click();
-                    }, 500);
-                }
-            } catch (e) {
-                // Если чат уже создаётся — пробуем снова
-            }
+                if (data.chat_id) { clearInterval(waitAndOpen); setTimeout(() => { const newItem = document.querySelector(`[data-username="${targetUser}"]`); if (newItem) newItem.click(); }, 500); }
+            } catch (e) {}
         }, 1000);
-        // Таймаут на случай ошибки
         setTimeout(() => clearInterval(waitAndOpen), 15000);
     }
-    
-    // Signal "печатает"
+
     setupTypingSignal();
-    
-    // Обработчики событий
     document.getElementById('messageForm').addEventListener('submit', sendMessage);
-    
-    // Пагинация при скролле вверх
     document.getElementById('messagesContainer').addEventListener('scroll', function() {
-        if (this.scrollTop < 80 && hasMoreMessages && !isLoadingOlder) {
-            loadOlderMessages();
-        }
+        if (this.scrollTop < 80 && hasMoreMessages && !isLoadingOlder) loadOlderMessages();
     });
-    
-    document.getElementById('newChatBtnLeft').addEventListener('click', () => {
-        new bootstrap.Modal(document.getElementById('newChatModal')).show();
-    });
+    document.getElementById('newChatBtnLeft').addEventListener('click', () => { document.getElementById('newChatModal').classList.remove('d-none'); });
     document.getElementById('searchUserBtn').addEventListener('click', searchUser);
-    document.getElementById('newChatUsername').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            searchUser();
-        }
-    });
+    document.getElementById('newChatUsername').addEventListener('keypress', function(e) { if (e.key === 'Enter') searchUser(); });
     document.getElementById('startChatBtn').addEventListener('click', startNewChat);
-    
-    // Кнопка "Назад" на мобильных
     document.getElementById('chatBackBtn').addEventListener('click', closeChatMobile);
 });
 
-// Загрузка списка чатов
 async function loadChatList() {
     try {
-        const response = await fetch('/api/chat/list');
+        const response = await fetch('{{ url_for('main.chat_list') }}');
         const data = await response.json();
         updateChatList(data.chats);
     } catch (error) {
         console.error('Error loading chat list:', error);
-        document.getElementById('chatList').innerHTML = `
-            <div class="text-center py-5">
-                <p class="text-danger">Ошибка загрузки чатов</p>
-            </div>
-        `;
+        document.getElementById('chatList').innerHTML = '<div class="text-center py-5" style="color:var(--red)">{{ _('Error loading chats') }}</div>';
     }
 }
 
-// Обновление списка чатов (сохраняет скролл и активный чат)
 function updateChatList(chats) {
     const chatList = document.getElementById('chatList');
     if (!chatList) return;
-    
     const scrollPos = chatList.scrollTop;
     chatList.innerHTML = '';
-    
     if (chats.length === 0) {
-        chatList.innerHTML = `
-            <div class="text-center py-5">
-                <i class="bi bi-inbox" style="font-size: 3rem; color: #6c757d;"></i>
-                <p class="text-muted mt-3">Нет диалогов</p>
-            </div>
-        `;
+        chatList.innerHTML = '<div class="text-center py-5"><span style="color:var(--subtle)">{{ _('No chats yet') }}</span></div>';
         return;
     }
-    
-    chats.forEach(chat => {
-        const chatItem = createChatItem(chat);
-        chatList.appendChild(chatItem);
-    });
-    
-    // Восстанавливаем активный чат
+    chats.forEach(chat => { chatList.appendChild(createChatItem(chat)); });
     if (currentChatId) {
         const activeItem = chatList.querySelector(`[data-chat-id="${currentChatId}"]`);
         if (activeItem) activeItem.classList.add('active');
     }
-    
     chatList.scrollTop = scrollPos;
 }
 
-// Создание элемента чата
 function createChatItem(chat) {
     const div = document.createElement('div');
-    div.className = `chat-item p-3 border-bottom ${currentChatId === chat.chat_id ? 'active' : ''}`;
+    div.className = 'chat-item' + (currentChatId === chat.chat_id ? ' active' : '');
     div.dataset.chatId = chat.chat_id;
     div.dataset.username = chat.other_user.username;
-    
-    const unreadBadge = chat.unread_count > 0 ? 
-        `<span class="badge bg-danger rounded-pill ms-2">${chat.unread_count}</span>` : '';
-    
-    const onlineDot = chat.other_user.is_online
-        ? '<span class="position-absolute bottom-0 end-0 p-1 bg-success rounded-circle border border-2 border-white" style="transform: translate(-2px, -2px);"></span>'
-        : '';
-    
-    div.innerHTML = `
-        <div class="d-flex align-items-center">
-            <div class="position-relative me-3 flex-shrink-0">
-                <img src="${chat.other_user.profile_image ? `/static/uploads/profile_images/${chat.other_user.profile_image}` : '/static/default-profile.png'}"
-                     alt="${chat.other_user.username}" width="48" height="48" 
-                     class="rounded-circle object-fit-cover"
-                     onerror="this.src='/static/default-profile.png'">
-                ${onlineDot}
-            </div>
-            <div class="flex-grow-1 min-width-0">
-                <div class="d-flex justify-content-between align-items-start">
-                    <h6 class="mb-1">${chat.other_user.username}</h6>
-                    <small class="text-muted flex-shrink-0 ms-2">${formatDate(chat.last_message_date)}</small>
-                </div>
-                <p class="mb-0 text-muted small text-truncate">${chat.last_message || 'Нет сообщений'}</p>
-            </div>
-            ${unreadBadge}
-        </div>
-    `;
-    
+
+    const unreadBadge = chat.unread_count > 0 ? ' <span class="notif-badge" style="position:static;display:inline;font-size:0.7rem">' + chat.unread_count + '</span>' : '';
+    const onlineDot = chat.other_user.is_online ? ' <span style="color:var(--green)">●</span>' : '';
+
+    div.innerHTML = '<div style="display:flex;align-items:center;gap:8px">'
+        + '<img src="' + (chat.other_user.profile_image ? '{{ url_for('static', filename='uploads/profile_images/') }}' + chat.other_user.profile_image : '{{ url_for('static', filename='default-profile.png') }}') + '" alt="' + chat.other_user.username + ' avatar" width="36" height="36" class="chat-avatar" onerror="this.src=\'{{ url_for('static', filename='default-profile.png') }}\'">'
+        + '<div style="flex:1;min-width:0">'
+        + '<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-weight:600">' + chat.other_user.username + '</span>' + onlineDot + '<small style="color:var(--subtle);font-size:0.7rem">' + formatDate(chat.last_message_date) + '</small></div>'
+        + '<div style="color:var(--subtle);font-size:0.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escapeHtml(chat.last_message || 'no messages') + '</div>'
+        + '</div>' + unreadBadge + '</div>';
+
     div.addEventListener('click', () => selectChat(chat.chat_id, chat.other_user));
-    
     return div;
 }
 
-// Выбор чата
 async function selectChat(chatId, otherUser) {
     currentChatId = chatId;
     otherUsername = otherUser.username;
-    
-    // Обновляем активный элемент в списке
-    document.querySelectorAll('.chat-item').forEach(item => {
-        item.classList.remove('active');
-    });
-    document.querySelector(`[data-chat-id="${chatId}"]`).classList.add('active');
-    
-    // Показываем область чата, прячем заглушку
+    document.querySelectorAll('.chat-item').forEach(item => item.classList.remove('active'));
+    const activeEl = document.querySelector('[data-chat-id="' + chatId + '"]');
+    if (activeEl) activeEl.classList.add('active');
+
     document.getElementById('chatArea').classList.remove('d-none');
     document.getElementById('chatArea').classList.add('d-flex');
     document.getElementById('noChatSelected').classList.add('d-none');
-    
-    // Обновляем заголовок чата
+
     const avatarEl = document.getElementById('chatAvatar');
-    avatarEl.src = otherUser.profile_image ? 
-        `/static/uploads/profile_images/${otherUser.profile_image}` : '/static/default-profile.png';
-    avatarEl.onerror = function() { this.src = '/static/default-profile.png'; };
+    avatarEl.src = otherUser.profile_image ? '{{ url_for('static', filename='uploads/profile_images/') }}' + otherUser.profile_image : '{{ url_for('static', filename='default-profile.png') }}';
+    avatarEl.onerror = function() { this.src = '{{ url_for('static', filename='default-profile.png') }}'; };
     document.getElementById('chatUsername').textContent = otherUser.username;
     updateChatStatus(otherUser.is_online, otherUser.last_seen);
-    
-    // Показываем чат на мобильных (скрываем список)
     showChatOnMobile();
-    
-    // Загружаем сообщения
     await loadMessages();
-    
-    // Запускаем polling
     startPolling();
 }
 
-// Отправка сигнала "печатает"
 function setupTypingSignal() {
     const input = document.getElementById('messageInput');
     input.addEventListener('input', function() {
         if (!currentChatId) return;
-        
-        // Отправляем сигнал (не чаще чем раз в 3 сек)
         if (typingTimeout) return;
         typingTimeout = setTimeout(() => { typingTimeout = null; }, 3000);
-        
-        fetch(`/chat/${currentChatId}/typing`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-            }
-        }).catch(() => {});
+        fetch('{{ url_for('main.chat_typing', chat_id=0) }}'.replace('/0/', '/' + currentChatId + '/'), { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content } }).catch(() => {});
     });
 }
 
-// Обновление статуса в заголовке чата
 function updateChatStatus(isOnline, lastSeen) {
     const statusEl = document.getElementById('chatStatus');
-    if (isOnline) {
-        statusEl.innerHTML = '<span class="text-success">онлайн</span>';
-    } else {
-        statusEl.textContent = lastSeen || 'был(а) давно';
-    }
+    statusEl.innerHTML = isOnline ? '<span style="color:var(--green)">online</span>' : (lastSeen || 'offline');
 }
 
-// Обновление индикатора "печатает"
 function updateTypingIndicator(isTyping) {
     const statusEl = document.getElementById('chatStatus');
     const typingEl = document.getElementById('typingIndicator');
-    
     if (isTyping) {
         if (!typingEl) {
             const el = document.createElement('small');
             el.id = 'typingIndicator';
-            el.className = 'text-muted typing-indicator';
-            el.innerHTML = '<span class="text-success">печатает</span><span class="typing-dots"><span>.</span><span>.</span><span>.</span></span>';
+            el.style.cssText = 'color:var(--green)';
+            el.textContent = 'typing...';
             statusEl.parentElement.appendChild(el);
         }
         statusEl.style.display = 'none';
@@ -352,423 +226,246 @@ function updateTypingIndicator(isTyping) {
     }
 }
 
-// Загрузка сообщений
 async function loadMessages() {
     if (!currentChatId) return;
-    
     try {
-        const response = await fetch(`/chat/${currentChatId}/messages?limit=50`);
+        const response = await fetch('{{ url_for('main.chat_messages', chat_id=0) }}'.replace('/0/', '/' + currentChatId + '/') + '?limit=50');
         const data = await response.json();
-        
-        // Обновляем статус собеседника из ответа
-        if (data.other_user) {
-            updateChatStatus(data.other_user.is_online, data.other_user.last_seen);
-        }
-        
-        // Индикатор "печатает"
+        if (data.other_user) updateChatStatus(data.other_user.is_online, data.other_user.last_seen);
         updateTypingIndicator(data.is_typing);
-        
         hasMoreMessages = data.has_more;
-        
         const container = document.getElementById('messagesContainer');
         container.innerHTML = '';
-        
         appendMessages(container, data.messages);
-        
-        // Прокручиваем вниз
         container.scrollTop = container.scrollHeight;
-        
-    } catch (error) {
-        console.error('Error loading messages:', error);
-    }
+    } catch (error) { console.error('Error loading messages:', error); }
 }
 
-// Загрузка старых сообщений (пагинация вверх)
 async function loadOlderMessages() {
     if (!currentChatId || !hasMoreMessages || isLoadingOlder) return;
     isLoadingOlder = true;
-    
     const container = document.getElementById('messagesContainer');
     const firstMsg = container.querySelector('.message-item');
-    if (!firstMsg) {
-        isLoadingOlder = false;
-        return;
-    }
+    if (!firstMsg) { isLoadingOlder = false; return; }
     const firstMsgId = parseInt(firstMsg.dataset.messageId);
-    
-    // Показываем индикатор загрузки сверху
+
     const loader = document.createElement('div');
     loader.className = 'text-center py-2';
     loader.id = 'olderLoader';
-    loader.innerHTML = '<div class="spinner-border spinner-border-sm text-primary" role="status"></div>';
+    loader.innerHTML = '<span style="color:var(--subtle)">{{ _('Loading...') }}</span>';
     container.insertBefore(loader, container.firstChild);
-    
+
     try {
-        const response = await fetch(`/chat/${currentChatId}/messages?before=${firstMsgId}&limit=30`);
+        const response = await fetch('{{ url_for('main.chat_messages', chat_id=0) }}'.replace('/0/', '/' + currentChatId + '/') + '?before=' + firstMsgId + '&limit=30');
         const data = await response.json();
-        
         loader.remove();
-        
-        if (data.messages.length === 0) {
-            hasMoreMessages = false;
-            isLoadingOlder = false;
-            return;
-        }
-        
+        if (data.messages.length === 0) { hasMoreMessages = false; isLoadingOlder = false; return; }
         hasMoreMessages = data.has_more;
-        
-        // Сохраняем высоту прокрутки до вставки
         const prevScrollHeight = container.scrollHeight;
-        
-        // Вставляем старые сообщения в начало
         appendMessages(container, data.messages, true);
-        
-        // Восстанавливаем позицию прокрутки
-        const newScrollHeight = container.scrollHeight;
-        container.scrollTop = newScrollHeight - prevScrollHeight;
-        
+        container.scrollTop = container.scrollHeight - prevScrollHeight;
     } catch (error) {
         console.error('Error loading older messages:', error);
         const existing = document.getElementById('olderLoader');
         if (existing) existing.remove();
     }
-    
     isLoadingOlder = false;
 }
 
-// Вставка сообщений в контейнер с дата-разделителями
-function appendMessages(container, messages, prepend = false) {
+function appendMessages(container, messages, prepend) {
+    prepend = prepend || false;
     let lastDate = null;
-    // При prepend берём дату первого вставляемого сообщения
     if (prepend && container.firstChild) {
-        // Находим дату уже отрисованного первого сообщения для корректного разделителя
         const firstExisting = container.querySelector('.message-item');
-        if (firstExisting) {
-            lastDate = getMessageDate(firstExisting.dataset.messageDate);
-        }
+        if (firstExisting) lastDate = getMessageDate(firstExisting.dataset.messageDate);
     }
-    
-    // Для prepend проходим в обратном порядке (чтобы старые сверху)
     const msgs = prepend ? [...messages].reverse() : messages;
-    
     msgs.forEach(message => {
         const msgDate = getMessageDate(message.created_date);
         if (!lastDate || msgDate !== lastDate) {
-            if (prepend) {
-                container.insertBefore(createDateDivider(msgDate), container.firstChild);
-            } else {
-                container.appendChild(createDateDivider(msgDate));
-            }
+            if (prepend) container.insertBefore(createDateDivider(msgDate), container.firstChild);
+            else container.appendChild(createDateDivider(msgDate));
             lastDate = msgDate;
         }
         const messageDiv = createMessageElement(message);
-        if (prepend) {
-            container.insertBefore(messageDiv, container.firstChild);
-        } else {
-            container.appendChild(messageDiv);
-        }
+        if (prepend) container.insertBefore(messageDiv, container.firstChild);
+        else container.appendChild(messageDiv);
     });
 }
 
-// Форматирование даты для разделителя
 function getMessageDate(isoDate) {
     const date = new Date(isoDate);
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    
-    if (date.toDateString() === today.toDateString()) return 'Сегодня';
-    if (date.toDateString() === yesterday.toDateString()) return 'Вчера';
-    
+    if (date.toDateString() === today.toDateString()) return 'today';
+    if (date.toDateString() === yesterday.toDateString()) return 'yesterday';
     return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
-// Создание разделителя даты
 function createDateDivider(text) {
     const div = document.createElement('div');
-    div.className = 'text-center my-3';
-    div.innerHTML = `<span class="badge bg-secondary bg-opacity-25 text-secondary px-3 py-2 rounded-pill" style="font-size: 0.75rem;">${text}</span>`;
+    div.className = 'text-center my-2';
+    div.innerHTML = '<span style="color:var(--subtle);font-size:0.7rem">-- ' + text + ' --</span>';
     return div;
 }
 
-// Создание элемента сообщения
 function createMessageElement(message) {
     const div = document.createElement('div');
-    div.className = `mb-3 message-item ${message.author.id === currentUser ? 'text-end' : 'text-start'}`;
+    const isOwn = message.author.id === currentUser;
+    div.className = 'message-item ' + (isOwn ? 'own' : 'other');
     div.dataset.messageId = message.id;
     div.dataset.messageDate = message.created_date;
-    
     const time = formatTime(message.created_date);
-    const isOwn = message.author.id === currentUser;
-    const readStatus = isOwn && message.is_read ? '<small class="text-white-50 ms-1" style="font-size: 0.6rem;">Прочитано</small>' : '';
-    
-    div.innerHTML = `
-        <div class="d-flex ${isOwn ? 'justify-content-end' : 'justify-content-start'}">
-            <div class="message-container ${isOwn ? 'bg-primary text-white' : 'bg-light'} rounded-3 px-3 py-2" style="display: flex; align-items: flex-end;">
-                <p class="mb-0 text-break flex-shrink-1" style="min-width: 0;">${escapeHtml(message.text)}</p>
-                <div class="flex-shrink-0 d-flex align-items-center ms-2">
-                    <small class="text-nowrap ${isOwn ? 'text-white-50' : 'text-muted'}" style="font-size: 0.7rem; line-height: 1.2;">${time}</small>
-                    ${readStatus}
-                </div>
-            </div>
-        </div>
-    `;
-    
+    div.innerHTML = '<div class="msg-bubble ' + (isOwn ? 'own' : 'other') + '">'
+        + '<span>' + escapeHtml(message.text) + '</span>'
+        + '<small style="opacity:0.6;font-size:0.65rem;white-space:nowrap">' + time + '</small>'
+        + '</div>';
     return div;
 }
 
-// Отправка сообщения
 async function sendMessage(e) {
     e.preventDefault();
-    
     const input = document.getElementById('messageInput');
     const text = input.value.trim();
-    
     if (!text || !currentChatId) return;
-    
     try {
-        const response = await fetch(`/chat/${currentChatId}/send`, {
+        const response = await fetch('{{ url_for('main.chat_send', chat_id=0) }}'.replace('/0/', '/' + currentChatId + '/'), {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-            },
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content },
             body: JSON.stringify({ text })
         });
-        
-        if (response.ok) {
-            input.value = '';
-            await loadMessages();
-        }
-        
-    } catch (error) {
-        console.error('Error sending message:', error);
-    }
+        if (response.ok) { input.value = ''; await loadMessages(); }
+    } catch (error) { console.error('Error sending message:', error); }
 }
 
-// Поиск пользователя
 async function searchUser() {
     const username = document.getElementById('newChatUsername').value.trim();
     if (!username) return;
-    
     try {
-        const response = await fetch(`/api/users/search?q=${encodeURIComponent(username)}`);
+        const response = await fetch('{{ url_for('main.search_users') }}' + '?q=' + encodeURIComponent(username));
         const data = await response.json();
-        
         const results = document.getElementById('searchResults');
         results.innerHTML = '';
-        
-        if (data.users.length === 0) {
-            results.innerHTML = '<p class="text-muted">Пользователь не найден</p>';
-            return;
-        }
-        
+        if (data.users.length === 0) { results.innerHTML = '<span style="color:var(--subtle)">{{ _('User not found') }}</span>'; return; }
         data.users.forEach(user => {
             if (user.id !== currentUser) {
                 const userDiv = document.createElement('div');
-                userDiv.className = 'search-result d-flex align-items-center p-2';
+                userDiv.className = 'search-result';
                 userDiv.dataset.username = user.username;
-                userDiv.innerHTML = `
-                    <img src="${user.profile_image ? `/static/uploads/profile_images/${user.profile_image}` : '/static/default-profile.png'}"
-                         alt="${user.username}" width="32" height="32" class="rounded-circle me-2 object-fit-cover">
-                    <span>${user.username}</span>
-                `;
+                userDiv.innerHTML = '<img src="' + (user.profile_image ? '{{ url_for('static', filename='uploads/profile_images/') }}' + user.profile_image : '{{ url_for('static', filename='default-profile.png') }}') + '" alt="' + user.username + ' avatar" width="24" height="24" class="chat-avatar" onerror="this.src=\'{{ url_for('static', filename='default-profile.png') }}\'"> <span>' + user.username + '</span>';
                 userDiv.addEventListener('click', () => selectUserForChat(user));
                 results.appendChild(userDiv);
             }
         });
-        
-    } catch (error) {
-        console.error('Error searching user:', error);
-    }
+    } catch (error) { console.error('Error searching user:', error); }
 }
 
-// Выбор пользователя для нового чата (с визуальным выделением)
 function selectUserForChat(user) {
-    // Снять выделение со всех результатов
-    document.querySelectorAll('.search-result').forEach(el => {
-        el.classList.remove('selected');
-    });
-    
-    // Выделить выбранный результат
-    const selected = document.querySelector(`.search-result[data-username="${user.username}"]`);
-    if (selected) {
-        selected.classList.add('selected');
-    }
-    
+    document.querySelectorAll('.search-result').forEach(el => el.classList.remove('selected'));
+    const selected = document.querySelector('.search-result[data-username="' + user.username + '"]');
+    if (selected) selected.classList.add('selected');
     document.getElementById('newChatUsername').value = user.username;
     document.getElementById('startChatBtn').disabled = false;
 }
 
-// Начать новый чат
 async function startNewChat() {
     const username = document.getElementById('newChatUsername').value.trim();
     if (!username) return;
-    
-    // Сброс выделения
     document.querySelectorAll('.search-result').forEach(el => el.classList.remove('selected'));
-    
     try {
-        const response = await fetch(`/chat/start/${username}`, {
+        const response = await fetch('{{ url_for('main.chat_start', username='') }}' + username, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-            }
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content }
         });
-        
         if (response.ok) {
             const data = await response.json();
-            bootstrap.Modal.getInstance(document.getElementById('newChatModal')).hide();
-            
-            // Загружаем обновленный список чатов
+            document.getElementById('newChatModal').classList.add('d-none');
             await loadChatList();
-            
-            // Находим и выбираем новый чат
-            const chatsResponse = await fetch('/api/chat/list');
+            const chatsResponse = await fetch('{{ url_for('main.chat_list') }}');
             const chatsData = await chatsResponse.json();
             const newChat = chatsData.chats.find(chat => chat.chat_id === data.chat_id);
-            if (newChat) {
-                selectChat(data.chat_id, newChat.other_user);
-            }
-        } else {
-            const err = await response.json();
-            console.error('Error starting chat:', err.error || err);
-        }
-        
-    } catch (error) {
-        console.error('Error starting chat:', error);
-    }
+            if (newChat) selectChat(data.chat_id, newChat.other_user);
+        } else { const err = await response.json(); console.error('Error starting chat:', err.error || err); }
+    } catch (error) { console.error('Error starting chat:', error); }
 }
 
-// ── Mobile: master-detail ──
-function isMobile() {
-    return window.innerWidth < 768;
-}
+function isMobile() { return window.innerWidth < 768; }
 
 function showChatOnMobile() {
     if (!isMobile()) return;
     document.getElementById('chatListColumn').classList.add('d-none');
-    document.getElementById('chatDetailColumn').classList.add('active');
+    document.getElementById('chatDetailColumn').classList.add('active-column');
 }
 
 function closeChatMobile() {
     if (!isMobile()) return;
     document.getElementById('chatListColumn').classList.remove('d-none');
-    document.getElementById('chatDetailColumn').classList.remove('active');
+    document.getElementById('chatDetailColumn').classList.remove('active-column');
     document.getElementById('chatArea').classList.remove('d-flex');
     document.getElementById('chatArea').classList.add('d-none');
     document.getElementById('noChatSelected').classList.remove('d-none');
-    if (pollingInterval) {
-        clearInterval(pollingInterval);
-        pollingInterval = null;
-    }
+    if (pollingInterval) { clearInterval(pollingInterval); pollingInterval = null; }
     currentChatId = null;
-    // Перезагружаем список чатов при возврате
     loadChatList();
 }
 
-// Polling для списка чатов (онлайн-статус, новые сообщения, уведомления)
 let chatListPollInterval = null;
-let prevChats = {}; // { chat_id: { last_message, last_message_date } }
+let prevChats = {};
 let isFirstChatLoad = true;
 
 function startChatListPolling() {
-    if (chatListPollInterval) {
-        clearInterval(chatListPollInterval);
-    }
+    if (chatListPollInterval) clearInterval(chatListPollInterval);
     chatListPollInterval = setInterval(async () => {
         try {
-            const response = await fetch('/api/chat/list');
+            const response = await fetch('{{ url_for('main.chat_list') }}');
             const data = await response.json();
-            
-            // На первом запуске просто запоминаем состояние, без уведомлений
             if (isFirstChatLoad) {
                 isFirstChatLoad = false;
-                data.chats.forEach(chat => {
-                    prevChats[chat.chat_id] = {
-                        last_message: chat.last_message,
-                        last_message_date: chat.last_message_date
-                    };
-                });
+                data.chats.forEach(chat => { prevChats[chat.chat_id] = { last_message: chat.last_message, last_message_date: chat.last_message_date }; });
                 updateChatList(data.chats);
                 return;
             }
-            
-            // Проверяем новые сообщения для уведомлений
             data.chats.forEach(chat => {
                 const prev = prevChats[chat.chat_id];
                 if (!chat.other_user) return;
-                
-                // Новый чат или новое сообщение в существующем
                 const isNewMessage = prev && prev.last_message !== chat.last_message;
                 const isNewChat = !prev && chat.last_message;
-                
                 if ((isNewMessage || isNewChat) && chat.other_user) {
-                    // Всегда показываем уведомление (тост + браузерное)
-                    const sender = chat.other_user.username || 'Пользователь';
-                    showBrowserNotification(sender, chat.last_message);
+                    if (window.showBrowserNotification) window.showBrowserNotification(chat.other_user.username, chat.last_message);
                 }
             });
-            
-            // Сохраняем текущее состояние
-            data.chats.forEach(chat => {
-                prevChats[chat.chat_id] = {
-                    last_message: chat.last_message,
-                    last_message_date: chat.last_message_date
-                };
-            });
-            
+            data.chats.forEach(chat => { prevChats[chat.chat_id] = { last_message: chat.last_message, last_message_date: chat.last_message_date }; });
             updateChatList(data.chats);
-        } catch (error) {
-            console.error('Error polling chat list:', error);
-        }
+        } catch (error) { console.error('Error polling chat list:', error); }
     }, 5000);
 }
 
 function stopChatListPolling() {
-    if (chatListPollInterval) {
-        clearInterval(chatListPollInterval);
-        chatListPollInterval = null;
-    }
+    if (chatListPollInterval) { clearInterval(chatListPollInterval); chatListPollInterval = null; }
 }
 
-// Polling для новых сообщений
 function startPolling() {
-    if (pollingInterval) {
-        clearInterval(pollingInterval);
-    }
-    
-    pollingInterval = setInterval(async () => {
-        if (currentChatId) {
-            await loadMessages();
-        }
-    }, 3000); // Каждые 3 секунды
+    if (pollingInterval) clearInterval(pollingInterval);
+    pollingInterval = setInterval(async () => { if (currentChatId) await loadMessages(); }, 3000);
 }
 
-// Форматирование даты
 function formatDate(dateString) {
     if (!dateString) return '';
-    
     const date = new Date(dateString);
     const now = new Date();
     const diff = now - date;
-    
-    if (diff < 60000) return 'только что';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)} мин`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)} ч`;
-    if (diff < 604800000) return `${Math.floor(diff / 86400000)} дн`;
-    
+    if (diff < 60000) return 'now';
+    if (diff < 3600000) return Math.floor(diff / 60000) + 'm';
+    if (diff < 86400000) return Math.floor(diff / 3600000) + 'h';
+    if (diff < 604800000) return Math.floor(diff / 86400000) + 'd';
     return date.toLocaleDateString('ru-RU');
 }
 
-// Форматирование времени
 function formatTime(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    return new Date(dateString).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 }
 
-// Экранирование HTML
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;

@@ -1,84 +1,60 @@
 {% extends "base.html" %}
 
-{% block styles %}
-<style>
-#imagePreview {
-    object-fit: contain;
-    border: 1px dashed #ccc;
-    padding: 10px;
-    background-color: #f8f9fa;
-}
-</style>
-{% endblock %}
+{% block title %}{{ 'edit post' if post else 'new post' }} — Rugram{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <h2 class="mb-4">{{ header }}</h2>
-
-            <form method="POST" enctype="multipart/form-data">
-                {{ form.hidden_tag() }}
-
-                <div class="mb-3">
-                    {{ form.text.label(class="form-label") }}
-                    {{ form.text(class="form-control", rows=2) }}
-                    {% for error in form.text.errors %}
-                        <div class="invalid-feedback d-block">{{ error }}</div>
-                    {% endfor %}
-                </div>
-
-                <div class="mb-4">
-                    {{ form.image.label(class="form-label") }}
-                    {{ form.image(class="form-control", id="imageUpload", onchange="previewImage()") }}
-                    {% for error in form.image.errors %}
-                        <div class="invalid-feedback d-block">{{ error }}</div>
-                    {% endfor %}
-                    <div class="form-text">Максимальный размер: 5MB. Допустимые форматы: JPG, PNG.</div>
-
-                    {% if post and post.image %}
-                    <div class="mt-2">
-                        <img src="{{ url_for('static', filename='uploads/posts/' + post.image) }}"
-                             alt="Текущее изображение" class="img-fluid rounded"
-                             style="max-height: 200px;">
-                        <div class="form-text text-muted">Текущее изображение. Загрузите новое, чтобы заменить.</div>
-                    </div>
-                    {% endif %}
-
-                    <div class="mt-3 text-center">
-                        <img id="imagePreview" src="#" alt="Предпросмотр изображения"
-                             class="img-fluid rounded d-none" style="max-height: 300px;">
-                    </div>
-                </div>
-
-                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                    <a href="{{ url_for('main.index') }}" class="btn btn-secondary me-md-2">Отмена</a>
-                    <button type="submit" class="btn btn-primary">{{ 'Сохранить' if post else 'Опубликовать' }}</button>
-                </div>
-            </form>
-        </div>
+<div class="auth-box" style="max-width:600px;margin:20px auto">
+    <div class="auth-header">
+        <span class="auth-title">{{ '[edit #' ~ post.id ~ ']' if post else '[new post]' }}</span>
+        <span class="auth-subtitle">{{ 'edit post' if post else 'create post' }}</span>
     </div>
-</div>
-{% endblock %}
+    <form method="POST" enctype="multipart/form-data" style="padding:16px">
+        {{ form.hidden_tag() }}
 
-{% block scripts %}
+        <div class="auth-field">
+            {{ form.text.label(class="field-label") }}
+            {{ form.text(class="field-input", rows=4, placeholder="what's on your mind?") }}
+            {% for error in form.text.errors %}
+            <div class="field-msg error">{{ error }}</div>
+            {% endfor %}
+        </div>
+
+        <div class="auth-field">
+            {{ form.image.label(class="field-label") }}
+            {{ form.image(class="field-input", id="imageUpload", onchange="previewImage()", style="padding:6px;font-size:0.8rem") }}
+            {% for error in form.image.errors %}
+            <div class="field-msg error">{{ error }}</div>
+            {% endfor %}
+            <small style="color:var(--subtle);font-size:0.7rem">max 5MB, JPG/PNG.</small>
+
+            {% if post and post.image %}
+            <div style="margin-top:8px">
+                <img src="{{ url_for('static', filename='uploads/posts/' + post.image) }}"
+                     alt="Current image" style="max-height:150px;border:1px solid var(--border);border-radius:4px">
+                <div style="color:var(--subtle);font-size:0.7rem">current image. upload new to replace.</div>
+            </div>
+            {% endif %}
+
+            <div style="margin-top:8px">
+                <img id="imagePreview" src="#" alt="Preview" style="max-height:200px;display:none;border:1px dashed var(--border);padding:8px;border-radius:4px">
+            </div>
+        </div>
+
+        <div style="display:flex;gap:4px;margin-top:16px">
+            <button type="submit" class="btn-term primary" style="flex:1">[>> {{ 'save' if post else 'publish' }}]</button>
+            <a href="{{ url_for('main.index') }}" class="btn-term" style="flex:1;text-align:center;text-decoration:none">[cancel]</a>
+        </div>
+    </form>
+</div>
+
 <script>
 function previewImage() {
     const preview = document.getElementById('imagePreview');
     const file = document.getElementById('imageUpload').files[0];
     const reader = new FileReader();
-
-    reader.onloadend = function() {
-        preview.src = reader.result;
-        preview.classList.remove('d-none');
-    }
-
-    if (file) {
-        reader.readAsDataURL(file);
-    } else {
-        preview.src = "#";
-        preview.classList.add('d-none');
-    }
+    reader.onloadend = function() { preview.src = reader.result; preview.style.display = 'block'; };
+    if (file) reader.readAsDataURL(file);
+    else { preview.src = '#'; preview.style.display = 'none'; }
 }
 </script>
 {% endblock %}

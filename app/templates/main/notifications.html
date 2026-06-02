@@ -1,257 +1,127 @@
 {% extends "base.html" %}
 
-{% block title %}Уведомления - Rugram{% endblock %}
+{% block title %}notifications — Rugram{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="row">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1 class="h3 mb-0">Уведомления</h1>
-                <button class="btn btn-sm btn-outline-primary" id="markAllReadBtn">
-                    <i class="bi bi-check-all me-1"></i>Отметить все прочитанными
-                </button>
-            </div>
-            
-            <div class="notification-container">
-                <div id="notificationsLoading" class="text-center py-5">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Загрузка...</span>
-                    </div>
-                </div>
-                
-                <div id="notificationsEmpty" class="text-center py-5" style="display: none;">
-                    <i class="bi bi-inbox" style="font-size: 3rem; color: #6c757d;"></i>
-                    <p class="text-muted mt-3 mb-0">Нет уведомлений</p>
-                </div>
-                
-                <div id="notificationsList" class="list-group list-group-flush"></div>
-            </div>
-        </div>
+<div class="terminal-box" style="max-width:600px;margin:20px auto">
+    <div class="auth-header" style="justify-content:space-between">
+        <span>
+            <span class="auth-title">[notifications]</span>
+            <span class="auth-subtitle">notifications</span>
+        </span>
+        <button class="btn-term" id="markAllReadBtn">[mark all read]</button>
     </div>
+
+    <div id="notificationsLoading" class="text-center" style="padding:40px;color:var(--subtle)">{{ _('Loading...') }}</div>
+
+    <div id="notificationsEmpty" class="text-center" style="padding:40px;color:var(--subtle);display:none">
+        <span style="font-size:2rem">[📭]</span>
+        <div style="margin-top:8px">{{ _('No notifications') }}</div>
+    </div>
+
+    <div id="notificationsList"></div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-// Загрузка уведомлений
 async function loadNotifications() {
     try {
-        const response = await fetch('/api/notifications');
-        const data = await response.json();
-        
+        const r = await fetch('{{ url_for('main.notifications_list') }}');
+        const data = await r.json();
         document.getElementById('notificationsLoading').style.display = 'none';
-        
         if (data.notifications.length === 0) {
             document.getElementById('notificationsEmpty').style.display = 'block';
             return;
         }
-        
-        const notificationsList = document.getElementById('notificationsList');
-        notificationsList.innerHTML = '';
-        
-        data.notifications.forEach(notification => {
-            const notificationHtml = createNotificationHtml(notification);
-            notificationsList.insertAdjacentHTML('beforeend', notificationHtml);
-        });
-        
-    } catch (error) {
-        console.error('Error loading notifications:', error);
-        document.getElementById('notificationsLoading').innerHTML = `
-            <div class="alert alert-danger">
-                <i class="bi bi-exclamation-triangle me-2"></i>Ошибка загрузки уведомлений
-            </div>
-        `;
+        const list = document.getElementById('notificationsList');
+        list.innerHTML = '';
+        data.notifications.forEach(function(n) { list.insertAdjacentHTML('beforeend', renderNotification(n)); });
+    } catch (e) {
+        console.error('Error loading notifications:', e);
+        document.getElementById('notificationsLoading').innerHTML = '<span style="color:var(--red)">error loading notifications</span>';
     }
 }
 
-// Создание HTML для уведомления
-function createNotificationHtml(notification) {
-    const actorName = notification.actor.username;
-    const actorProfile = `/profile/${notification.actor.id}`;
-    const postLink = notification.post_id ? `/post/${notification.post_id}` : null;
-    
-    let message = '';
-    let icon = '';
-    let iconClass = '';
-    
-    switch (notification.type) {
-        case 'like':
-            message = `<a href="${actorProfile}" class="text-decoration-none">${actorName}</a> поставил(а) лайк`;
-            icon = 'bi-heart-fill';
-            iconClass = 'text-danger';
-            break;
-        case 'comment':
-            message = `<a href="${actorProfile}" class="text-decoration-none">${actorName}</a> оставил(а) комментарий`;
-            icon = 'bi-chat-fill';
-            iconClass = 'text-primary';
-            break;
-        case 'follow':
-            message = `<a href="${actorProfile}" class="text-decoration-none">${actorName}</a> подписался(ась) на вас`;
-            icon = 'bi-person-plus-fill';
-            iconClass = 'text-success';
-            break;
+function renderNotification(n) {
+    const actor = n.actor.username;
+    const profileUrl = '{{ url_for('main.profile', user_id_or_username='') }}' + n.actor.id;
+    const postUrl = n.post_id ? '{{ url_for('posts.get_post', post_id=0) }}'.replace('/0', '/' + n.post_id) : null;
+    let msg = '', icon = '';
+    switch (n.type) {
+        case 'like': msg = '<a href="' + profileUrl + '">' + actor + '</a> liked'; icon = '[♥]'; break;
+        case 'comment': msg = '<a href="' + profileUrl + '">' + actor + '</a> commented'; icon = '[💬]'; break;
+        case 'follow': msg = '<a href="' + profileUrl + '">' + actor + '</a> followed you'; icon = '[+]'; break;
+        default: msg = actor; icon = '[*]';
     }
-    
-    const postLinkHtml = postLink ? ` к <a href="${postLink}" class="text-decoration-none">вашему посту</a>` : '';
-    const avatarUrl = notification.actor.profile_image 
-        ? `/static/uploads/profile_images/${notification.actor.profile_image}`
-        : '/static/default-profile.png';
-    
-    return `
-        <div class="list-group-item notification-item ${notification.is_read ? 'read' : 'unread'}" data-id="${notification.id}">
-            <div class="d-flex align-items-start">
-                <div class="flex-shrink-0">
-                    <img src="${avatarUrl}"
-                         alt="${actorName}" width="40" height="40" class="rounded-circle">
-                </div>
-                <div class="flex-grow-1 ms-3">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <p class="mb-1 ${notification.is_read ? '' : 'fw-bold'}">
-                                ${message}${postLinkHtml}
-                            </p>
-                            <small class="text-muted">${formatDate(notification.created_date)}</small>
-                        </div>
-                        ${!notification.is_read ? `
-                            <button class="btn btn-sm btn-outline-secondary mark-read-btn" data-id="${notification.id}">
-                                <i class="bi bi-check"></i>
-                            </button>
-                        ` : ''}
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
+    if (postUrl) msg += ' <a href="' + postUrl + '">your post</a>';
+    return '<div class="post-card nf-item ' + (n.is_read ? '' : 'unread') + '" data-id="' + n.id + '">'
+        + '<div class="post-header" style="justify-content:space-between">'
+        + '<span>' + icon + ' ' + msg + '</span>'
+        + '<small style="color:var(--subtle);font-size:0.7rem">' + formatDate(n.created_date) + '</small>'
+        + '</div>'
+        + (!n.is_read ? '<div style="padding:4px 0"><button class="btn-term mark-read-btn" data-id="' + n.id + '" style="font-size:0.7rem">[read]</button></div>' : '')
+        + '</div>';
 }
 
-// Форматирование даты
 function formatDate(dateString) {
     const date = new Date(dateString);
     const now = new Date();
     const diff = now - date;
-    
-    if (diff < 60000) return 'только что';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)} минут назад`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)} часов назад`;
-    if (diff < 604800000) return `${Math.floor(diff / 86400000)} дней назад`;
-    
+    if (diff < 60000) return 'now';
+    if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+    if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
     return date.toLocaleDateString('ru-RU');
 }
 
-// Отметить уведомление как прочитанное
-async function markNotificationRead(notificationId) {
+async function markRead(id) {
     try {
-        const response = await fetch(`/notifications/${notificationId}/mark-read`, {
+        const r = await fetch('{{ url_for('main.notification_mark_read', notification_id=0) }}'.replace('/0/', '/' + id + '/'), {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-            }
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content }
         });
-        
-        if (response.ok) {
-            const notificationElement = document.querySelector(`[data-id="${notificationId}"]`);
-            notificationElement.classList.remove('unread');
-            notificationElement.classList.add('read');
-            notificationElement.querySelector('.mark-read-btn').remove();
-            
-            // Обновить счётчик в навбаре
-            updateNotificationBadge();
+        if (r.ok) {
+            const el = document.querySelector('[data-id="' + id + '"]');
+            if (el) { el.classList.remove('unread'); const btn = el.querySelector('.mark-read-btn'); if (btn) btn.remove(); }
+            updateBadge();
         }
-    } catch (error) {
-        console.error('Error marking notification as read:', error);
-    }
+    } catch (e) { console.error(e); }
 }
 
-// Отметить все как прочитанные
-async function markAllAsRead() {
+async function markAllRead() {
     try {
-        const response = await fetch('/notifications/mark-all-read', {
+        const r = await fetch('{{ url_for('main.notifications_mark_all_read') }}', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-            }
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content }
         });
-        
-        if (response.ok) {
-            // Обновить все уведомления
-            document.querySelectorAll('.notification-item').forEach(item => {
-                item.classList.remove('unread');
-                item.classList.add('read');
-                const markBtn = item.querySelector('.mark-read-btn');
-                if (markBtn) markBtn.remove();
+        if (r.ok) {
+            document.querySelectorAll('.nf-item').forEach(function(el) {
+                el.classList.remove('unread');
+                const btn = el.querySelector('.mark-read-btn');
+                if (btn) btn.remove();
             });
-            
-            // Обновить счётчик в навбаре
-            updateNotificationBadge();
-            
-            // Показать сообщение
-            showNotification('Все уведомления отмечены как прочитанные', 'success');
+            updateBadge();
         }
-    } catch (error) {
-        console.error('Error marking all notifications as read:', error);
-        showNotification('Ошибка при отметке уведомлений', 'danger');
-    }
+    } catch (e) { console.error(e); }
 }
 
-// Обновить счётчик уведомлений в навбаре
-async function updateNotificationBadge() {
+async function updateBadge() {
     try {
-        const response = await fetch('/api/notifications/unread-count');
-        const data = await response.json();
-        
+        const r = await fetch('{{ url_for('main.notifications_unread_count') }}');
+        const data = await r.json();
         const badge = document.getElementById('notificationBadge');
-        if (data.count > 0) {
-            badge.textContent = data.count;
-            badge.style.display = 'inline-block';
-        } else {
-            badge.style.display = 'none';
-        }
-    } catch (error) {
-        console.error('Error updating notification badge:', error);
-    }
+        if (badge) { badge.textContent = data.count > 0 ? data.count : ''; badge.style.display = data.count > 0 ? 'inline' : 'none'; }
+    } catch (e) {}
 }
 
-// Показать уведомление
-function showNotification(message, type = 'info') {
-    const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3`;
-    alertDiv.style.zIndex = '9999';
-    alertDiv.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-    
-    document.body.appendChild(alertDiv);
-    
-    // Автоматически закрыть через 3 секунды
-    setTimeout(() => {
-        if (alertDiv.parentNode) {
-            alertDiv.remove();
-        }
-    }, 3000);
-}
-
-// Инициализация
 document.addEventListener('DOMContentLoaded', function() {
     loadNotifications();
-    
-    // Обработчик кнопки "Отметить все прочитанными"
-    document.getElementById('markAllReadBtn').addEventListener('click', markAllAsRead);
-    
-    // Обработчики кнопок "Отметить как прочитанное"
+    document.getElementById('markAllReadBtn').addEventListener('click', markAllRead);
     document.addEventListener('click', function(e) {
-        if (e.target.closest('.mark-read-btn')) {
-            const btn = e.target.closest('.mark-read-btn');
-            const notificationId = btn.dataset.id;
-            markNotificationRead(notificationId);
-        }
+        const btn = e.target.closest('.mark-read-btn');
+        if (btn) { e.preventDefault(); markRead(btn.dataset.id); }
     });
-    
-    // Обновить счётчик при загрузке страницы
-    updateNotificationBadge();
+    updateBadge();
 });
 </script>
 {% endblock %}

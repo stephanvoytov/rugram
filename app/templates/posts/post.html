@@ -1,330 +1,109 @@
 {% extends "base.html" %}
+{% import 'macros/_post_card.html' as macros %}
+
+{% block title %}post #{{ post.id }} — Rugram{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <!-- Кнопка назад -->
-            <div class="mb-3">
-                <a href="{{ url_for('main.index') }}" class="btn btn-sm btn-outline-secondary">
-                    <i class="bi bi-arrow-left"></i> Назад
-                </a>
-            </div>
+<h1 class="sr-only">Post #{{ post.id }} by @{{ post.author.username }}</h1>
+{% call macros.render_post(post, current_user) %}
+        {% if current_user.is_authenticated and (current_user == post.author) %}
+        <a href="{{ url_for('posts.edit_post', post_id=post.id) }}" class="post-action" style="font-size:0.68rem">[edit]</a>
+        <button class="post-action" onclick="deletePost({{ post.id }})" style="font-size:0.68rem;color:var(--red)">[delete]</button>
+        {% endif %}
+    {% endcall %}
 
-            <!-- Карточка поста -->
-            <div class="card mb-4 shadow-sm">
-                <!-- Шапка поста -->
-                <div class="card-header bg-transparent d-flex align-items-center justify-content-between">
-                    <a href="{{ url_for('main.profile', user_id_or_username=post.author.username) }}"
-                       class="d-flex align-items-center text-decoration-none">
-                        <img src="{{ url_for('static', filename='uploads/profile_images/' + post.author.profile_image) if post.author.profile_image else url_for('static', filename='default-profile.png') }}"
-                             class="rounded-circle me-2"
-                             width="32"
-                             height="32"
-                             alt="{{ post.author.username }}">
-                        <div>
-                            <strong>{{ post.author.username }}</strong>
-                            <small class="text-muted d-block">{{ post.created_date|time_ago }}</small>
-                            <small class="text-muted">
-                                <i class="bi bi-people-fill"></i> {{ post.author.followers_count }} {{ 'подписчик' if post.author.followers_count == 1 else 'подписчиков' if post.author.followers_count % 10 == 0 or post.author.followers_count % 10 >= 5 or 11 <= post.author.followers_count % 100 <= 14 else 'подписчика' }}
-                            </small>
+    <!-- Comments section -->
+    <div id="comments" style="margin-top:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)">
+            <span style="font-size:0.85rem"><b>[comments]</b> <span class="comments-count" style="color:var(--subtle)">{{ post.comments_count }}</span></span>
+        </div>
+
+        <!-- Comment form -->
+        {% if current_user.is_authenticated %}
+        <div style="margin-bottom:16px;padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:6px">
+            <form id="commentFormAjax" method="POST" action="{{ url_for('posts.add_comment', post_id=post.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div style="display:flex;gap:8px">
+                    <img src="{{ url_for('static', filename='uploads/profile_images/' + current_user.profile_image) if current_user.profile_image else url_for('static', filename='default-profile.png') }}"
+                         class="chat-avatar" width="36" height="36" alt="{{ current_user.username }}"
+                     onerror="this.src='{{ url_for('static', filename='default-profile.png') }}'"
+                     style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid var(--border);flex-shrink:0">
+                    <div style="flex:1;min-width:0">
+                        <textarea name="text" class="field-input" placeholder="{{ _('Write a comment...') }}" required
+                                  id="commentText" rows="2"
+                                  style="width:100%;resize:none;padding:8px 12px;font-size:0.85rem"></textarea>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+                            <div id="commentError" style="color:var(--red);font-size:0.78rem"></div>
+                            <button type="submit" class="btn-term primary" style="padding:6px 14px;font-size:0.82rem">[>> send]</button>
                         </div>
-                    </a>
-
-                    {% if current_user.is_authenticated and (current_user == post.author) %}
-                    <div class="d-inline-flex align-items-center gap-1">  <!-- Обертка для выравнивания -->
-                        <a href="{{ url_for('posts.edit_post', post_id=post.id) }}" class="btn btn-sm p-0"
-                           title="Редактировать">
-                            <i class="bi bi-pencil"></i>
-                        </a>
-                        <button class="btn btn-sm p-0 text-danger" onclick="deletePost({{ post.id }})" title="Удалить">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </div>
-                    {% endif %}
-                </div>
-
-                <!-- Изображение поста -->
-                {% if post.image %}
-                <img src="{{ url_for('static', filename='uploads/posts/' + post.image) }}"
-                     class="card-img-top post-image post-img-clickable"
-                     loading="lazy"
-                     data-full-img="{{ url_for('static', filename='uploads/posts/' + post.image) }}"
-                     style="cursor:pointer">
-                {% endif %}
-
-                <!-- Тело карточки -->
-                <div class="card-body">
-                    <p class="card-text">{{ post.text }}</p>
-
-                    <!-- Действия с постом -->
-                    <div class="post-actions border-top pt-2">
-                        <button class="btn btn-sm like-btn {% if post.is_liked_by(current_user) %}text-danger{% else %}text-muted{% endif %}"
-                                data-post-id="{{ post.id }}"
-                                data-liked="{{ 'true' if post.is_liked_by(current_user) else 'false' }}">
-                            <i class="bi {% if post.is_liked_by(current_user) %}bi-heart-fill{% else %}bi-heart{% endif %} fs-5"></i>
-                            <span class="like-count ms-1">{{ post.likes_count }}</span>
-                        </button>
-
-                        <button class="btn btn-sm text-muted ms-3"
-                                {% if not current_user.is_authenticated
-                                %}onclick="window.location='{{ url_for('auth.login') }}'"
-                                {% else %}
-                                data-bs-toggle="collapse" data-bs-target="#commentForm"
-                                {% endif %}>
-                            <i class="bi bi-chat-left-text fs-5"></i>
-                            <span class="ms-1">{{ post.comments_count }}</span>
-                        </button>
-                        
-                        {% if current_user.is_authenticated %}
-                        <button class="btn btn-sm text-muted ms-2 repost-btn"
-                                data-post-id="{{ post.id }}"
-                                data-reposted="{{ 'true' if post.is_reposted_by(current_user) else 'false' }}"
-                                title="Поделиться">
-                            <i class="bi bi-repeat fs-5 {% if post.is_reposted_by(current_user) %}text-success{% endif %}"></i>
-                            <span class="repost-count ms-1">{{ post.reposts_count }}</span>
-                        </button>
-                        <button class="btn btn-sm text-muted ms-auto save-btn"
-                                data-post-id="{{ post.id }}"
-                                data-saved="{{ 'true' if post.is_saved_by(current_user) else 'false' }}"
-                                title="Сохранить">
-                            <i class="bi {% if post.is_saved_by(current_user) %}bi-bookmark-fill{% else %}bi-bookmark{% endif %} fs-5"></i>
-                        </button>
-                        {% endif %}
                     </div>
                 </div>
-            </div>
+            </form>
+        </div>
+        {% else %}
+        <div style="padding:12px;text-align:center;border:1px solid var(--border);margin-bottom:16px;font-size:0.85rem">
+            <a href="{{ url_for('auth.login') }}" style="color:var(--accent)">{{ _('log in') }}</a> {{ _('to leave a comment') }}
+        </div>
+        {% endif %}
 
-            <!-- Комментарии -->
-            <div class="comments-section">
-                <div class="d-flex align-items-center justify-content-between mb-3">
-                    <h5 class="mb-0">Комментарии (<span class="comments-count">{{ post.comments_count }}</span>)</h5>
-                </div>
-
-                <!-- Форма комментария -->
-                {% if current_user.is_authenticated %}
-                <div class="comment-form-wrap mb-4">
-                    <form id="commentFormAjax" method="POST" action="{{ url_for('posts.add_comment', post_id=post.id) }}">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <div class="d-flex gap-2">
-                            <img src="{{ url_for('static', filename='uploads/profile_images/' + current_user.profile_image) if current_user.profile_image else url_for('static', filename='default-profile.png') }}"
-                                 class="rounded-circle flex-shrink-0"
-                                 width="36" height="36"
-                                 alt="{{ current_user.username }}">
-                            <div class="flex-grow-1">
-                                <textarea name="text" class="form-control comment-input" placeholder="Написать комментарий..." required
-                                          id="commentText"></textarea>
-                                <div class="d-flex justify-content-between align-items-center mt-2">
-                                    <div id="commentError" class="text-danger small"></div>
-                                    <button type="submit" class="btn btn-primary btn-sm px-3">
-                                        <i class="bi bi-send"></i> Отправить
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-                {% else %}
-                <div class="alert alert-info mb-4 py-2 text-center">
-                    <a href="{{ url_for('auth.login') }}" class="alert-link">Войдите</a>, чтобы оставить комментарий
-                </div>
-                {% endif %}
-
-                <!-- Список комментариев -->
-                <div class="comments-list" id="commentsContainer">
-                    {% for comment in post.comments %}
-                    <div class="comment-item" data-comment-id="{{ comment.id }}">
-                        <div class="d-flex gap-2">
-                            <a href="{{ url_for('main.profile', user_id_or_username=comment.author.username) }}" class="flex-shrink-0">
-                                <img src="{{ url_for('static', filename='uploads/profile_images/' + comment.author.profile_image) if comment.author.profile_image else url_for('static', filename='default-profile.png') }}"
-                                     class="rounded-circle"
-                                     width="32" height="32"
-                                     alt="{{ comment.author.username }}">
+        <!-- Comments list -->
+        <div id="commentsContainer">
+            {% for comment in post.comments %}
+            <div class="comment-item" data-comment-id="{{ comment.id }}" style="padding:10px 0;border-bottom:1px solid var(--border)">
+                <div style="display:flex;gap:8px">
+                    <a href="{{ url_for('main.profile', user_id_or_username=comment.author.username) }}" style="flex-shrink:0">
+                        <img src="{{ url_for('static', filename='uploads/profile_images/' + comment.author.profile_image) if comment.author.profile_image else url_for('static', filename='default-profile.png') }}"
+                             width="30" height="30" alt="{{ comment.author.username }}"
+                             style="border-radius:50%;object-fit:cover;border:1px solid var(--border)"
+                              onerror="this.src='{{ url_for('static', filename='default-profile.png') }}'">
+                     </a>
+                    <div style="flex:1;min-width:0">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:1px">
+                            <a href="{{ url_for('main.profile', user_id_or_username=comment.author.username) }}"
+                               style="font-weight:600;color:var(--accent);font-size:0.82rem;text-decoration:none">
+                                @{{ comment.author.username }}
                             </a>
-                            <div class="flex-grow-1 comment-body">
-                                <div class="comment-header">
-                                    <a href="{{ url_for('main.profile', user_id_or_username=comment.author.username) }}"
-                                       class="fw-semibold text-decoration-none comment-username">
-                                        {{ comment.author.username }}
-                                    </a>
-                                    <span class="text-muted comment-time">{{ comment.created_date|time_ago }}</span>
-                                    {% if current_user.is_authenticated and current_user.id == comment.author_id %}
-                                    <div class="ms-auto d-flex gap-1">
-                                        <button class="btn btn-sm p-0 text-secondary edit-comment-btn"
-                                                data-comment-id="{{ comment.id }}"
-                                                title="Редактировать">
-                                            <i class="bi bi-pencil"></i>
-                                        </button>
-                                        <button class="btn btn-sm p-0 text-danger delete-comment-btn"
-                                                data-comment-id="{{ comment.id }}"
-                                                title="Удалить комментарий">
-                                            <i class="bi bi-x-circle"></i>
-                                        </button>
-                                    </div>
-                                    {% endif %}
-                                </div>
-                                <p class="comment-text mb-0">{{ comment.text }}</p>
+                            <span style="color:var(--subtle);font-size:0.7rem">{{ comment.created_date|time_ago }}</span>
+                            {% if current_user.is_authenticated and current_user.id == comment.author_id %}
+                            <div style="margin-left:auto;display:flex;gap:4px">
+                                <button class="post-action edit-comment-btn" data-comment-id="{{ comment.id }}" style="font-size:0.65rem;padding:1px 4px">[edit]</button>
+                                <button class="post-action delete-comment-btn" data-comment-id="{{ comment.id }}" style="font-size:0.65rem;padding:1px 4px;color:var(--red)">[x]</button>
                             </div>
+                            {% endif %}
                         </div>
+                        <p class="comment-text" style="margin:0;font-size:0.85rem;line-height:1.5;word-break:break-word;color:var(--fg)">{{ comment.text }}</p>
                     </div>
-                    {% else %}
-                    <div class="text-center text-muted py-4 empty-comments" id="emptyComments">
-                        <i class="bi bi-chat-left-text fs-3"></i>
-                        <p class="mt-2 mb-0">Пока нет комментариев. Будьте первым!</p>
-                    </div>
-                    {% endfor %}
                 </div>
             </div>
+            {% else %}
+            <div id="emptyComments" style="text-align:center;padding:24px;color:var(--subtle);font-size:0.85rem">
+                <span style="font-size:1.5rem">[💬]</span>
+                <p style="margin:6px 0 0 0">{{ _('No comments yet. Be the first!') }}</p>
+            </div>
+            {% endfor %}
         </div>
     </div>
 </div>
 
-<style>
-    .post-card {
-        border-radius: 12px;
-        overflow: hidden;
-    }
-
-    .post-image {
-        width: 100%;
-        max-height: 600px;
-        object-fit: contain;
-        background-color: var(--bs-tertiary-bg);
-    }
-
-    .like-btn {
-        transition: transform 0.2s;
-        position: relative;
-        overflow: visible;
-    }
-
-    .like-btn:hover {
-        transform: scale(1.1);
-    }
-
-    @keyframes likeRipple {
-        0%   { box-shadow: 0 0 0 0 rgba(var(--bs-danger-rgb), 0.5); }
-        100% { box-shadow: 0 0 0 12px rgba(var(--bs-danger-rgb), 0); }
-    }
-
-    .like-btn.like-anim {
-        animation: likeRipple 0.5s ease-out;
-    }
-
-    .like-btn .bi {
-        transition: color 0.2s;
-    }
-
-    .comment-input {
-        resize: none;
-        border-radius: 12px;
-        background: var(--bs-tertiary-bg);
-        border-color: var(--bs-border-color);
-        font-size: 0.9rem;
-        min-height: 40px;
-        transition: border-color 0.2s, box-shadow 0.2s;
-    }
-
-    .comment-input:focus {
-        border-color: var(--bs-primary);
-        box-shadow: 0 0 0 2px rgba(var(--bs-primary-rgb), 0.15);
-    }
-
-    .comment-form-wrap {
-        background: var(--bs-tertiary-bg);
-        border-radius: 16px;
-        padding: 16px;
-        border: 1px solid var(--bs-border-color);
-    }
-
-    .comment-item {
-        padding: 12px 0;
-        border-bottom: 1px solid var(--bs-border-color);
-        transition: background 0.15s;
-    }
-
-    .comment-item:last-child {
-        border-bottom: none;
-    }
-
-    .comment-item:hover {
-        background: var(--bs-tertiary-bg);
-        margin: 0 -8px;
-        padding: 12px 8px;
-        border-radius: 8px;
-    }
-
-    .comment-header {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 2px;
-    }
-
-    .comment-time {
-        font-size: 0.75rem;
-    }
-
-    .comment-text {
-        font-size: 0.9rem;
-        line-height: 1.4;
-        word-break: break-word;
-    }
-
-    .delete-comment-btn {
-        opacity: 0;
-        transition: opacity 0.15s;
-        font-size: 0.85rem;
-    }
-
-    .comment-item:hover .delete-comment-btn {
-        opacity: 1;
-    }
-
-    @keyframes commentFadeIn {
-        from { opacity: 0; transform: translateY(-8px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-
-    .comment-item-new {
-        animation: commentFadeIn 0.3s ease-out;
-    }
-</style>
-
 <script>
 function deletePost(postId) {
-    if (confirm('Удалить пост?')) {
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-        fetch(`/delete/${postId}`, {
+    if (confirm('Delete post?')) {
+        var csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+        fetch('{{ url_for('posts.delete_post', post_id=0) }}'.replace('/0', '/' + postId), {
             method: 'DELETE',
-            headers: {
-                'X-CSRFToken': csrfToken,
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
+            headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         })
-        .then(response => {
-            if (response.ok) {
-                window.location.href = '/';
-            } else if (response.status === 401) {
-                window.location.href = window.LOGIN_URL || '/login';
-            } else {
-                alert('Ошибка удаления!');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Ошибка удаления!');
-        });
+        .then(function(r) { if (r.ok) window.location.href = '{{ url_for('main.index') }}'; else if (r.status === 401) window.location.href = window.LOGIN_URL; else alert('Error'); })
+        .catch(function() { alert('Error'); });
     }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+    var csrfToken = document.querySelector('meta[name="csrf-token"]').content;
     window.currentUserId = {{ current_user.id|tojson if current_user.is_authenticated else 'null' }};
 
-    // ── Auto-expand textarea ──
-    const commentText = document.getElementById('commentText');
+    // ── Comments ──
+    var commentText = document.getElementById('commentText');
     if (commentText) {
         commentText.addEventListener('input', function() {
             this.style.height = 'auto';
@@ -332,38 +111,26 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // ── Submit comment ──
-    const commentForm = document.getElementById('commentFormAjax');
+    var commentForm = document.getElementById('commentFormAjax');
     if (commentForm) {
         commentForm.addEventListener('submit', function(e) {
             e.preventDefault();
-            const formData = new FormData(this);
-            const errorDiv = document.getElementById('commentError');
-            const submitBtn = this.querySelector('button[type="submit"]');
-            const originalText = submitBtn.innerHTML;
+            var formData = new FormData(this);
+            var errorDiv = document.getElementById('commentError');
+            var submitBtn = this.querySelector('button[type="submit"]');
+            var originalText = submitBtn.innerHTML;
 
             submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            submitBtn.innerHTML = '...';
 
             fetch(this.action, {
                 method: 'POST',
                 body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
-                },
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
                 credentials: 'same-origin'
             })
-            .then(response => {
-                if (!response.ok) {
-                    return response.text().then(text => {
-                        try { throw JSON.parse(text); }
-                        catch { throw new Error(text || 'Server error'); }
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
+            .then(function(r) { if (!r.ok) { return r.text().then(function(t) { try { throw JSON.parse(t); } catch (ex) { throw new Error(t || 'Server error'); } }); } return r.json(); })
+            .then(function(data) {
                 if (data.status === 'success') {
                     commentText.value = '';
                     commentText.style.height = 'auto';
@@ -372,177 +139,112 @@ document.addEventListener('DOMContentLoaded', function() {
                     addNewComment(data.comment);
                 }
             })
-            .catch(error => {
-                errorDiv.textContent = error.error || error.message || 'Ошибка отправки';
-            })
-            .finally(() => {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
-            });
+            .catch(function(error) { errorDiv.textContent = error.error || error.message || 'Error'; })
+            .finally(function() { submitBtn.disabled = false; submitBtn.innerHTML = originalText; });
         });
     }
 
     function updateCommentsCount(count) {
-        document.querySelectorAll('.comments-count').forEach(el => {
-            el.textContent = count;
-        });
+        document.querySelectorAll('.comments-count').forEach(function(el) { el.textContent = count; });
     }
 
     function addNewComment(comment) {
-        const container = document.getElementById('commentsContainer');
-        const emptyEl = document.getElementById('emptyComments');
+        var container = document.getElementById('commentsContainer');
+        var emptyEl = document.getElementById('emptyComments');
         if (emptyEl) emptyEl.remove();
 
-        const profileImg = comment.author.profile_image
-            ? `/static/uploads/profile_images/${comment.author.profile_image}`
-            : '/static/default-profile.png';
+        var profileImg = comment.author.profile_image ? '{{ url_for('static', filename='uploads/profile_images/') }}' + comment.author.profile_image : '{{ url_for('static', filename='default-profile.png') }}';
+        var isOwn = comment.author.id === window.currentUserId;
 
-        const isOwn = comment.author.id === window.currentUserId;
-
-        const html = `
-            <div class="comment-item comment-item-new" data-comment-id="${comment.id}">
-                <div class="d-flex gap-2">
-                    <a href="/profile/${comment.author.username}" class="flex-shrink-0">
-                        <img src="${profileImg}"
-                             class="rounded-circle"
-                             width="32" height="32"
-                             alt="${comment.author.username}">
-                    </a>
-                    <div class="flex-grow-1 comment-body">
-                        <div class="comment-header">
-                            <a href="/profile/${comment.author.username}"
-                               class="fw-semibold text-decoration-none comment-username">
-                                ${comment.author.username}
-                            </a>
-                            <span class="text-muted comment-time">только что</span>
-                            ${isOwn ? `
-                            <div class="ms-auto d-flex gap-1">
-                                <button class="btn btn-sm p-0 text-secondary edit-comment-btn"
-                                        data-comment-id="${comment.id}"
-                                        title="Редактировать">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
-                                <button class="btn btn-sm p-0 text-danger delete-comment-btn"
-                                        data-comment-id="${comment.id}"
-                                        title="Удалить комментарий">
-                                    <i class="bi bi-x-circle"></i>
-                                </button>
-                            </div>` : ''}
-                        </div>
-                        <p class="comment-text mb-0">${comment.text}</p>
-                    </div>
-                </div>
-            </div>
-        `;
+        var html = '<div class="comment-item comment-item-new" data-comment-id="' + comment.id + '" style="padding:10px 0;border-bottom:1px solid var(--border);animation:fadeSlide 0.3s ease-out">'
+            + '<div style="display:flex;gap:8px">'
+            + '<a href="' + '{{ url_for('main.profile', user_id_or_username='') }}' + comment.author.username + '" style="flex-shrink:0">'
+            + '<img src="' + profileImg + '" width="30" height="30" alt="' + comment.author.username + '" style="border-radius:50%;object-fit:cover;border:1px solid var(--border)" onerror="this.src=\'{{ url_for('static', filename='default-profile.png') }}\'">'
+            + '</a>'
+            + '<div style="flex:1;min-width:0">'
+            + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:1px">'
+            + '<a href="' + '{{ url_for('main.profile', user_id_or_username='') }}' + comment.author.username + '" style="font-weight:600;color:var(--accent);font-size:0.82rem;text-decoration:none">@' + comment.author.username + '</a>'
+            + '<span style="color:var(--subtle);font-size:0.7rem">just now</span>'
+            + (isOwn ? '<div style="margin-left:auto;display:flex;gap:4px"><button class="post-action edit-comment-btn" data-comment-id="' + comment.id + '" style="font-size:0.65rem;padding:1px 4px">[edit]</button><button class="post-action delete-comment-btn" data-comment-id="' + comment.id + '" style="font-size:0.65rem;padding:1px 4px;color:var(--red)">[x]</button></div>' : '')
+            + '</div>'
+            + '<p style="margin:0;font-size:0.85rem;line-height:1.5;word-break:break-word;color:var(--fg)">' + escapeHtml(comment.text) + '</p>'
+            + '</div></div></div>';
 
         container.insertAdjacentHTML('beforeend', html);
-        const newItem = container.lastElementChild;
+        var newItem = container.lastElementChild;
         bindDeleteComment(newItem.querySelector('.delete-comment-btn'));
         bindEditComment(newItem.querySelector('.edit-comment-btn'));
     }
 
-    // ── Edit comment ──
     function bindEditComment(btn) {
         if (!btn) return;
         btn.addEventListener('click', function() {
-            const commentId = this.dataset.commentId;
-            const item = this.closest('.comment-item');
-            const body = item.querySelector('.comment-body');
-            const textEl = body.querySelector('.comment-text');
-            const currentText = textEl.textContent;
+            var commentId = this.dataset.commentId;
+            var item = this.closest('.comment-item');
+            var body = item.querySelector('[style*="flex:1"]') || item.querySelector('div:last-child');
+            var textEl = body.querySelector('p');
+            if (!textEl) return;
+            var currentText = textEl.textContent;
 
-            // Переключаемся в режим редактирования
-            textEl.innerHTML = `
-                <div class="d-flex gap-2">
-                    <textarea class="form-control form-control-sm edit-comment-textarea" rows="2">${currentText}</textarea>
-                    <div class="d-flex flex-column gap-1">
-                        <button class="btn btn-sm btn-primary save-edit-btn" data-comment-id="${commentId}">
-                            <i class="bi bi-check-lg"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-secondary cancel-edit-btn">
-                            <i class="bi bi-x-lg"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
+            textEl.innerHTML = '<div style="display:flex;gap:6px;align-items:start">'
+                + '<textarea class="field-input" rows="2" style="flex:1;resize:none;padding:6px 10px;font-size:0.82rem">' + currentText.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</textarea>'
+                + '<div style="display:flex;flex-direction:column;gap:4px">'
+                + '<button class="btn-term save-edit-btn" data-comment-id="' + commentId + '" style="padding:4px 8px;font-size:0.75rem">[save]</button>'
+                + '<button class="btn-term cancel-edit-btn" style="padding:4px 8px;font-size:0.75rem">[x]</button>'
+                + '</div></div>';
 
-            const textarea = textEl.querySelector('.edit-comment-textarea');
+            var textarea = textEl.querySelector('textarea');
             textarea.focus();
             textarea.setSelectionRange(textarea.value.length, textarea.value.length);
 
-            // Сохранить
             textEl.querySelector('.save-edit-btn').addEventListener('click', function() {
-                const newText = textarea.value.trim();
-                if (!newText || newText === currentText) {
-                    textEl.textContent = currentText;
-                    return;
-                }
-
-                fetch(`/comment/${commentId}/edit`, {
+                var newText = textarea.value.trim();
+                if (!newText || newText === currentText) { textEl.textContent = currentText; return; }
+                fetch('{{ url_for('posts.edit_comment', comment_id=0) }}'.replace('/0/', '/' + commentId + '/'), {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken,
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
                     body: JSON.stringify({ text: newText })
                 })
-                .then(r => r.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        textEl.textContent = data.comment.text;
-                    } else {
-                        textEl.textContent = currentText;
-                    }
-                })
-                .catch(() => { textEl.textContent = currentText; });
+                .then(function(r) { return r.json(); })
+                .then(function(data) { textEl.textContent = data.status === 'success' ? data.comment.text : currentText; })
+                .catch(function() { textEl.textContent = currentText; });
             });
 
-            // Отмена
-            textEl.querySelector('.cancel-edit-btn').addEventListener('click', function() {
-                textEl.textContent = currentText;
-            });
+            textEl.querySelector('.cancel-edit-btn').addEventListener('click', function() { textEl.textContent = currentText; });
         });
     }
 
-    // Привязываем редактирование к существующим кнопкам
     document.querySelectorAll('.edit-comment-btn').forEach(bindEditComment);
 
-    // ── Delete comment ──
     function bindDeleteComment(btn) {
         if (!btn) return;
         btn.addEventListener('click', function() {
-            if (!confirm('Удалить комментарий?')) return;
-            const commentId = this.dataset.commentId;
-            const item = this.closest('.comment-item');
-
-            fetch(`/comment/${commentId}`, {
+            if (!confirm('Delete comment?')) return;
+            var commentId = this.dataset.commentId;
+            var item = this.closest('.comment-item');
+            fetch('{{ url_for('posts.delete_comment', comment_id=0) }}'.replace('/0', '/' + commentId), {
                 method: 'DELETE',
-                headers: {
-                    'X-CSRFToken': csrfToken,
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
+                headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
             })
-            .then(r => r.json())
-            .then(data => {
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
                 if (data.status === 'deleted') {
                     item.remove();
                     updateCommentsCount(data.comments_count);
                     if (!document.querySelectorAll('.comment-item').length) {
-                        document.getElementById('commentsContainer').innerHTML = `
-                            <div class="text-center text-muted py-4 empty-comments" id="emptyComments">
-                                <i class="bi bi-chat-left-text fs-3"></i>
-                                <p class="mt-2 mb-0">Пока нет комментариев. Будьте первым!</p>
-                            </div>`;
+                        document.getElementById('commentsContainer').innerHTML = '<div id="emptyComments" style="text-align:center;padding:24px;color:var(--subtle);font-size:0.85rem"><span style="font-size:1.5rem">[💬]</span><p style="margin:6px 0 0 0">no comments yet</p></div>';
                     }
                 }
             })
-            .catch(e => console.error('Error deleting comment:', e));
+            .catch(function(e) { console.error(e); });
         });
     }
-
 });
-</script>
 
+function escapeHtml(text) {
+    var d = document.createElement('div');
+    d.textContent = text;
+    return d.innerHTML;
+}
+</script>
 {% endblock %}

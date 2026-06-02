@@ -1,189 +1,114 @@
 {% extends "base.html" %}
 
+{% block title %}Rugram{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
-    <div class="row">
-        <div class="col-lg-8 mx-auto">
-            {% if current_user.is_authenticated %}
-            <div class="d-flex gap-2 mb-3">
-                <a href="{{ url_for('main.index') }}"
-                   class="btn btn-sm {% if not followed_only %}btn-primary{% else %}btn-outline-primary{% endif %} rounded-pill">
-                    Всё
-                </a>
-                <a href="{{ url_for('main.index', followed='1') }}"
-                   class="btn btn-sm {% if followed_only %}btn-primary{% else %}btn-outline-primary{% endif %} rounded-pill">
-                    Подписки
-                </a>
-            </div>
-            {% endif %}
+<h1 class="sr-only">Rugram</h1>
+{% if current_user.is_authenticated %}
+<div class="filter-line">
+    <a href="{{ url_for('main.index') }}" class="filter-item {% if not request.args.get('followed') %}active{% endif %}">all</a>
+    <a href="{{ url_for('main.index', followed='1') }}" class="filter-item {% if request.args.get('followed') %}active{% endif %}">~subs</a>
+    <a href="{{ url_for('posts.create_post') }}" class="filter-item" style="margin-left:auto">[+ create]</a>
+</div>
+{% endif %}
 
-            <div id="posts-container">
-                {% include 'main/_posts.html' %}
+<!-- Create Post Box -->
+{% if current_user.is_authenticated %}
+<div class="create-box">
+    <form action="{{ url_for('posts.create_post') }}" method="POST" enctype="multipart/form-data" id="quickPostForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <textarea name="text" placeholder="[>] type something..." rows="2" maxlength="3000" required></textarea>
+        <div class="create-actions">
+            <span class="hint">[*] Ctrl+Enter to post</span>
+            <div style="display:flex;gap:4px">
+                <label class="btn-term" style="cursor:pointer;display:inline-block">
+                    [attach]
+                    <input type="file" name="image" accept="image/*" style="display:none" onchange="this.form.querySelector('.hint').textContent='[1] file selected'">
+                </label>
+                <button type="submit" class="btn-term primary">[>> post]</button>
             </div>
-
-            {% if pagination.has_next %}
-            <div class="text-center py-3" id="load-more-sentinel">
-                <div class="spinner-border text-primary d-none" id="load-spinner" role="status">
-                    <span class="visually-hidden">Загрузка...</span>
-                </div>
-            </div>
-            {% endif %}
-
-            {% if pagination.pages > 1 %}
-            <nav aria-label="Page navigation" class="mt-4 d-none" id="pagination-nav">
-                <ul class="pagination justify-content-center">
-                    <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
-                        <a class="page-link" href="{{ url_for('main.index', page=pagination.prev_num) if pagination.has_prev else '#' }}">
-                            <i class="bi bi-chevron-left"></i>
-                        </a>
-                    </li>
-                    {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
-                    {% if page_num %}
-                    <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
-                        <a class="page-link" href="{{ url_for('main.index', page=page_num) }}">{{ page_num }}</a>
-                    </li>
-                    {% else %}
-                    <li class="page-item disabled"><span class="page-link">...</span></li>
-                    {% endif %}
-                    {% endfor %}
-                    <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
-                        <a class="page-link" href="{{ url_for('main.index', page=pagination.next_num) if pagination.has_next else '#' }}">
-                            <i class="bi bi-chevron-right"></i>
-                        </a>
-                    </li>
-                </ul>
-            </nav>
-            {% endif %}
         </div>
-    </div>
+    </form>
+</div>
+{% endif %}
+
+<!-- Posts Container -->
+<div id="posts-container">
+    {% include 'main/_posts.html' %}
 </div>
 
-<style>
-    .post-card {
-        border-radius: 12px;
-        overflow: hidden;
-        transition: transform 0.2s;
-    }
-    .post-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-    }
-    .post-image {
-        height: 100%;
-        object-fit: cover;
-    }
-    .like-btn {
-        transition: all 0.2s;
-    }
-    .like-btn:hover {
-        transform: scale(1.1);
-    }
-    .page-item.active .page-link {
-        background-color: #0d6efd;
-        border-color: #0d6efd;
-    }
-</style>
+<!-- Pagination -->
+{% if pagination.pages > 1 %}
+<div class="filter-line" style="justify-content:center;border-bottom:none">
+    {% if pagination.has_prev %}
+    <a href="{{ url_for('main.index', page=pagination.prev_num, followed=request.args.get('followed', '')) }}" class="filter-item">[&lt;&lt; prev]</a>
+    {% endif %}
+    {% for p in range(1, pagination.pages + 1) %}
+    <a href="{{ url_for('main.index', page=p, followed=request.args.get('followed', '')) }}" class="filter-item {% if p == pagination.page %}active{% endif %}">#{{ p }}</a>
+    {% endfor %}
+    {% if pagination.has_next %}
+    <a href="{{ url_for('main.index', page=pagination.next_num, followed=request.args.get('followed', '')) }}" class="filter-item">[next &gt;&gt;]</a>
+    {% endif %}
+</div>
+{% endif %}
 
+<!-- Infinite scroll sentinel -->
+<div id="load-more-sentinel" style="height:1px"></div>
+{% endblock %}
+
+{% block scripts %}
 <script>
-function deletePost(postId) {
-    if (confirm('Удалить пост?')) {
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+// Quick post form
+document.getElementById('quickPostForm')?.addEventListener('submit', function(e) {
+    const text = this.querySelector('textarea').value.trim();
+    if (!text) { e.preventDefault(); return; }
+});
 
-        fetch(`/delete/${postId}`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRFToken': csrfToken,
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-        })
-        .then(response => {
-            if (response.ok) {
-                window.location.reload();
-            } else if (response.status === 401) {
-                window.location.href = window.LOGIN_URL || '/login';
-            } else {
-                alert('Ошибка удаления!');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Ошибка удаления!');
-        });
-    }
-}
+// Post card click → detail page (unless clicking a button/link)
+document.getElementById('posts-container')?.addEventListener('click', function(e) {
+    const card = e.target.closest('.post-card');
+    if (!card) return;
+    if (e.target.closest('button, a, img')) return;
+    const url = card.dataset.postUrl;
+    if (url) window.location = url;
+});
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Clickable post cards
-    document.querySelectorAll('.post-card').forEach(card => {
-        card.addEventListener('click', function(e) {
-            if (e.target.closest('a') || e.target.closest('button') || e.target.closest('.post-actions')) return;
-            const url = this.dataset.postUrl;
-            if (url) window.location.href = url;
-        });
-    });
-
-    // Infinite scroll
+// Infinite scroll
+(function() {
     const sentinel = document.getElementById('load-more-sentinel');
-    const spinner = document.getElementById('load-spinner');
-    const container = document.getElementById('posts-container');
-    let currentPage = {{ pagination.page }};
-    const totalPages = {{ pagination.pages }};
+    if (!sentinel) return;
+    const pagination = document.querySelector('.filter-line');
+    if (!pagination || pagination.querySelector('.filter-item.active')?.textContent !== '#1') return;
+    const nextBtn = pagination.querySelector('.filter-item:last-child');
+    if (!nextBtn) return;
     let loading = false;
-
-    if (sentinel && totalPages > 1) {
-        const observer = new IntersectionObserver(async (entries) => {
-            for (const entry of entries) {
-                if (entry.isIntersecting && !loading && currentPage < totalPages) {
-                    loading = true;
-                    if (spinner) spinner.classList.remove('d-none');
-
-                    try {
-                        currentPage++;
-                        const params = new URLSearchParams(window.location.search);
-                        params.set('page', currentPage);
-                        params.set('ajax', '1');
-
-                        const response = await fetch(`/index?${params.toString()}`, {
-                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                        });
-
-                        if (!response.ok) throw new Error('Load failed');
-
-                        const html = await response.text();
-                        const temp = document.createElement('div');
-                        temp.innerHTML = html;
-                        const newPosts = temp.querySelector('#posts-container')?.innerHTML || temp.innerHTML;
-
-                        container.insertAdjacentHTML('beforeend', newPosts);
-
-                        // Re-bind click handlers for new posts
-                        container.querySelectorAll('.post-card:not([data-bound])').forEach(card => {
-                            card.dataset.bound = 'true';
-                            card.addEventListener('click', function(e) {
-                                if (e.target.closest('a') || e.target.closest('button') || e.target.closest('.post-actions')) return;
-                                const url = this.dataset.postUrl;
-                                if (url) window.location.href = url;
-                            });
-                        });
-
-                    } catch (error) {
-                        console.error('Infinite scroll error:', error);
-                        currentPage--;
-                    } finally {
-                        loading = false;
-                        if (spinner) spinner.classList.add('d-none');
-
-                        if (currentPage >= totalPages && sentinel) {
-                            observer.unobserve(sentinel);
+    const observer = new IntersectionObserver(function(entries) {
+        if (entries[0].isIntersecting && !loading) {
+            loading = true;
+            const url = nextBtn.href + (nextBtn.href.includes('?') ? '&' : '?') + 'ajax=1';
+            fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(r => r.text())
+                .then(function(html) {
+                    const container = document.getElementById('posts-container');
+                    const temp = document.createElement('div');
+                    temp.innerHTML = html;
+                    const cards = temp.querySelectorAll('.post-card');
+                    cards.forEach(function(c) { container.appendChild(c); });
+                    const newPagination = temp.querySelector('.filter-line');
+                    if (newPagination) {
+                        const newNext = newPagination.querySelector('.filter-item:last-child');
+                        if (newNext && newNext.textContent.includes('next')) {
+                            nextBtn.href = newNext.href;
+                            loading = false;
+                            return;
                         }
                     }
-                }
-            }
-        }, { threshold: 0.1 });
-
-        observer.observe(sentinel);
-    }
-});
+                    observer.disconnect();
+                })
+                .catch(function() { loading = false; });
+        }
+    });
+    observer.observe(sentinel);
+})();
 </script>
 {% endblock %}

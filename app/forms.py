@@ -2,7 +2,14 @@ from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed
 from wtforms.fields.choices import SelectField
 from wtforms.fields.simple import StringField, BooleanField, SubmitField, PasswordField, TextAreaField, FileField
-from wtforms.validators import DataRequired, Length, Email, EqualTo
+from wtforms.validators import DataRequired, InputRequired, Length, Email, EqualTo, ValidationError
+
+def lowercase_username(form, field):
+    """Validate username: only a-z, 0-9, underscore. Skip if empty (for settings)."""
+    if not field.data:
+        return
+    if not field.data.isascii() or not all(c.isascii() and (c.islower() or c.isdigit() or c == '_') for c in field.data):
+        raise ValidationError('Только латиница (a-z), цифры (0-9) и подчёркивание (_)')
 
 
 class LoginForm(FlaskForm):
@@ -19,15 +26,16 @@ class LoginForm(FlaskForm):
 class RegistrationForm(FlaskForm):
     username = StringField('Логин', validators=[
         DataRequired(message='Введите логин'),
-        Length(3, 20, message='Логин должен быть от 3 до 20 символов')
+        Length(3, 20, message='Логин должен быть от 3 до 20 символов'),
+        lowercase_username
     ])
     email = StringField('Почта', validators=[
         DataRequired(message='Введите почту'),
         Email(message='Неверный email адрес')
     ])
     password = PasswordField('Пароль', validators=[
-        Length(max=50),
-        DataRequired(message='Придумайте пароль')
+        InputRequired(),
+        Length(min=6, max=128, message='Пароль должен быть 6-128 символов'),
     ])
     password2 = PasswordField('Повторите пароль', validators=[
         Length(max=50),
@@ -59,13 +67,14 @@ class SettingsForm(FlaskForm):
         DataRequired(message='Введите текущий пароль')
     ])
     new_username = StringField('Новый логин', validators=[
-        Length(3, 20, message='Логин должен быть от 3 до 20 символов')
+        Length(3, 20, message='Логин должен быть от 3 до 20 символов'),
+        lowercase_username
     ])
     new_email = StringField('Новый email', validators=[
         Email(message='Неверный email адрес')
     ])
     new_password = PasswordField('Новый пароль', validators=[
-        Length(min=6, message='Пароль должен быть минимум 6 символов')
+        Length(min=6, max=128, message='Пароль должен быть 6-128 символов')
     ])
     confirm_password = PasswordField('Подтверждение пароля', validators=[
         EqualTo('new_password', message='Пароли не совпадают')

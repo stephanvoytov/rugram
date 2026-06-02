@@ -1,54 +1,38 @@
 {% extends "base.html" %}
+{% block title %}edit profile — Rugram{% endblock %}
 {% block content %}
-<div class="container mt-4 pb-4">
-    <div class="row">
-        <div class="col-md-6 mx-auto">
-            <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0">
-                        <i class="bi bi-pencil me-2"></i>Редактировать профиль
-                    </h4>
-                </div>
-                <div class="card-body">
-                    <form method="POST" enctype="multipart/form-data">
-                        {{ form.hidden_tag() }}
-
-                        <!-- Текущий аватар -->
-                        <div class="text-center mb-4">
-                            <img src="{{ url_for('static', filename='uploads/profile_images/' + current_user.profile_image) if current_user.profile_image else url_for('static', filename='default-profile.png') }}"
-                                 class="rounded-circle border border-3 border-primary object-fit-cover mb-2"
-                                 width="100" height="100" alt="Аватар">
-                            <p class="text-muted small mb-0">{{ current_user.username }}</p>
-                        </div>
-
-                        <!-- Описание -->
-                        <div class="mb-3">
-                            {{ form.description.label(class="form-label") }}
-                            {{ form.description(class="form-control", rows=3, placeholder="Расскажите о себе...") }}
-                        </div>
-
-                        <!-- Аватар -->
-                        <div class="mb-3">
-                            {{ form.profile_image.label(class="form-label") }}
-                            {{ form.profile_image(class="form-control") }}
-                            {% for error in form.profile_image.errors %}
-                            <div class="text-danger small mt-1">{{ error }}</div>
-                            {% endfor %}
-                            <small class="text-muted">JPG, PNG. Необязательно.</small>
-                        </div>
-
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="bi bi-check-lg me-2"></i>Сохранить
-                        </button>
-                    </form>
-                </div>
-                <div class="card-footer text-center">
-                    <a href="{{ url_for('main.profile', user_id_or_username=current_user.username) }}" class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-arrow-left me-1"></i>Назад к профилю
-                    </a>
-                </div>
-            </div>
-        </div>
+<div class="auth-box" style="max-width:500px;margin:20px auto">
+    <div class="auth-header">
+        <span class="auth-title">[edit profile]</span>
+        <span class="auth-subtitle">edit profile</span>
     </div>
+    <form method="POST" enctype="multipart/form-data" style="padding:16px">
+        {{ form.hidden_tag() }}
+
+        <div class="text-center mb-4">
+            <img src="{{ url_for('static', filename='uploads/profile_images/' + current_user.profile_image) if current_user.profile_image else url_for('static', filename='default-profile.png') }}"
+                 class="profile-avatar" style="width:80px;height:80px;margin-bottom:8px" alt="">
+            <div style="font-size:0.85rem;color:var(--fg)">@{{ current_user.username }}</div>
+        </div>
+
+        <div class="auth-field">
+            {{ form.description.label(class="field-label") }}
+            {{ form.description(class="field-input", rows=3, placeholder="tell us about yourself...") }}
+        </div>
+
+        <div class="auth-field">
+            {{ form.profile_image.label(class="field-label") }}
+            {{ form.profile_image(class="field-input", style="padding:6px;font-size:0.8rem") }}
+            {% for error in form.profile_image.errors %}
+            <div class="field-msg error">{{ error }}</div>
+            {% endfor %}
+            <small style="color:var(--subtle);font-size:0.7rem">JPG, PNG. Optional.</small>
+        </div>
+
+        <div style="display:flex;gap:4px;margin-top:16px">
+            <button type="submit" class="btn-term primary" style="flex:1">[>> save]</button>
+            <a href="{{ url_for('main.profile', user_id_or_username=current_user.username) }}" class="btn-term" style="flex:1;text-align:center;text-decoration:none">[cancel]</a>
+        </div>
+    </form>
 </div>
 {% endblock %}

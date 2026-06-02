@@ -1,211 +1,103 @@
 {% extends "base.html" %}
 
-{% block title %}Настройки - Rugram{% endblock %}
+{% block title %}settings — Rugram{% endblock %}
 
 {% block content %}
-<div class="container mt-4 pb-4">
-    <div class="row">
-        <div class="col-md-8 mx-auto">
-            <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0">Настройки аккаунта</h4>
-                </div>
-                <div class="card-body">
-                    <form method="POST" enctype="multipart/form-data">
-                        {{ form.hidden_tag() }}
-                        
-                        <!-- Username Section -->
-                        <div class="mb-4">
-                            <h5 class="h6 text-muted mb-3">
-                                <i class="bi bi-person me-2"></i>Логин
-                            </h5>
-                            <div class="row">
-                                <div class="col-md-8">
-                                    <div class="input-group">
-                                        <span class="input-group-text">@</span>
-                                        {{ form.new_username(class="form-control", placeholder="Новый логин", autocomplete="off") }}
-                                    </div>
-                                    <small class="text-muted mt-1 d-block">Текущий: {{ current_user.username }}</small>
-                                    {% if form.new_username.errors %}
-                                    <div class="text-danger small mt-1">
-                                        {% for error in form.new_username.errors %}
-                                        <div>{{ error }}</div>
-                                        {% endfor %}
-                                    </div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-md-4">
-                                    <small class="text-muted">Оставьте пустым, если не меняете</small>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Email Section -->
-                        <div class="mb-4">
-                            <h5 class="h6 text-muted mb-3">
-                                <i class="bi bi-envelope me-2"></i>Email
-                            </h5>
-                            <div class="row">
-                                <div class="col-md-8">
-                                    <div class="input-group">
-                                        <span class="input-group-text">@</span>
-                                        {{ form.new_email(class="form-control", placeholder="Новый email", autocomplete="new-email") }}
-                                    </div>
-                                    <small class="text-muted mt-1 d-block">Текущий: {{ current_user.email }}</small>
-                                    {% if form.new_email.errors %}
-                                    <div class="text-danger small mt-1">
-                                        {% for error in form.new_email.errors %}
-                                        <div>{{ error }}</div>
-                                        {% endfor %}
-                                    </div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-md-4">
-                                    <small class="text-muted">Оставьте пустым, если не меняете</small>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Password Section -->
-                        <div class="mb-4">
-                            <h5 class="h6 text-muted mb-3">
-                                <i class="bi bi-key me-2"></i>Пароль
-                            </h5>
-                            <div class="row">
-                                <div class="col-md-4">
-                                    {{ form.current_password(class="form-control", placeholder="Текущий пароль", autocomplete="current-password") }}
-                                    {% if form.current_password.errors %}
-                                    <div class="text-danger small mt-1">
-                                        {% for error in form.current_password.errors %}
-                                        <div>{{ error }}</div>
-                                        {% endfor %}
-                                    </div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-md-4">
-                                    {{ form.new_password(class="form-control", placeholder="Новый пароль", autocomplete="new-password") }}
-                                    {% if form.new_password.errors %}
-                                    <div class="text-danger small mt-1">
-                                        {% for error in form.new_password.errors %}
-                                        <div>{{ error }}</div>
-                                        {% endfor %}
-                                    </div>
-                                    {% endif %}
-                                </div>
-                                <div class="col-md-4">
-                                    {{ form.confirm_password(class="form-control", placeholder="Подтверждение") }}
-                                    {% if form.confirm_password.errors %}
-                                    <div class="text-danger small mt-1">
-                                        {% for error in form.confirm_password.errors %}
-                                        <div>{{ error }}</div>
-                                        {% endfor %}
-                                    </div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <small class="text-muted">Минимум 6 символов</small>
-                        </div>
-                        
-                        <!-- Notifications Section -->
-                        <hr class="my-4">
-                        <div class="mb-4">
-                            <h5 class="h6 text-muted mb-3">
-                                <i class="bi bi-bell me-2"></i>Уведомления
-                            </h5>
-                            <div class="form-check form-switch">
-                                {{ form.notifications_enabled(class="form-check-input") }}
-                                <label class="form-check-label" for="{{ form.notifications_enabled.id }}">
-                                    Push-уведомления
-                                </label>
-                                <br>
-                                <small class="text-muted">
-                                    Уведомления о новых сообщениях, лайках, комментариях и подписках.
-                                    Работают через Service Worker — даже когда сайт не открыт.
-                                </small>
-                            </div>
-                        </div>
-                        
-                        <!-- Account Actions -->
-                        <hr class="my-4">
-                        
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h5 class="h6 text-muted mb-1">
-                                    <i class="bi bi-exclamation-triangle me-2"></i>Опасная зона
-                                </h5>
-                                <small class="text-muted">Удаление аккаунта необратимо</small>
-                            </div>
-                            <div class="form-check">
-                                {{ form.delete_account(class="form-check-input") }}
-                                <label class="form-check-label" for="{{ form.delete_account.id }}">
-                                    Удалить аккаунт
-                                </label>
-                            </div>
-                        </div>
-                        
-                        <!-- Submit Button -->
-                        <div class="d-grid gap-2 mt-4">
-                            {{ form.submit(class="btn btn-primary") }}
-                            <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary">
-                                <i class="bi bi-arrow-left me-2"></i>Отмена
-                            </a>
-                        </div>
-                    </form>
-                </div>
+<h1 class="sr-only">Settings</h1>
+<div class="terminal-box" style="max-width:720px;margin:24px auto">
+    <div class="auth-header" style="padding:16px 24px">
+        <span class="auth-title" style="font-size:1rem">[settings]</span>
+        <span class="auth-subtitle">account management</span>
+    </div>
+
+    <form method="POST" enctype="multipart/form-data" style="padding:24px">
+        {{ form.hidden_tag() }}
+
+        <div class="auth-field" style="margin-bottom:20px">
+            <span class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] username</span>
+            <input type="text" class="field-input" id="{{ form.new_username.id }}" name="{{ form.new_username.name }}"
+                   placeholder="new username" value="{{ current_user.username }}" autocomplete="off"
+                   style="padding:10px 14px;font-size:0.9rem;width:100%"
+                   pattern="[a-z0-9_]+" title="Only Latin letters (a-z), digits (0-9), and underscore (_)"
+                   oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9_]/g,'')">
+            {% if form.new_username.errors %}{% for e in form.new_username.errors %}<div class="field-msg error">{{ e }}</div>{% endfor %}{% endif %}
+            <div style="color:var(--subtle);font-size:0.78rem;margin-top:4px">current: <b>{{ current_user.username }}</b>. leave empty to keep.</div>
+        </div>
+
+        <div class="auth-field" style="margin-bottom:20px">
+            <span class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] email</span>
+            <input type="email" class="field-input" id="{{ form.new_email.id }}" name="{{ form.new_email.name }}"
+                   placeholder="new email" autocomplete="new-email"
+                   style="padding:10px 14px;font-size:0.9rem;width:100%">
+            {% if form.new_email.errors %}{% for e in form.new_email.errors %}<div class="field-msg error">{{ e }}</div>{% endfor %}{% endif %}
+            <div style="color:var(--subtle);font-size:0.78rem;margin-top:4px">current: <b>{{ current_user.email }}</b>. leave empty to keep.</div>
+        </div>
+
+        <div class="auth-field" style="margin-bottom:20px;padding-top:16px;border-top:1px solid var(--border)">
+            <span class="field-label" style="font-size:0.9rem;margin-bottom:8px;display:block">[*] change password</span>
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+                {{ form.current_password(class="field-input", placeholder="current password", autocomplete="current-password", style="padding:10px 14px;font-size:0.9rem;flex:1;min-width:160px") }}
+                {{ form.new_password(class="field-input", placeholder="new password", autocomplete="new-password", style="padding:10px 14px;font-size:0.9rem;flex:1;min-width:160px") }}
+                {{ form.confirm_password(class="field-input", placeholder="confirm", style="padding:10px 14px;font-size:0.9rem;flex:1;min-width:160px") }}
             </div>
-            
-            <!-- Account Info -->
-            <div class="card shadow-sm mt-4">
-                <div class="card-body">
-                    <h5 class="card-title mb-3">
-                        <i class="bi bi-info-circle me-2"></i>Информация об аккаунте
-                    </h5>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <p class="mb-2"><strong>Логин:</strong> {{ current_user.username }}</p>
-                            <p class="mb-2"><strong>Email:</strong> {{ current_user.email }}</p>
-                            <p class="mb-2"><strong>Регистрация:</strong> {{ current_user.created_date.strftime('%d.%m.%Y %H:%M') }}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <p class="mb-2"><strong>Подписчики:</strong> {{ current_user.followers_count }}</p>
-                            <p class="mb-2"><strong>Подписки:</strong> {{ current_user.following_count }}</p>
-                            <p class="mb-2"><strong>Посты:</strong> {{ current_user.posts|length }}</p>
-                        </div>
-                    </div>
-                </div>
+            {% if form.current_password.errors %}{% for e in form.current_password.errors %}<div class="field-msg error">{{ e }}</div>{% endfor %}{% endif %}
+            {% if form.new_password.errors %}{% for e in form.new_password.errors %}<div class="field-msg error">{{ e }}</div>{% endfor %}{% endif %}
+            {% if form.confirm_password.errors %}{% for e in form.confirm_password.errors %}<div class="field-msg error">{{ e }}</div>{% endfor %}{% endif %}
+            <div style="color:var(--subtle);font-size:0.78rem;margin-top:4px">min 6 chars. leave empty to keep current.</div>
+        </div>
+
+        <div class="auth-field" style="margin-bottom:20px;padding-top:16px;border-top:1px solid var(--border)">
+            <span class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] notifications</span>
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:6px">
+                {{ form.notifications_enabled(style="width:18px;height:18px;cursor:pointer") }}
+                <label for="{{ form.notifications_enabled.id }}" style="cursor:pointer;color:var(--fg);font-size:0.88rem;flex:1">push notifications</label>
+                <span style="color:var(--subtle);font-size:0.75rem">likes · comments · follows</span>
             </div>
         </div>
+
+        <div class="auth-field" style="margin-bottom:20px;padding-top:16px;border-top:1px solid var(--red)">
+            <span class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block;color:var(--red)">[!] danger zone</span>
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--red);border-radius:6px">
+                {{ form.delete_account(style="width:18px;height:18px;cursor:pointer") }}
+                <label for="{{ form.delete_account.id }}" style="cursor:pointer;color:var(--red);font-size:0.88rem;flex:1">delete account (irreversible)</label>
+                <span style="color:var(--subtle);font-size:0.75rem">all data will be lost</span>
+            </div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:24px;padding-top:16px;border-top:1px solid var(--border)">
+            <button type="submit" class="btn-term primary" style="flex:1;padding:10px 20px;font-size:0.9rem;display:flex;justify-content:center">[>> save]</button>
+            <a href="{{ url_for('main.index') }}" class="btn-term" style="flex:1;padding:10px 20px;font-size:0.9rem;display:flex;justify-content:center;text-decoration:none">[cancel]</a>
+        </div>
+    </form>
+
+    <div style="border-top:1px solid var(--border);padding:16px 24px;font-size:0.85rem;color:var(--subtle);display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <span>username: <b style="color:var(--fg)">{{ current_user.username }}</b></span>
+        <span>email: <b style="color:var(--fg)">{{ current_user.email }}</b></span>
+        <span>joined: <b style="color:var(--fg)">{{ current_user.created_date.strftime('%Y-%m-%d') if current_user.created_date else '?' }}</b></span>
+        <span>followers: <b style="color:var(--fg)">{{ current_user.followers_count }}</b></span>
     </div>
 </div>
 
-<!-- Delete Account Modal -->
-<div class="modal fade" id="deleteAccountModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title">Подтверждение удаления аккаунта</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="alert alert-warning">
-                    <i class="bi bi-exclamation-triangle me-2"></i>
-                    <strong>Внимание!</strong> Это действие необратимо. Все ваши данные будут удалены:
-                </div>
-                <ul class="mb-3">
-                    <li>Все посты и комментарии</li>
-                    <li>Все лайки</li>
-                    <li>Все подписки</li>
-                    <li>Все сообщения в чатах</li>
-                    <li>Ваш профиль и аватар</li>
-                </ul>
-                <p class="mb-0">Вы уверены, что хотите продолжить?</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
-                    <i class="bi bi-trash me-2"></i>Да, удалить аккаунт
-                </button>
-            </div>
+<!-- Delete confirmation modal -->
+<div class="modal-overlay d-none" id="deleteAccountModal">
+    <div class="modal-box" style="max-width:440px">
+        <div class="modal-box-header" style="border-bottom:2px solid var(--red);padding:14px 18px">
+            <span style="color:var(--red);font-size:0.9rem"><b>[*] confirm account deletion</b></span>
+            <button class="btn-term" onclick="document.getElementById('deleteAccountModal').classList.add('d-none')" style="font-size:1.2rem">&times;</button>
+        </div>
+        <div class="modal-box-body" style="padding:18px;font-size:0.88rem">
+            <p style="color:var(--red);margin-bottom:12px">This will permanently delete everything:</p>
+            <ul style="margin:0 0 12px 0;padding-left:20px;color:var(--subtle);line-height:1.8">
+                <li>all posts &amp; comments</li>
+                <li>all likes, follows, saved posts</li>
+                <li>all chat messages</li>
+                <li>your profile &amp; avatar</li>
+            </ul>
+            <p style="margin:0"><b>Are you sure?</b></p>
+        </div>
+        <div class="modal-box-footer" style="padding:12px 18px;display:flex;justify-content:flex-end;gap:8px">
+            <button class="btn-term" onclick="document.getElementById('deleteAccountModal').classList.add('d-none');document.getElementById('delete_account').checked=false" style="padding:8px 16px">[cancel]</button>
+            <button class="btn-term" id="confirmDeleteBtn" style="border-color:var(--red);color:var(--red);padding:8px 16px">[delete account]</button>
         </div>
     </div>
 </div>
@@ -214,56 +106,30 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const deleteAccountCheckbox = document.getElementById('delete_account');
-    const deleteModal = new bootstrap.Modal(document.getElementById('deleteAccountModal'));
-    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
-    
-    // Показываем модальное окно при отметке удаления
-    deleteAccountCheckbox.addEventListener('change', function() {
-        if (this.checked) {
-            deleteModal.show();
-        }
+    var deleteCheckbox = document.getElementById('delete_account');
+    var modal = document.getElementById('deleteAccountModal');
+    var confirmBtn = document.getElementById('confirmDeleteBtn');
+
+    deleteCheckbox.addEventListener('change', function() {
+        if (this.checked) modal.classList.remove('d-none');
     });
-    
-    // Обработка подтверждения удаления
-    confirmDeleteBtn.addEventListener('click', function() {
-        // Закрываем модальное окно
-        deleteModal.hide();
-        
-        // Отправляем форму
-        const form = document.querySelector('form');
-        form.submit();
+
+    confirmBtn.addEventListener('click', function() {
+        modal.classList.add('d-none');
+        document.querySelector('form').submit();
     });
-    
-    // Снимаем галочку при закрытии модального окна
-    document.getElementById('deleteAccountModal').addEventListener('hidden.bs.modal', function() {
-        deleteAccountCheckbox.checked = false;
+
+    modal.addEventListener('click', function(e) {
+        if (e.target === this) { this.classList.add('d-none'); deleteCheckbox.checked = false; }
     });
-    
-    // Валидация паролей в реальном времени
-    const newPassword = document.getElementById('new_password');
-    const confirmPassword = document.getElementById('confirm_password');
-    
-    function validatePasswords() {
-        if (newPassword.value && confirmPassword.value) {
-            if (newPassword.value !== confirmPassword.value) {
-                confirmPassword.setCustomValidity('Пароли не совпадают');
-            } else {
-                confirmPassword.setCustomValidity('');
-            }
-        } else {
-            confirmPassword.setCustomValidity('');
-        }
+
+    var np = document.getElementById('{{ form.new_password.id }}');
+    var cp = document.getElementById('{{ form.confirm_password.id }}');
+    function validate() {
+        if (np.value && cp.value && np.value !== cp.value) cp.setCustomValidity('passwords do not match');
+        else cp.setCustomValidity('');
     }
-    
-    newPassword.addEventListener('input', validatePasswords);
-    confirmPassword.addEventListener('input', validatePasswords);
-    
-    // Сбрасываем автозаполнение (браузеры любят вставлять логин/пароль куда попало)
-    const usernameField = document.getElementById('{{ form.new_username.id }}');
-    if (usernameField) { usernameField.value = '{{ current_user.username }}'; }
-    const emailField = document.getElementById('{{ form.new_email.id }}');
-    if (emailField) { emailField.value = ''; }
+    if (np && cp) { np.addEventListener('input', validate); cp.addEventListener('input', validate); }
 });
 </script>
 {% endblock %}

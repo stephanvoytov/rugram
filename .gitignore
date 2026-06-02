@@ -399,3 +399,13 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+# AI / dev working files
+.flask_pid
+serve.py
+.tmp/
+terminal-*.png
+AUDIT.md
+AUDIT2.md
+CONCEPT.md
+*.log

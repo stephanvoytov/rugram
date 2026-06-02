@@ -27,399 +27,51 @@
     });
 })();
 
-// ── Like handler (event delegation for static + dynamic) ──
-document.addEventListener('click', async function(e) {
-    const btn = e.target.closest('button.like-btn[data-post-id]');
-    if (!btn) return;
-    e.preventDefault();
-
-    if (!window.isAuthenticated) {
-        alert('Чтобы поставить лайк, необходимо войти в систему');
-        window.location.href = window.LOGIN_URL || '/login';
-        return;
-    }
-
-    const postId = btn.dataset.postId;
-    if (!postId) return;
-
-    const likeIcon = btn.querySelector('i');
-    const likeCount = btn.querySelector('.like-count');
-    const origIcon = likeIcon.className;
-    const origText = likeCount.textContent;
-
-    btn.disabled = true;
-    likeIcon.className = 'bi bi-arrow-repeat fs-5';
-
-    try {
-        const response = await fetch(`/post/${postId}/like`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-            },
-            body: JSON.stringify({}),
-            credentials: 'same-origin'
-        });
-
-        if (!response.ok) {
-            if (response.status === 401) {
-                window.location.href = window.LOGIN_URL || '/login';
-                return;
-            }
-            throw new Error('Network response was not ok');
-        }
-
-        const data = await response.json();
-
-        if (data.status === 'liked') {
-            likeIcon.className = 'bi bi-heart-fill fs-5 text-danger';
-            btn.dataset.liked = 'true';
-            likeIcon.animate([
-                { transform: 'scale(1)' },
-                { transform: 'scale(1.35)', offset: 0.25 },
-                { transform: 'scale(0.9)', offset: 0.5 },
-                { transform: 'scale(1.1)', offset: 0.75 },
-                { transform: 'scale(1)' }
-            ], { duration: 450, easing: 'ease-out' });
-            btn.classList.remove('like-anim');
-            void btn.offsetWidth;
-            btn.classList.add('like-anim');
-        } else {
-            likeIcon.className = 'bi bi-heart fs-5 text-muted';
-            btn.dataset.liked = 'false';
-        }
-
-        likeCount.textContent = data.likes_count;
-
-    } catch (error) {
-        console.error('Error:', error);
-        likeIcon.className = origIcon;
-        likeCount.textContent = origText;
-    } finally {
-        btn.disabled = false;
-    }
-});
-
-// ── Repost handler (event delegation) ──
-document.addEventListener('click', async function(e) {
-    const btn = e.target.closest('button.repost-btn[data-post-id]');
-    if (!btn) return;
-    e.preventDefault();
-
-    const postId = btn.dataset.postId;
-    const icon = btn.querySelector('i');
-    const countEl = btn.querySelector('.repost-count');
-    const wasReposted = btn.dataset.reposted === 'true';
-
-    btn.disabled = true;
-
-    try {
-        const response = await fetch(`/post/${postId}/repost`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-            },
-            credentials: 'same-origin'
-        });
-
-        if (!response.ok) throw new Error('Repost failed');
-
-        const data = await response.json();
-
-        if (data.is_reposted) {
-            icon.className = 'bi bi-repeat fs-5 text-success';
-            btn.dataset.reposted = 'true';
-        } else {
-            icon.className = 'bi bi-repeat fs-5 text-muted';
-            btn.dataset.reposted = 'false';
-        }
-        countEl.textContent = data.reposts_count;
-
-    } catch (error) {
-        console.error('Error reposting:', error);
-        icon.className = wasReposted ? 'bi bi-repeat fs-5 text-success' : 'bi bi-repeat fs-5 text-muted';
-    } finally {
-        btn.disabled = false;
-    }
-});
-
-// ── Save handler (event delegation) ──
-document.addEventListener('click', async function(e) {
-    const btn = e.target.closest('button.save-btn[data-post-id]');
-    if (!btn) return;
-    e.preventDefault();
-
-    const postId = btn.dataset.postId;
-    const icon = btn.querySelector('i');
-    const wasSaved = btn.dataset.saved === 'true';
-
-    btn.disabled = true;
-
-    try {
-        const response = await fetch(`/post/${postId}/save`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-            },
-            credentials: 'same-origin'
-        });
-
-        if (!response.ok) throw new Error('Save failed');
-
-        const data = await response.json();
-
-        if (data.is_saved) {
-            icon.className = 'bi bi-bookmark-fill fs-5';
-            btn.dataset.saved = 'true';
-        } else {
-            icon.className = 'bi bi-bookmark fs-5';
-            btn.dataset.saved = 'false';
-        }
-
-    } catch (error) {
-        console.error('Error saving post:', error);
-        icon.className = wasSaved ? 'bi bi-bookmark-fill fs-5' : 'bi bi-bookmark fs-5';
-    } finally {
-        btn.disabled = false;
-    }
-});
-
 // ── Theme toggle ──
 (function() {
     const toggle = document.getElementById('themeToggle');
-    const icon = document.getElementById('themeIcon');
     if (!toggle) return;
 
     const stored = localStorage.getItem('theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const theme = stored || (prefersDark ? 'dark' : 'light');
-
     document.documentElement.setAttribute('data-bs-theme', theme);
-    if (icon) icon.className = theme === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-fill';
 
     toggle.addEventListener('click', function() {
         const current = document.documentElement.getAttribute('data-bs-theme');
         const next = current === 'dark' ? 'light' : 'dark';
         document.documentElement.setAttribute('data-bs-theme', next);
         localStorage.setItem('theme', next);
-        if (icon) icon.className = next === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-fill';
     });
 })();
 
-// ── Notifications dropdown ──
+// ── Notification badge polling ──
 (function() {
-    const dropdown = document.getElementById('notificationsDropdown');
     const badge = document.getElementById('notificationBadge');
-    if (!dropdown) return;
+    if (!badge) return;
 
-    // Загрузка уведомлений при открытии дропдауна
-    dropdown.addEventListener('shown.bs.dropdown', async function() {
+    async function updateBadge() {
+        if (!window.isAuthenticated) return;
         try {
-            const response = await fetch('/api/notifications');
-            const data = await response.json();
-            
-            const listContainer = document.getElementById('notificationList');
-            if (!listContainer) return;
-            
-            // Очистить существующий контент
-            listContainer.innerHTML = '';
-            
-            if (data.notifications.length === 0) {
-                const emptyItem = document.createElement('li');
-                emptyItem.className = 'px-3 py-2 text-center';
-                emptyItem.innerHTML = '<p class="text-muted mb-0">Нет новых уведомлений</p>';
-                listContainer.appendChild(emptyItem);
-            } else {
-                data.notifications.forEach(notification => {
-                    const notificationHtml = createNotificationHtml(notification);
-                    listContainer.insertAdjacentHTML('beforeend', notificationHtml);
-                });
-            }
-            
-            // Обновить бейдж
-            if (badge) {
-                if (data.notifications.length > 0) {
-                    badge.textContent = data.notifications.length;
-                    badge.style.display = 'inline-block';
-                } else {
-                    badge.style.display = 'none';
-                }
-            }
-            
-        } catch (error) {
-            console.error('Error loading notifications:', error);
-            const listContainer = document.getElementById('notificationList');
-            if (listContainer) {
-                listContainer.innerHTML = '<li class="px-3 py-2 text-center"><p class="text-danger mb-0">Ошибка загрузки</p></li>';
-            }
-        }
-    });
-
-    // Создание HTML для уведомления
-    function createNotificationHtml(notification) {
-        const actorName = notification.actor.username;
-        const actorProfile = `/profile/${notification.actor.id}`;
-        const postLink = notification.post_id ? `/post/${notification.post_id}` : null;
-        
-        let message = '';
-        let icon = '';
-        let iconClass = '';
-        
-        switch (notification.type) {
-            case 'like':
-                message = `<a href="${actorProfile}" class="text-decoration-none">${actorName}</a> поставил(а) лайк`;
-                icon = 'bi-heart-fill';
-                iconClass = 'text-danger';
-                break;
-            case 'comment':
-                message = `<a href="${actorProfile}" class="text-decoration-none">${actorName}</a> оставил(а) комментарий`;
-                icon = 'bi-chat-fill';
-                iconClass = 'text-primary';
-                break;
-            case 'follow':
-                message = `<a href="${actorProfile}" class="text-decoration-none">${actorName}</a> подписался(ась) на вас`;
-                icon = 'bi-person-plus-fill';
-                iconClass = 'text-success';
-                break;
-        }
-        
-        const postLinkHtml = postLink ? ` к <a href="${postLink}" class="text-decoration-none">вашему посту</a>` : '';
-        
-        return `
-            <li class="notification-item ${notification.is_read ? 'read' : 'unread'}" data-id="${notification.id}">
-                <div class="d-flex align-items-start">
-                    <div class="flex-shrink-0">
-                        <img src="${notification.actor.profile_image ? `/static/uploads/profile_images/${notification.actor.profile_image}` : '/static/default-profile.png'}"
-                             alt="${actorName}" width="32" height="32" class="rounded-circle">
-                    </div>
-                    <div class="flex-grow-1 ms-3">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <p class="mb-1 ${notification.is_read ? '' : 'fw-bold'}">
-                                    ${message}${postLinkHtml}
-                                </p>
-                                <small class="text-muted">${formatDate(notification.created_date)}</small>
-                            </div>
-                            ${!notification.is_read ? `
-                                <button class="btn btn-sm btn-outline-secondary mark-read-btn" data-id="${notification.id}">
-                                    <i class="bi bi-check"></i>
-                                </button>
-                            ` : ''}
-                        </div>
-                    </div>
-                </div>
-            </li>
-        `;
-    }
-
-    // Форматирование даты
-    function formatDate(dateString) {
-        const date = new Date(dateString);
-        const now = new Date();
-        const diff = now - date;
-        
-        if (diff < 60000) return 'только что';
-        if (diff < 3600000) return `${Math.floor(diff / 60000)} минут назад`;
-        if (diff < 86400000) return `${Math.floor(diff / 3600000)} часов назад`;
-        if (diff < 604800000) return `${Math.floor(diff / 86400000)} дней назад`;
-        
-        return date.toLocaleDateString('ru-RU');
-    }
-
-    // Обработка клика по кнопке "отметить прочитанным"
-    document.addEventListener('click', function(e) {
-        if (e.target.closest('.mark-read-btn')) {
-            e.preventDefault();
-            const btn = e.target.closest('.mark-read-btn');
-            const notificationId = btn.dataset.id;
-            
-            markNotificationRead(notificationId, btn);
-        }
-    });
-
-    // Отметить уведомление как прочитанное
-    async function markNotificationRead(notificationId, button) {
-        try {
-            const response = await fetch(`/notifications/${notificationId}/mark-read`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
-                }
+            const r = await fetch(window.API_NOTIFICATIONS_UNREAD_URL, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
-            
-            if (response.ok) {
-                const notificationItem = button.closest('.notification-item');
-                notificationItem.classList.remove('unread');
-                notificationItem.classList.add('read');
-                button.remove();
-                
-                // Обновить бейдж
-                updateNotificationBadge();
-            }
-        } catch (error) {
-            console.error('Error marking notification as read:', error);
-        }
-    }
-
-    // Обновить счётчик уведомлений
-    async function updateNotificationBadge() {
-        if (!badge) return;
-        
-        try {
-            const response = await fetch('/api/notifications/unread-count');
-            const data = await response.json();
-            
+            const data = await r.json();
             if (data.count > 0) {
                 badge.textContent = data.count;
-                badge.style.display = 'inline-block';
+                badge.style.display = 'inline';
             } else {
                 badge.style.display = 'none';
             }
-        } catch (error) {
-            console.error('Error updating notification badge:', error);
-        }
+        } catch (e) {}
     }
 
-    // Инициализация при загрузке страницы
-    if (window.isAuthenticated) {
-        updateNotificationBadge();
-    }
+    // Initial check + poll every 10s
+    updateBadge();
+    setInterval(updateBadge, 10000);
 })();
 
-// ── In-page toast уведомления ──
-window.showToast = function(title, message, type) {
-    const container = document.getElementById('toastContainer');
-    if (!container) return;
-    const id = 'toast-' + Date.now();
-    const bgClass = type === 'danger' ? 'bg-danger text-white' :
-                    type === 'success' ? 'bg-success text-white' :
-                    type === 'info' ? 'bg-info' :
-                    'bg-dark text-white';
-    const html = `
-        <div id="${id}" class="toast align-items-center ${bgClass} border-0 mb-2" role="alert">
-            <div class="d-flex">
-                <div class="toast-body">
-                    <strong>${title}</strong><br>
-                    <small>${message}</small>
-                </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-            </div>
-        </div>
-    `;
-    container.insertAdjacentHTML('beforeend', html);
-    const toastEl = document.getElementById(id);
-    const toast = new bootstrap.Toast(toastEl, { delay: 5000 });
-    toast.show();
-    toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
-};
-
-// ── Notification: запрос разрешения через баннер ──
+// ── Notification request banner ──
 (function() {
     if (!window.isAuthenticated) return;
     if (!('Notification' in window)) return;
@@ -427,31 +79,22 @@ window.showToast = function(title, message, type) {
     const PERMISSION_KEY = 'rugram_notification_permission';
     const stored = localStorage.getItem(PERMISSION_KEY);
 
-    // Если уже разрешил — подписываемся на push, не показываем баннер
     if (Notification.permission === 'granted' || stored === 'granted') {
-        if (Notification.permission === 'granted') {
-            enablePushNotifications();
-        }
+        if (Notification.permission === 'granted') enablePush();
         return;
     }
-
-    // Если запретил или "больше не спрашивать" — не показываем
     if (stored === 'denied' || stored === 'dismissed') return;
 
-    // Иначе — показываем баннер
-    showNotificationBanner();
+    showBanner();
 
-    function showNotificationBanner() {
+    function showBanner() {
         const container = document.getElementById('toastContainer');
         if (!container) return;
-
         const id = 'notif-banner';
-
-        // Проверяем, не показан ли уже
         if (document.getElementById(id)) return;
 
         const html = `
-            <div id="${id}" class="toast show align-items-center border-0 mb-2" role="alert" style="min-width: 300px;" data-bs-autohide="false">
+            <div id="${id}" class="toast show align-items-center border-0 mb-2" role="alert" style="min-width:300px" data-bs-autohide="false">
                 <div class="d-flex">
                     <div class="toast-body">
                         <strong>🔔 Включить уведомления?</strong><br>
@@ -462,8 +105,7 @@ window.showToast = function(title, message, type) {
                         </div>
                     </div>
                 </div>
-            </div>
-        `;
+            </div>`;
         container.insertAdjacentHTML('beforeend', html);
 
         document.getElementById('notifAllowBtn').addEventListener('click', async function() {
@@ -471,15 +113,13 @@ window.showToast = function(title, message, type) {
                 const permission = await Notification.requestPermission();
                 if (permission === 'granted') {
                     localStorage.setItem(PERMISSION_KEY, 'granted');
-                    enablePushNotifications();
+                    enablePush();
                     showToast('✅ Уведомления включены', 'Теперь вы будете получать уведомления даже когда сайт не открыт', 'success');
                 } else {
                     localStorage.setItem(PERMISSION_KEY, 'denied');
                     showToast('❌ Уведомления отключены', 'Изменить можно в настройках браузера', 'danger');
                 }
-            } catch (e) {
-                console.error('Permission request error:', e);
-            }
+            } catch (e) { console.error(e); }
             const banner = document.getElementById(id);
             if (banner) banner.remove();
         });
@@ -491,101 +131,169 @@ window.showToast = function(title, message, type) {
         });
     }
 
-    async function enablePushNotifications() {
+    async function enablePush() {
         if (!('serviceWorker' in navigator) || !('PushManager' in window) || !window.VAPID_PUBLIC_KEY) return;
-
-        // Конвертирует VAPID public key (base64url string) в Uint8Array
-        function urlBase64ToUint8Array(base64String) {
-            const padding = '='.repeat((4 - base64String.length % 4) % 4);
-            const base64 = (base64String + padding)
-                .replace(/\-/g, '+')
-                .replace(/_/g, '/');
-            const rawData = window.atob(base64);
-            const outputArray = new Uint8Array(rawData.length);
-            for (let i = 0; i < rawData.length; ++i) {
-                outputArray[i] = rawData.charCodeAt(i);
-            }
-            return outputArray;
+        function urlBase64ToUint8Array(b64) {
+            const padding = '='.repeat((4 - b64.length % 4) % 4);
+            const base64 = (b64 + padding).replace(/\-/g, '+').replace(/_/g, '/');
+            const raw = window.atob(base64);
+            const arr = new Uint8Array(raw.length);
+            for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+            return arr;
         }
-
         try {
-            const registration = await navigator.serviceWorker.ready;
-            const applicationServerKey = urlBase64ToUint8Array(window.VAPID_PUBLIC_KEY);
-
-            let subscription;
+            const reg = await navigator.serviceWorker.ready;
+            let sub;
             try {
-                subscription = await registration.pushManager.subscribe({
+                sub = await reg.pushManager.subscribe({
                     userVisibleOnly: true,
-                    applicationServerKey: applicationServerKey
+                    applicationServerKey: urlBase64ToUint8Array(window.VAPID_PUBLIC_KEY)
                 });
             } catch (err) {
                 if (err.name === 'InvalidStateError') {
-                    subscription = await registration.pushManager.getSubscription();
-                } else {
-                    throw err;
-                }
+                    sub = await reg.pushManager.getSubscription();
+                } else throw err;
             }
-
-            if (subscription) {
-                await fetch('/api/push/subscribe', {
+            if (sub) {
+                await fetch(window.API_PUSH_SUBSCRIBE_URL, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
                     },
-                    body: JSON.stringify({ subscription: subscription.toJSON() })
+                    body: JSON.stringify({ subscription: sub.toJSON() })
                 });
             }
-        } catch (error) {
-            console.error('Push setup error:', error);
-        }
+        } catch (e) { console.error('Push setup error:', e); }
     }
 })();
 
-// ── Следим за новыми уведомлениями (каждые 10с) ──
-(function() {
-    let lastBadgeCount = 0;
-
-    setInterval(async function() {
-        if (!window.isAuthenticated) return;
-        try {
-            const response = await fetch('/api/notifications/unread-count');
-            const data = await response.json();
-            if (data.count > lastBadgeCount) {
-                showToast('Rugram', 'У вас новые уведомления');
-                sendBrowserNotification('Rugram', 'У вас новые уведомления');
-            }
-            lastBadgeCount = data.count;
-
-            const badge = document.getElementById('notificationBadge');
-            if (badge) {
-                if (data.count > 0) {
-                    badge.textContent = data.count;
-                    badge.style.display = 'inline-block';
-                } else {
-                    badge.style.display = 'none';
-                }
-            }
-        } catch (e) {}
-    }, 10000);
-})();
-
-// ── Браузерные уведомления ──
+// ── Browser notification helper ──
 function sendBrowserNotification(title, body, tag) {
     if (Notification.permission === 'granted') {
         try {
-            const n = new Notification(title, {
-                body: body,
-                tag: tag || 'rugram',
-                silent: false
-            });
+            const n = new Notification(title, { body: body, tag: tag || 'rugram' });
             setTimeout(() => n.close(), 5000);
         } catch (e) {}
     }
 }
 
-// Глобальная функция (вызывается из чата)
+function escapeHtml(str) {
+    if (typeof str !== 'string') return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// ── Toast helper (Bootstrap-independent) ──
+window.showToast = function(title, message, type) {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    const id = 'toast-' + Date.now();
+    const colors = {
+        danger: 'var(--red)',
+        success: 'var(--green)',
+        info: 'var(--blue)',
+    };
+    const border = colors[type] || 'var(--border)';
+    const html = `
+        <div id="${id}" style="background:var(--bg);border:1px solid ${border};border-radius:4px;padding:8px 12px;margin-bottom:6px;font-family:var(--font);max-width:360px;box-shadow:0 2px 8px rgba(0,0,0,0.3);">
+            <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
+                <div>
+                    <strong style="color:${border}">${escapeHtml(title)}</strong><br>
+                    <small style="color:var(--fg)">${escapeHtml(message)}</small>
+                </div>
+                <button onclick="this.parentElement.parentElement.remove()" style="background:none;border:none;color:var(--fg);cursor:pointer;font-size:1.2em">&times;</button>
+            </div>
+        </div>`;
+    container.insertAdjacentHTML('beforeend', html);
+    setTimeout(() => {
+        const el = document.getElementById(id);
+        if (el) el.remove();
+    }, 5000);
+};
+
+// Global notification function for chat
 window.showBrowserNotification = function(title, body) {
     showToast(title, body);
     sendBrowserNotification(title, body);
 };
+
+// ── Post actions (like / save / repost) — delegated ──
+(function() {
+    function getCsrf() {
+        var m = document.querySelector('meta[name="csrf-token"]');
+        return m ? m.content : '';
+    }
+
+    document.addEventListener('click', function(e) {
+        // Like
+        var btn = e.target.closest('.like-btn');
+        if (btn) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!window.isAuthenticated) { window.location.href = window.LOGIN_URL; return; }
+            var postId = btn.dataset.postId;
+            btn.innerHTML = '<span style="opacity:0.5">...</span>';
+            var url = window.LIKE_URL.replace('/0/', '/' + postId + '/');
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': getCsrf() },
+                body: '{}', credentials: 'same-origin'
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                btn.dataset.liked = data.status === 'liked' ? 'true' : 'false';
+                btn.classList.toggle('liked', data.status === 'liked');
+                var count = data.likes_count > 0 ? ' ' + data.likes_count : '';
+                btn.innerHTML = '[♥' + count + ' like]';
+            })
+            .catch(function() { btn.innerHTML = '[♥ like]'; });
+            return;
+        }
+
+        // Save
+        btn = e.target.closest('.save-btn');
+        if (btn) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!window.isAuthenticated) { window.location.href = window.LOGIN_URL; return; }
+            var postId = btn.dataset.postId;
+            btn.innerHTML = '<span style="opacity:0.5">...</span>';
+            var url = window.SAVE_URL.replace('/0/', '/' + postId + '/');
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': getCsrf() },
+                body: '{}', credentials: 'same-origin'
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                btn.dataset.saved = data.is_saved ? 'true' : 'false';
+                btn.innerHTML = data.is_saved ? '[◆ save]' : '[◇ save]';
+            })
+            .catch(function() { btn.innerHTML = '[◇ save]'; });
+            return;
+        }
+
+        // Repost
+        btn = e.target.closest('.repost-btn');
+        if (btn) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!window.isAuthenticated) { window.location.href = window.LOGIN_URL; return; }
+            var postId = btn.dataset.postId;
+            btn.innerHTML = '<span style="opacity:0.5">...</span>';
+            var url = window.REPOST_URL.replace('/0/', '/' + postId + '/');
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': getCsrf() },
+                body: '{}', credentials: 'same-origin'
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                btn.dataset.reposted = data.reposted ? 'true' : 'false';
+                var count = data.reposts_count > 0 ? ' ' + data.reposts_count : '';
+                btn.innerHTML = '[↻' + count + ' repost]';
+            })
+            .catch(function() { btn.innerHTML = '[↻ repost]'; });
+        }
+    });
+})();

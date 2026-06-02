@@ -1,35 +1,27 @@
 {% extends "base.html" %}
+{% block title %}followers — Rugram{% endblock %}
 {% block content %}
-<div class="container mt-4">
-    <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="d-flex align-items-center gap-2 mb-4">
-                <a href="{{ url_for('main.profile', user_id_or_username=user.username) }}" class="btn btn-sm btn-outline-secondary">
-                    <i class="bi bi-arrow-left"></i>
-                </a>
-                <h4 class="mb-0">Подписчики <span class="text-muted">@{{ user.username }}</span></h4>
+<div class="auth-box" style="max-width:500px;margin:20px auto">
+    <div class="auth-header">
+        <span class="auth-title">[followers]</span>
+        <span class="auth-subtitle">followers @{{ user.username }}</span>
+    </div>
+    <div style="padding:8px">
+        <a href="{{ url_for('main.profile', user_id_or_username=user.username) }}" class="btn-term" style="margin-bottom:8px;display:inline-block">[&larr; back]</a>
+        {% for follow in follows %}
+        <div class="post-card" style="padding:8px 12px;margin-bottom:4px">
+            <div style="display:flex;align-items:center;gap:8px">
+                <img src="{{ url_for('static', filename='uploads/profile_images/' + follow.follower.profile_image) if follow.follower.profile_image else url_for('static', filename='default-profile.png') }}"
+                     width="36" height="36" class="chat-avatar" alt="">
+                <div style="flex:1">
+                    <a href="{{ url_for('main.profile', user_id_or_username=follow.follower.username) }}" style="font-weight:600;color:var(--fg);text-decoration:none">@{{ follow.follower.username }}</a>
+                    {% if follow.follower.description %}<br><small style="color:var(--subtle);font-size:0.75rem">{{ follow.follower.description|truncate(50) }}</small>{% endif %}
+                </div>
             </div>
-
-            {% for follow in follows %}
-            <div class="d-flex align-items-center justify-content-between mb-3 p-2 rounded border">
-                <a href="{{ url_for('main.profile', user_id_or_username=follow.follower.username) }}"
-                   class="d-flex align-items-center text-decoration-none user-list-link gap-2">
-                    <img src="{{ url_for('static', filename='uploads/profile_images/' + follow.follower.profile_image) if follow.follower.profile_image else url_for('static', filename='default-profile.png') }}"
-                         class="rounded-circle object-fit-cover" width="40" height="40" alt="">
-                    <div>
-                        <strong>{{ follow.follower.username }}</strong>
-                        <br>
-                        <small class="text-muted">{{ follow.follower.description|truncate(50) if follow.follower.description else '' }}</small>
-                    </div>
-                </a>
-            </div>
-            {% else %}
-            <div class="text-center text-muted py-5">
-                <i class="bi bi-people fs-1"></i>
-                <p class="mt-2">Пока нет подписчиков</p>
-            </div>
-            {% endfor %}
         </div>
+        {% else %}
+        <div class="empty-state" style="padding:40px;text-align:center;color:var(--subtle)">no followers yet</div>
+        {% endfor %}
     </div>
 </div>
 {% endblock %}

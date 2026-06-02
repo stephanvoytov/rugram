@@ -3,6 +3,8 @@ uploads/
 app/static/uploads/
 __pycache__/
 *.pyc
+tests/
+migrations/README
 .env
 .git
 .gitignore

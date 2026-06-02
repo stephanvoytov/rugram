@@ -2,15 +2,24 @@
 
 import base64
 import hashlib
+import logging
 
 from cryptography.fernet import Fernet
 
+logger = logging.getLogger(__name__)
+
+_KEY_CACHE = None
+
 
 def _get_key():
-    """Генерирует 32-байтный Fernet-ключ из SECRET_KEY приложения."""
+    """Генерирует 32-байтный Fernet-ключ из SECRET_KEY приложения (кеш)."""
+    global _KEY_CACHE
+    if _KEY_CACHE is not None:
+        return _KEY_CACHE
     from config import Config
     digest = hashlib.sha256(Config.SECRET_KEY.encode()).digest()
-    return base64.urlsafe_b64encode(digest)
+    _KEY_CACHE = base64.urlsafe_b64encode(digest)
+    return _KEY_CACHE
 
 
 def encrypt(plaintext: str) -> str:
@@ -20,9 +29,10 @@ def encrypt(plaintext: str) -> str:
 
 
 def decrypt(ciphertext: str) -> str:
-    """Дешифрует строку. Если не получается — возвращает как есть."""
+    """Дешифрует строку. Если не получается — логирует и возвращает заглушку."""
     f = Fernet(_get_key())
     try:
         return f.decrypt(ciphertext.encode()).decode()
-    except Exception:
-        return ciphertext
+    except Exception as e:
+        logger.warning('decrypt() failed: %s', e)
+        return '[encrypted]'

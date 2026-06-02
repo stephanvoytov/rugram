@@ -1,74 +1,9 @@
+{% import 'macros/_post_card.html' as macros %}
 {% for post in posts %}
-<div class="card mb-4 shadow-sm post-card" data-post-url="{{ url_for('posts.get_post', post_id=post.id) }}">
-    <div class="card-header bg-transparent d-flex align-items-center justify-content-between">
-        <a href="{{ url_for('main.profile', user_id_or_username=post.author.username) }}"
-           class="d-flex align-items-center text-decoration-none">
-            <img src="{{ url_for('static', filename='uploads/profile_images/' + post.author.profile_image) if post.author.profile_image else url_for('static', filename='default-profile.png') }}"
-                 class="rounded-circle me-2" width="32" height="32" alt="{{ post.author.username }}">
-            <div>
-                <strong>{{ post.author.username }}</strong>
-                <small class="text-muted d-block">{{ post.created_date|time_ago }}</small>
-            </div>
-        </a>
-
-        {% if current_user.is_authenticated and (current_user == post.author) %}
-        <div class="d-inline-flex align-items-center gap-1">
-            <a href="{{ url_for('posts.edit_post', post_id=post.id) }}" class="btn btn-sm p-0" title="Редактировать">
-                <i class="bi bi-pencil"></i>
-            </a>
-            <button class="btn btn-sm p-0 text-danger" onclick="deletePost({{ post.id }})" title="Удалить">
-                <i class="bi bi-trash"></i>
-            </button>
-        </div>
-        {% endif %}
-    </div>
-
-    {% if post.image %}
-    <img src="{{ url_for('static', filename='uploads/posts/thumb_' + post.image) }}"
-         class="card-img-top post-image post-img-clickable"
-         loading="lazy"
-         data-full-img="{{ url_for('static', filename='uploads/posts/' + post.image) }}"
-         style="cursor:pointer">
-    {% endif %}
-
-    <div class="card-body">
-        <p class="card-text text-muted">{{ post.text|truncate(200) }}</p>
-
-        <div class="post-actions border-top pt-2">
-            <button class="btn btn-sm like-btn {% if post.is_liked_by(current_user) %}text-danger{% else %}text-muted{% endif %}"
-                    data-post-id="{{ post.id }}"
-                    data-liked="{{ 'true' if post.is_liked_by(current_user) else 'false' }}">
-                <i class="bi {% if post.is_liked_by(current_user) %}bi-heart-fill{% else %}bi-heart{% endif %} fs-5"></i>
-                <span class="like-count ms-1">{{ post.likes_count }}</span>
-            </button>
-
-            <a href="{{ url_for('posts.get_post', post_id=post.id) }}#comments"
-               class="btn btn-sm text-muted ms-3">
-                <i class="bi bi-chat-left-text fs-5"></i>
-                <span class="ms-1">{{ post.comments_count }}</span>
-            </a>
-            
-            {% if current_user.is_authenticated %}
-            <button class="btn btn-sm text-muted ms-2 repost-btn"
-                    data-post-id="{{ post.id }}"
-                    data-reposted="{{ 'true' if post.is_reposted_by(current_user) else 'false' }}"
-                    title="Поделиться">
-                <i class="bi bi-repeat fs-5 {% if post.is_reposted_by(current_user) %}text-success{% endif %}"></i>
-                <span class="repost-count ms-1">{{ post.reposts_count }}</span>
-            </button>
-            <button class="btn btn-sm text-muted ms-auto save-btn"
-                    data-post-id="{{ post.id }}"
-                    data-saved="{{ 'true' if post.is_saved_by(current_user) else 'false' }}"
-                    title="Сохранить">
-                <i class="bi {% if post.is_saved_by(current_user) %}bi-bookmark-fill{% else %}bi-bookmark{% endif %} fs-5"></i>
-            </button>
-            {% endif %}
-        </div>
-    </div>
-</div>
+{% call macros.render_post(post, current_user) %}{% endcall %}
 {% else %}
-<div class="alert alert-info text-center py-4">
-    <i class="bi bi-info-circle fs-4"></i>
-    <p class="mt-2 mb-0">Ничего не найдено</p>
+<div class="empty-state">
+    <span style="color:var(--subtle)">no posts found</span>
+    <div class="hint">[*] Be the first to <a href="{{ url_for('posts.create_post') }}">[create a post]</a></div>
 </div>
 {% endfor %}
