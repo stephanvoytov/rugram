@@ -41,7 +41,6 @@ def logout() -> Response:
 
 # -- JSON API для терминала --
 @auth_bp.route('/auth/api/login', methods=['POST'])
-@csrf.exempt
 def api_login() -> Response:
     data = request.get_json(force=True, silent=True)
     if not data:
@@ -69,7 +68,6 @@ def api_login() -> Response:
 
 
 @auth_bp.route('/auth/api/register', methods=['POST'])
-@csrf.exempt
 def api_register() -> Response:
     data = request.get_json(force=True, silent=True)
     if not data:
@@ -112,7 +110,6 @@ def api_register() -> Response:
 
 
 @auth_bp.route('/auth/api/logout', methods=['POST'])
-@csrf.exempt
 def api_logout() -> Response:
     logout_user()
     return jsonify({'ok': True, 'message': 'Вышли из системы'})

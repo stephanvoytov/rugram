@@ -44,8 +44,6 @@
 [data-bs-theme="dark"] { --bs-body-bg: var(--bg); --bs-body-color: var(--text); }
 [data-bs-theme="light"] { --bs-body-bg: var(--bg); --bs-body-color: var(--text); }
 [data-bs-theme="dark"] .text-muted { color: var(--subtle) !important; }
-[data-bs-theme="dark"] .dropdown-menu { background: var(--surface); border-color: var(--overlay); }
-[data-bs-theme="dark"] .dropdown-item { color: var(--text); }
 [data-bs-theme="light"] .dropdown-menu { background: var(--surface); border-color: var(--border); }
 [data-bs-theme="light"] .dropdown-item { color: var(--fg); }
 [data-bs-theme="dark"] .alert-info { background: var(--surface2); border-color: var(--overlay); color: var(--subtext); }
@@ -456,7 +454,7 @@ code, .inline-code {
 [data-bs-theme="dark"] .dropdown-divider { border-color: var(--border); }
 
 [data-bs-theme="dark"] .settings-section h5 {
-    color: #e0e0e0;
+    color: var(--fg);
 }
 
 [data-bs-theme="dark"] .danger-zone {
@@ -707,7 +705,7 @@ code, .inline-code {
     flex: 1;
     background: none;
     border: none;
-    color: #e0e0e0;
+    color: var(--fg);
     font-family: 'JetBrains Mono', 'Consolas', monospace;
     font-size: 0.95rem;
     outline: none;
