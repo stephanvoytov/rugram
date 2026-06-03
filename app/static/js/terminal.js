@@ -624,7 +624,6 @@
   // ── Cat /feed ──
   T.renderFeed = function(posts) {
     var list = posts || T.feedData;
-    T.clearOutput();
     T.addOutputLine('<span class="tp-section">-- /feed -- (' + list.length + ' posts)</span>');
 
     if (!list.length) {

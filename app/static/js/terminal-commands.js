@@ -428,7 +428,6 @@
       .then(function(r) { return r.json(); })
       .then(function(data) {
         T.hideLoading();
-        T.clearOutput();
         if (!data.notifications.length) {
           T.addOutputLine('<span class="tp-muted">No notifications.</span>');
           return;
@@ -471,7 +470,6 @@
         var posts = data.posts || [];
 
         if (!posts.length) {
-          T.clearOutput();
           T.addOutputLine('<span class="tp-muted">  ' + T._('Нет сохранённых постов.', 'No saved posts.') + '</span>');
           return;
         }
@@ -488,7 +486,6 @@
           return;
         }
 
-        T.clearOutput();
         T.addOutputLine('<span class="tp-section">-- /saved -- (' + posts.length + ' posts)</span>');
         posts.forEach(function(p) {
           var timeDisplay = p.time && p.time.indexOf('T') > 0 ? T.relTime(p.time) : (p.time || '');
@@ -552,7 +549,6 @@
         var users = data.users || [];
 
         if (!users.length) {
-          T.clearOutput();
           T.addOutputLine('<span class="tp-muted">  ' + T._('Нет подписчиков.', 'No followers.') + '</span>');
           return;
         }
@@ -566,7 +562,6 @@
           return;
         }
 
-        T.clearOutput();
         T.addOutputLine('<span class="tp-section">-- /followers (' + T.escapeHtml(user) + ') -- (' + users.length + ')</span>');
         users.forEach(function(u) {
           var online = u.is_online ? '<span class="tp-ok">●</span>' : '<span class="tp-muted">○</span>';
@@ -603,7 +598,6 @@
         var users = data.users || [];
 
         if (!users.length) {
-          T.clearOutput();
           T.addOutputLine('<span class="tp-muted">  ' + T._('Нет подписок.', 'Not following anyone.') + '</span>');
           return;
         }
@@ -617,7 +611,6 @@
           return;
         }
 
-        T.clearOutput();
         T.addOutputLine('<span class="tp-section">-- /following (' + T.escapeHtml(user) + ') -- (' + users.length + ')</span>');
         users.forEach(function(u) {
           var online = u.is_online ? '<span class="tp-ok">●</span>' : '<span class="tp-muted">○</span>';
@@ -641,7 +634,6 @@
       })
       .then(function(data) {
         T.hideLoading();
-        T.clearOutput();
         var p = data.post;
         if (!p || p.is_deleted) {
           T.addOutputLine('<span class="tp-err">' + T._('Пост #', 'Post #') + postId + ' ' + T._('не найден или удалён.', 'not found or deleted.') + '</span>');
@@ -1035,7 +1027,6 @@
         if (T.feedData.length) {
           T.cmdFeed(args); // retry with populated data
         } else {
-          T.clearOutput();
           T.addOutputLine('<span class="tp-muted">feed: ' + T._('постов нет', 'no posts yet') + '</span>');
           T.addOutputLine('<span class="tp-desc">  # <span class="tp-cmd">create</span> ' + T._('написать пост', 'to write a post') + '</span>');
         }
