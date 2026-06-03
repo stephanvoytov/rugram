@@ -218,25 +218,23 @@ RU: dict[str, str] = {
 
     # ── About page ──
     'About Rugram': 'О проекте',
-    'a minimalist social platform with a terminal-style interface. Share posts, follow friends, and chat in real time.':
-        'минималистичная социальная платформа в стиле терминала. Делитесь постами, подписывайтесь на друзей и общайтесь в реальном времени.',
-    'stack': 'стек',
-    'features': 'возможности',
-    'Terminal-mode (TTY) interface with Unix-like commands':
-        'Терминальный интерфейс (TTY) с Unix-подобными командами',
-    'Bilingual UI: English / Russian':
-        'Двуязычный интерфейс: английский / русский',
-    'Real-time chat with encryption at rest':
-        'Чат в реальном времени с шифрованием',
+    'a social network you drive from a terminal. Like, comment, follow, search, and message — all without leaving the command line.':
+        'социальная сеть, которой управляют из терминала. Лайки, комментарии, подписки, поиск и сообщения — не отрываясь от командной строки.',
+    'Most social networks are endless feeds, buttons, and popups. Rugram is built for developers — everything is duplicated in the terminal.':
+        'Большинство соцсетей — это бесконечные ленты, кнопки и попапы. Rugram спроектирован для разработчиков — всё продублировано терминалом.',
+    'Full TTY terminal emulator in the browser —':
+        'Полноценный эмулятор TTY-терминала в браузере —',
+    'GUI on Bootstrap 5.3 styled in Catppuccin — dark/light theme, infinite scroll, animations':
+        'GUI на Bootstrap 5.3 в стиле Catppuccin — тёмная/светлая тема, infinite scroll, анимации',
+    'Bilingual UI — English and Russian, switch at any time':
+        'Два языка — английский и русский, переключение в любой момент',
+    'Real-time messenger with encryption at rest':
+        'Мессенджер в реальном времени с шифрованием',
     'Push notifications via Web Push API':
         'Push-уведомления через Web Push API',
-    'Image upload with auto-thumbnail':
-        'Загрузка изображений с авто-превью',
-    'SEO: sitemap, OG/Twitter cards, canonical URLs':
-        'SEO: sitemap, OG/Twitter карточки, canonical URL',
-    'source': 'исходный код',
+    'Image upload, bookmarks, reposts, REST API':
+        'Загрузка изображений, закладки, репосты, REST API',
     'MIT License': 'Лицензия MIT',
-    'links': 'ссылки',
     'Type': 'Введите',
     'in the terminal for your profile': 'в терминале чтобы увидеть свой профиль',
 }
