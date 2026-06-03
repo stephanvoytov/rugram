@@ -108,8 +108,12 @@ def like_post(post_id: int) -> Response:
 
     if existing_like:
         db.session.delete(existing_like)
-        post.likes_count -= 1
+        db.session.query(Post).filter_by(id=post_id).update(
+            {'likes_count': Post.likes_count - 1},
+            synchronize_session=False
+        )
         db.session.commit()
+        db.session.refresh(post)
         return jsonify({
             'status': 'unliked',
             'likes_count': post.likes_count
@@ -120,13 +124,17 @@ def like_post(post_id: int) -> Response:
         post_id=post_id
     )
     db.session.add(new_like)
-    post.likes_count += 1
+    db.session.query(Post).filter_by(id=post_id).update(
+        {'likes_count': Post.likes_count + 1},
+        synchronize_session=False
+    )
 
     # Создаем уведомление для автора поста
     if post.author_id != current_user.id:
-        notification = _create_notification_and_push(user_id=post.author_id, actor_id=current_user.id, type_='like', post_id=post_id)
+        _create_notification_and_push(user_id=post.author_id, actor_id=current_user.id, type_='like', post_id=post_id)
 
     db.session.commit()
+    db.session.refresh(post)
 
     # Push-уведомление (после коммита)
     if post.author_id != current_user.id:
@@ -155,19 +163,26 @@ def toggle_repost(post_id: int) -> Response:
 
     if existing:
         db.session.delete(existing)
-        post.reposts_count -= 1
+        db.session.query(Post).filter_by(id=post_id).update(
+            {'reposts_count': Post.reposts_count - 1},
+            synchronize_session=False
+        )
         is_reposted = False
     else:
         repost = Repost(user_id=current_user.id, post_id=post_id)
         db.session.add(repost)
-        post.reposts_count += 1
+        db.session.query(Post).filter_by(id=post_id).update(
+            {'reposts_count': Post.reposts_count + 1},
+            synchronize_session=False
+        )
         is_reposted = True
 
         # Уведомление автору поста
         if post.author_id != current_user.id:
-            notification = _create_notification_and_push(user_id=post.author_id, actor_id=current_user.id, type_='repost', post_id=post_id)
+            _create_notification_and_push(user_id=post.author_id, actor_id=current_user.id, type_='repost', post_id=post_id)
 
     db.session.commit()
+    db.session.refresh(post)
 
     # Push-уведомление
     if is_reposted and post.author_id != current_user.id:
@@ -237,13 +252,17 @@ def add_comment(post_id: int) -> Response:
     )
 
     db.session.add(new_comment)
-    post.comments_count += 1
+    db.session.query(Post).filter_by(id=post_id).update(
+        {'comments_count': Post.comments_count + 1},
+        synchronize_session=False
+    )
 
     # Создаем уведомление для автора поста
     if post.author_id != current_user.id:
-        notification = _create_notification_and_push(user_id=post.author_id, actor_id=current_user.id, type_='comment', post_id=post_id)
+        _create_notification_and_push(user_id=post.author_id, actor_id=current_user.id, type_='comment', post_id=post_id)
 
     db.session.commit()
+    db.session.refresh(post)
 
     # Push-уведомление (после коммита)
     if post.author_id != current_user.id:

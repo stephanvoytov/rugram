@@ -1493,12 +1493,13 @@
     match: 'regex', regex: /^grep\s+"(.+?)"$/i,
     parse: function(m){return[m[1]]} });
   T.register('clear',    { handler: function(){T.clearOutput()}, auth: false, category: 'system' });
-  T.register('help',     { handler: T.cmdHelp, auth: false, category: 'help' });
+  T.register('help',     { handler: T.cmdHelp, auth: false, category: 'help', match: 'prefix' });
   T.register('pwd',      { handler: T.cmdPwd, auth: false, category: 'system' });
   T.register('id',       { handler: T.cmdId, auth: false, category: 'info', match: 'prefix' });
   T.register('alias',    { handler: T.cmdAlias, auth: false, category: 'system', match: 'prefix' });
   T.register('unalias',  { handler: T.cmdUnalias, auth: false, category: 'system', match: 'prefix' });
   T.register('source',   { handler: T.cmdSource, auth: false, category: 'system', match: 'prefix' });
   T.register('rm',       { handler: T.cmdRm, auth: true, category: 'posts', match: 'prefix' });
+  T.register('info',     { handler: T.cmdInfo, auth: false, category: 'help' });
 
 })(window.TERMINAL);

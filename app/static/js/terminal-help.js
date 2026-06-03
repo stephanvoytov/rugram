@@ -461,8 +461,13 @@
     }
   };
 
-  // ── COMMAND: help ──
-  T.cmdHelp = function() {
+  // ── COMMAND: help [command] ──
+  T.cmdHelp = function(args) {
+    args = (args || '').trim();
+    if (args) {
+      T.showCmdHelp(args);
+      return;
+    }
     T.addOutputLine('<span class="tp-section">' + T._('Rugram Terminal — Commands Reference', 'Rugram Terminal — Commands Reference') + '</span>');
     T.addOutputLine('<span class="tp-muted">' + T._('Формат: команда  [параметры]  — описание', 'Format: command  [params]  — description') + '</span>');
     T.addOutputLine('');
@@ -484,41 +489,42 @@
     T.addOutputLine('');
 
     printCategory(T._('Посты', 'Posts'), [
-      ['like', '<id>', T._('Поставить/убрать лайк', 'Like or unlike a post')],
+      ['like', '<id>', T._('Лайкнуть/убрать лайк', 'Like or unlike a post')],
       ['comment', '<id> "<text>"', T._('Добавить комментарий', 'Add a comment to a post')],
       ['bookmark', '<id>', T._('Сохранить/убрать пост', 'Save or unsave a post')],
+      ['rm', '[-f] <id>', T._('Удалить пост (в корзину)', 'Remove a post (to trash)')],
+      ['create', '', T._('Новый пост', 'Create a new post')],
+      ['nano', '<path>', T._('Редактор (posts/N.post, profile/info)', 'Edit a post or profile')],
     ]);
     T.addOutputLine('');
 
     printCategory(T._('Социальное', 'Social'), [
-      ['follow', '@<user>', T._('Подписаться на пользователя', 'Follow a user')],
+      ['follow', '@<user>', T._('Подписаться', 'Follow a user')],
       ['unfollow', '@<user>', T._('Отписаться', 'Unfollow a user')],
-      ['whoami', '', T._('Показать свой профиль', 'Show your profile (neofetch)')],
-      ['neofetch', '@<user>', T._('Профиль другого пользователя', 'View any user profile')],
+      ['whoami', '', T._('Мой профиль', 'Show your profile')],
+      ['neofetch', '@<user>', T._('Профиль пользователя', 'View any user profile')],
+      ['id', '[user]', T._('Информация о пользователе', 'Show user info (uid, groups)')],
       ['ping', '[@user]', T._('Проверить доступность', 'Check if a user exists')],
     ]);
     T.addOutputLine('');
 
     printCategory(T._('Навигация (файловая система)', 'Navigation (filesystem)'), [
       ['ls', '[-l] [dir]', T._('Файлы в текущей директории', 'List files in current directory')],
-      ['cd', '<section>', T._('Перейти в раздел (posts, saved, profile…)', 'Change directory (posts, saved, profile…)')],
-      ['cd', '..', T._('На уровень выше', 'Go up one directory')],
-      ['pwd', '', T._('Показать текущую директорию', 'Show current directory')],
+      ['cd', '<section>', T._('Перейти в раздел (posts, saved, profile…)', 'Change directory')],
+      ['pwd', '', T._('Текущая директория', 'Show current directory')],
+      ['info', '', T._('Структура и описание TTY', 'Filesystem structure and CLI overview')],
     ]);
     T.addOutputLine('');
 
     printCategory(T._('Программы', 'Programs'), [
-      ['feed', '[--tail N] [--page N] [--search text] [--less]', T._('Показать ленту постов', 'Show the post feed')],
-      ['saved', '[--tail N] [--less]', T._('Сохранённые посты', 'Show saved posts')],
-      ['followers', '[--of @user] [--less]', T._('Подписчики', 'Show followers')],
-      ['following', '[--of @user] [--less]', T._('Подписки', 'Show following')],
+      ['feed', '[--tail N] [--search text]', T._('Лента постов', 'Show the post feed')],
+      ['saved', '[--less]', T._('Сохранённые посты', 'Show saved posts')],
+      ['followers', '[--of @user]', T._('Подписчики', 'Show followers')],
+      ['following', '[--of @user]', T._('Подписки', 'Show following')],
       ['notifications', '', T._('Уведомления', 'Show notifications')],
-      ['less', '[section]', T._('Интерактивный пейджер (j/k, /, Enter, q)', 'Interactive pager (j/k, /, Enter, q)')],
-      ['cat', '<id> | post_<id>', T._('Показать содержимое поста', 'View a post by ID')],
-      ['create', '', T._('Новый пост (открывает nano)', 'Create a new post (opens nano)')],
+      ['cat', '<id> | <path>', T._('Показать содержимое', 'View a post or file')],
+      ['less', '<path>', T._('Интерактивный просмотр', 'Interactive pager (j/k, /, q)')],
       ['grep', '"<text>"', T._('Поиск по ленте', 'Search posts in feed')],
-      ['head', '[-n N]', T._('Первые N постов', 'Show first N posts')],
-      ['tail', '[-n N]', T._('Последние N постов', 'Show last N posts')],
     ]);
     T.addOutputLine('');
 
@@ -530,26 +536,68 @@
     T.addOutputLine('');
 
     printCategory(T._('Система', 'System'), [
-      ['clear', '', T._('Очистить экран', 'Clear terminal screen')],
-      ['gui / exit', '', T._('Вернуться в GUI режим', 'Switch back to GUI mode')],
-      ['help', '', T._('Эта справка', 'Show this help')],
-      ['man', '[-k] [command]', T._('Руководство по командам', 'Show manual pages')],
-      ['nano', '<path>', T._('Редактор (posts/N.post, profile/info)', 'Edit a post or profile')],
-      ['date', '[-u]', T._('Текущая дата и время', 'Show current date and time')],
-      ['uptime', '', T._('Время работы терминала', 'Show terminal session uptime')],
-      ['history', '[-c]', T._('История команд', 'Show or clear command history')],
-      ['echo', '<text>', T._('Вывести текст ($VAR подстановка)', 'Print text with $VAR support')],
-      ['export', '[VAR=value]', T._('Переменные окружения', 'Set or view environment variables')],
-      ['sudo !!', '', T._('Повторить последнюю команду', 'Re-run the last command')],
-      ['fortune', '', T._('Случайная цитата', 'Random programmer quote')],
-      ['watch', '[-n N] <cmd>', T._('Повторять команду', 'Execute command repeatedly')],
-      ['top', '', T._('Активность', 'Live activity feed')],
+      ['clear', '', T._('Очистить экран', 'Clear terminal')],
+      ['gui / exit', '', T._('В GUI режим', 'Switch to GUI mode')],
+      ['help', '[command]', T._('Эта справка / справка по команде', 'Show help / command help')],
+      ['man', '[-k] [command]', T._('Руководство', 'Show manual pages')],
+      ['date', '[-u]', T._('Дата и время', 'Show date and time')],
+      ['uptime', '', T._('Время работы', 'Show terminal uptime')],
+      ['history', '[-c]', T._('История команд', 'Show or clear history')],
+      ['echo', '<text>', T._('Вывести текст', 'Print text')],
+      ['export', '[VAR=value]', T._('Переменные окружения', 'Environment variables')],
+      ['alias', '[name=cmd]', T._('Псевдонимы команд', 'Command aliases')],
+      ['source', '<name>', T._('Выполнить скрипт', 'Run a saved script')],
+      ['sudo !!', '', T._('Повторить команду', 'Re-run last command')],
+      ['fortune', '', T._('Случайная цитата', 'Random quote')],
+      ['watch', '[-n N] <cmd>', T._('Повторять команду', 'Repeat command')],
+      ['top', '', T._('Активность в реальном времени', 'Live activity feed')],
     ]);
     T.addOutputLine('');
 
     var langLabel = T.env.LANG && T.env.LANG.startsWith('ru') ? 'RU' : 'EN';
     T.addOutputLine('<span class="tp-muted"># <span class="tp-cmd">man &lt;command&gt;</span> ' + T._('для подробной справки', 'for detailed manual') + '  |  <span class="tp-cmd">export LANG=en_US</span> — ' + T._('язык', 'language') + ': ' + langLabel + '</span>');
     T.addOutputLine('<span class="tp-muted"># <span class="tp-cmd">/</span> ' + T._('фокус ввода', 'focus input') + '  <span class="tp-cmd">?</span> help  <span class="tp-cmd">↑↓</span> ' + T._('история', 'history') + '  <span class="tp-cmd">Esc</span> blur</span>');
+  };
+
+  // ── COMMAND: info — structure and CLI overview ──
+  T.cmdInfo = function() {
+    T.addSysLine('<span class="tp-section">' + T._('Rugram Terminal — файловая система и команды', 'Rugram Terminal — filesystem & commands') + '</span>');
+    T.addOutputLine('');
+    T.addOutputLine('<span class="tp-bold">' + T._('Виртуальная файловая система (VFS)', 'Virtual File System (VFS)') + '</span>');
+    T.addOutputLine('');
+    T.addOutputLine('<span class="tp-muted">' + T._('Корень ~/ — содержит разделы. cd <раздел> для навигации.', 'Root ~/ — contains sections. cd <section> to navigate.') + '</span>');
+    T.addOutputLine('');
+    T.addOutputLine('  <span class="tp-cmd">posts/</span>          <span class="tp-desc">— ' + T._('лента постов (N.post, .meta, image, comments/)', 'post feed (N.post, .meta, image, comments/)') + '</span>');
+    T.addOutputLine('  <span class="tp-cmd">saved/</span>          <span class="tp-desc">— ' + T._('сохранённые посты (симлинк на posts/)', 'bookmarked posts (symlink to posts/)') + '</span>');
+    T.addOutputLine('  <span class="tp-cmd">drafts/</span>         <span class="tp-desc">— ' + T._('черновики', 'drafts') + '</span>');
+    T.addOutputLine('  <span class="tp-cmd">trash/</span>          <span class="tp-desc">— ' + T._('корзина (rm без -f)', 'recycle bin (rm without -f)') + '</span>');
+    T.addOutputLine('  <span class="tp-cmd">profile/</span>        <span class="tp-desc">— ' + T._('профиль (info, posts/)', 'profile (info, posts/)') + '</span>');
+    T.addOutputLine('  <span class="tp-cmd">users/@name/</span>    <span class="tp-desc">— ' + T._('профили пользователей (info, posts/)', 'user profiles (info, posts/)') + '</span>');
+    T.addOutputLine('  <span class="tp-cmd">chat/@name/</span>     <span class="tp-desc">— ' + T._('чаты (inbox/, outbox/)', 'chats (inbox/, outbox/)') + '</span>');
+    T.addOutputLine('  <span class="tp-cmd">followers/</span>      <span class="tp-desc">— ' + T._('подписчики (hint → команда followers)', 'followers (hint → followers command)') + '</span>');
+    T.addOutputLine('  <span class="tp-cmd">following/</span>      <span class="tp-desc">— ' + T._('подписки (hint → команда following)', 'following (hint → following command)') + '</span>');
+    T.addOutputLine('  <span class="tp-cmd">notifications/</span>  <span class="tp-desc">— ' + T._('уведомления (hint → команда notifications)', 'notifications (hint → notifications command)') + '</span>');
+    T.addOutputLine('  <span class="tp-cmd">mnt/</span>            <span class="tp-desc">— ' + T._('точки монтирования GUI (settings, edit_profile)', 'GUI mount points (settings, edit_profile)') + '</span>');
+    T.addOutputLine('');
+    T.addOutputLine('<span class="tp-bold">' + T._('Типы файлов:', 'File types:') + '</span>');
+    T.addOutputLine('  <span class="tp-post-id">42.post</span>        <span class="tp-desc">— ' + T._('пост (cat, nano)', 'post (cat, nano)') + '</span>');
+    T.addOutputLine('  <span class="tp-post-id">.meta</span>          <span class="tp-desc">— ' + T._('метаданные поста (cat)', 'post metadata (cat)') + '</span>');
+    T.addOutputLine('  <span class="tp-post-id">image</span>          <span class="tp-desc">— ' + T._('ASCII-арт изображения (cat --img)', 'image ASCII art (cat --img)') + '</span>');
+    T.addOutputLine('  <span class="tp-post-id">info</span>           <span class="tp-desc">— ' + T._('информация профиля (cat, nano)', 'profile info (cat, nano)') + '</span>');
+    T.addOutputLine('');
+    T.addOutputLine('<span class="tp-bold">' + T._('Основные команды:', 'Key commands:') + '</span>');
+    T.addOutputLine('  <span class="tp-cmd">help</span>              <span class="tp-desc">— ' + T._('полный список команд', 'full command list') + '</span>');
+    T.addOutputLine('  <span class="tp-cmd">man &lt;cmd&gt;</span>       <span class="tp-desc">— ' + T._('подробная справка', 'detailed manual') + '</span>');
+    T.addOutputLine('  <span class="tp-cmd">cd &lt;раздел&gt;</span>     <span class="tp-desc">— ' + T._('переход между разделами', 'navigate sections') + '</span>');
+    T.addOutputLine('  <span class="tp-cmd">ls [-l]</span>           <span class="tp-desc">— ' + T._('список файлов', 'list files') + '</span>');
+    T.addOutputLine('  <span class="tp-cmd">cat &lt;файл&gt;</span>      <span class="tp-desc">— ' + T._('просмотр содержимого', 'view file contents') + '</span>');
+    T.addOutputLine('  <span class="tp-cmd">nano &lt;файл&gt;</span>     <span class="tp-desc">— ' + T._('редактирование', 'edit files') + '</span>');
+    T.addOutputLine('  <span class="tp-cmd">rm [-f] &lt;id&gt;</span>    <span class="tp-desc">— ' + T._('удаление поста (в корзину / навсегда)', 'remove post (trash / permanent)') + '</span>');
+    T.addOutputLine('  <span class="tp-cmd">feed [--tail N]</span>    <span class="tp-desc">— ' + T._('лента постов', 'post feed') + '</span>');
+    T.addOutputLine('');
+    T.addOutputLine('<span class="tp-muted"># ' + T._('Используйте export LANG=en_US для английского языка.', 'Use export LANG=en_US for English interface.') + '</span>');
+    T.addOutputLine('<span class="tp-muted"># ' + T._('/ — фокус ввода, ? — help, ↑↓ — история, Esc — blur', '/ — focus input, ? — help, ↑↓ — history, Esc — blur') + '</span>');
+    T.addOutputLine('<span class="tp-muted"># ' + T._('Tab — автодополнение, Ctrl+R — поиск по истории', 'Tab — autocomplete, Ctrl+R — reverse-i-search') + '</span>');
   };
 
   // ── COMMAND: man ──
