@@ -557,6 +557,7 @@
     printCategory(T._('Чат', 'Chat'), [
       ['chat', '[<id>]', T._('Список диалогов / открыть диалог', 'List conversations / open conversation')],
       ['say', '<text>', T._('Отправить сообщение', 'Send a message in current chat')],
+      ['write', '@<user> <text>', T._('Отправить личное сообщение', 'Send a direct message')],
       ['start', '@<user>', T._('Начать чат с пользователем', 'Start a chat with a user')],
     ]);
     T.addOutputLine('');
@@ -569,9 +570,12 @@
       ['date', '[-u]', T._('Дата и время', 'Show date and time')],
       ['uptime', '', T._('Время работы', 'Show terminal uptime')],
       ['history', '[-c]', T._('История команд', 'Show or clear history')],
+      ['head', '[N]', T._('Первые N постов ленты', 'Show first N feed posts')],
+      ['tail', '[N]', T._('Последние N постов ленты', 'Show last N feed posts')],
       ['echo', '<text>', T._('Вывести текст', 'Print text')],
       ['export', '[VAR=value]', T._('Переменные окружения', 'Environment variables')],
       ['alias', '[name=cmd]', T._('Псевдонимы команд', 'Command aliases')],
+      ['unalias', '<name>', T._('Удалить псевдоним', 'Remove an alias')],
       ['source', '<name>', T._('Выполнить скрипт', 'Run a saved script')],
       ['sudo !!', '', T._('Повторить команду', 'Re-run last command')],
       ['fortune', '', T._('Случайная цитата', 'Random quote')],
