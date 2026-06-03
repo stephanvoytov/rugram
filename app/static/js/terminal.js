@@ -883,6 +883,28 @@
     };
 
     document.addEventListener('keydown', T._lessKeyHandler);
+
+    // ── Touch scroll support ──
+    T._lessTouchStartY = 0;
+    T._lessTouchStartPos = 0;
+
+    T._lessTouchHandler = function(e) {
+      if (!T._lessActive) return;
+      if (e.type === 'touchstart') {
+        T._lessTouchStartY = e.touches[0].clientY;
+        T._lessTouchStartPos = T._lessPos;
+      } else if (e.type === 'touchmove') {
+        e.preventDefault();
+        var deltaY = T._lessTouchStartY - e.touches[0].clientY;
+        var lineDelta = Math.round(deltaY / 20);
+        if (lineDelta !== 0) {
+          T._lessPos = Math.max(0, Math.min(T._lessTouchStartPos + lineDelta, T._lessFilteredItems.length - 1));
+          T._renderLess();
+        }
+      }
+    };
+    document.addEventListener('touchstart', T._lessTouchHandler, { passive: true });
+    document.addEventListener('touchmove', T._lessTouchHandler, { passive: false });
   };
 
   T._exitLessMode = function() {
@@ -894,6 +916,11 @@
     T._lessAwaitingSearch = false;
     document.removeEventListener('keydown', T._lessKeyHandler);
     T._lessKeyHandler = null;
+    if (T._lessTouchHandler) {
+      document.removeEventListener('touchstart', T._lessTouchHandler);
+      document.removeEventListener('touchmove', T._lessTouchHandler);
+      T._lessTouchHandler = null;
+    }
     if (T._lessSearchHandler) {
       document.removeEventListener('keydown', T._lessSearchHandler);
       T._lessSearchHandler = null;
@@ -940,7 +967,7 @@
     }
 
     // Footer
-    var footer = '# less  —  j/k scroll  Enter view  /search  n/N next  gg/G top/bottom  q quit';
+    var footer = '# less  —  j/k/⇅ scroll  Enter view  /search  n/N next  gg/G top/bottom  q quit';
     if (T._lessSearchQuery) {
       footer = '/ ' + T._lessSearchQuery + '  —  n next  N prev  Enter open  q quit';
     }
@@ -1102,7 +1129,8 @@
 
   // ── CSRF token ──
   T.csrfToken = function() {
-    return document.querySelector('meta[name="csrf-token"]');
+    var el = document.querySelector('meta[name="csrf-token"]');
+    return el ? el.content : '';
   };
 
   // ── Uptime string ──

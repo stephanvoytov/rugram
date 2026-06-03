@@ -12,7 +12,7 @@
         <div class="post-card" style="padding:8px 12px;margin-bottom:4px">
             <div style="display:flex;align-items:center;gap:8px">
                 <img src="{{ url_for('static', filename='uploads/profile_images/' + follow.followed.profile_image) if follow.followed.profile_image else url_for('static', filename='default-profile.png') }}"
-                     width="36" height="36" class="chat-avatar" alt="">
+                     width="36" height="36" class="chat-avatar" alt="@{{ follow.followed.username }}">
                 <div style="flex:1">
                     <a href="{{ url_for('main.profile', user_id_or_username=follow.followed.username) }}" style="font-weight:600;color:var(--fg);text-decoration:none">@{{ follow.followed.username }}</a>
                     {% if follow.followed.description %}<br><small style="color:var(--subtle);font-size:0.75rem">{{ follow.followed.description|truncate(50) }}</small>{% endif %}
@@ -20,7 +20,7 @@
             </div>
         </div>
         {% else %}
-        <div class="empty-state" style="padding:40px;text-align:center;color:var(--subtle)">not following anyone yet</div>
+        <div class="empty-state" style="padding:40px;text-align:center;color:var(--subtle)">{{ _('Not following anyone yet') }}</div>
         {% endfor %}
     </div>
 </div>

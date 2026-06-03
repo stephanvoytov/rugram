@@ -144,12 +144,11 @@
       T.addOutputLine('<span class="tp-err">say: message text required</span>');
       return;
     }
-    var token = T.csrfToken();
     fetch('/chat/' + chatId + '/send', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRFToken': token ? token.content : '',
+        'X-CSRFToken': T.csrfToken(),
         'X-Requested-With': 'XMLHttpRequest'
       },
       body: JSON.stringify({ text: text }),
@@ -176,11 +175,10 @@
       return;
     }
     T.addSysLine('Looking up @' + T.escapeHtml(username) + '...');
-    var token = T.csrfToken();
     fetch('/chat/start/' + encodeURIComponent(username), {
       method: 'POST',
       headers: {
-        'X-CSRFToken': token ? token.content : '',
+        'X-CSRFToken': T.csrfToken(),
         'X-Requested-With': 'XMLHttpRequest'
       },
       credentials: 'same-origin'
@@ -219,10 +217,9 @@
     var targetUser = m[1];
     var text = m[2];
     T.showLoading(T._('Отправка...', 'Sending...'));
-    var token = T.csrfToken();
     fetch('/chat/start/' + encodeURIComponent(targetUser), {
       method: 'POST',
-      headers: { 'X-CSRFToken': token ? token.content : '', 'X-Requested-With': 'XMLHttpRequest' },
+      headers: { 'X-CSRFToken': T.csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
       credentials: 'same-origin'
     })
     .then(function(r) { return r.json(); })
@@ -230,7 +227,7 @@
       if (!data.chat_id) { T.hideLoading(); T.addOutputLine('<span class="tp-err">write: could not reach @' + T.escapeHtml(targetUser) + '</span>'); return; }
       fetch('/chat/' + data.chat_id + '/send', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': token ? token.content : '', 'X-Requested-With': 'XMLHttpRequest' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': T.csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
         body: JSON.stringify({ text: text }),
         credentials: 'same-origin'
       })

@@ -37,6 +37,8 @@ RU: dict[str, str] = {
     'Message sent':          'Сообщение отправлено',
     'Reported':              'Пожаловались',
     'Saved':                 'Сохранено',
+    'No followers yet':      'Пока нет подписчиков',
+    'Not following anyone yet': 'Пока ни на кого не подписан',
     'Unsaved':               'Удалено из сохранённого',
 
     # ── Validation / errors ──

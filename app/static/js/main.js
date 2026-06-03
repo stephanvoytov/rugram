@@ -354,3 +354,19 @@ window.showBrowserNotification = function(title, body) {
         }
     });
 })();
+
+// ── Delete Post (shared by profile.html, post.html) ──
+window.deletePost = function(postId) {
+    if (!confirm('Delete post?')) return;
+    var url = window.DELETE_POST_URL.replace('/0', '/' + postId);
+    fetch(url, {
+        method: 'DELETE',
+        headers: { 'X-CSRFToken': getCsrf(), 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+    })
+    .then(function(r) {
+        if (r.ok) window.location.reload();
+        else if (r.status === 401) window.location.href = window.LOGIN_URL;
+        else alert('Error');
+    })
+    .catch(function() { alert('Error'); });
+};

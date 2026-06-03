@@ -7,8 +7,10 @@
   T.cmdNano = function(args) {
     args = (args || '').trim();
 
-    // Без аргументов: если мы в create — открыть новый пост
+    // Без аргументов — создаём новый пост
     if (!args) {
+      T.addSysLine('<span class="tp-muted">nano: ' + T._('открываю редактор нового поста...', 'opening new post editor...') + '</span>');
+      T.addSysLine('<span class="tp-desc">  # ' + T._('можно явно: nano posts/новый_пост', 'or: nano &lt;path&gt; to edit a file') + '</span>');
       T.cmdCreate();
       return;
     }
@@ -23,12 +25,6 @@
 
     if (node.type !== 'file') {
       T.addOutputLine('<span class="tp-err">nano: ' + T.escapeHtml(args) + ': Is a directory</span>');
-      return;
-    }
-
-    if (!T.isLoggedIn) {
-      T.addOutputLine('<span class="tp-err">nano: ' + T._('Требуется вход.', 'Login required.') + '</span>');
-      T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
       return;
     }
 
@@ -57,7 +53,7 @@
           method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
-            'X-CSRFToken': T.csrfToken().content,
+            'X-CSRFToken': T.csrfToken(),
             'X-Requested-With': 'XMLHttpRequest'
           },
           body: 'text=' + encodeURIComponent(newText)
@@ -79,7 +75,7 @@
               method: 'POST',
               headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
-                'X-CSRFToken': T.csrfToken().content,
+                'X-CSRFToken': T.csrfToken(),
                 'X-Requested-With': 'XMLHttpRequest'
               },
               body: 'description=' + encodeURIComponent(newDesc)
@@ -106,7 +102,7 @@
   T.showNanoEditor = function(type, id, initialText, saveFn) {
     if (T.nanoOverlay) return;
 
-    var filename = type === 'profile' ? 'description.txt' : type === 'create' ? 'new.txt' : id + '.txt';
+    var filename = type === 'profile' ? 'profile.info' : type === 'create' ? 'new.post' : id + '.post';
     var modified = false;
 
     var overlay = document.createElement('div');
@@ -280,6 +276,6 @@
   };
 
   // ── Registry ──
-  T.register('nano', { handler: T.cmdNano, auth: false, category: 'posts', match: 'prefix' });
+  T.register('nano', { handler: T.cmdNano, auth: true, category: 'posts', match: 'prefix' });
 
 })(window.TERMINAL);
