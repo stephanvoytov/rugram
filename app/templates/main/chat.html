@@ -4,6 +4,12 @@
 
 {% block styles %}
 <style>
+/* Chat: page doesn't scroll — only chat list & messages scroll internally */
+body.d-flex.flex-column.min-vh-100 {
+    height: 100vh !important;
+    overflow: hidden !important;
+}
+
 /* Full-width chat: override Bootstrap container */
 #mainContainer.container { max-width: 100% !important; padding: 0 !important; flex: 1; display: flex; flex-direction: column; min-height: 0; }
 main.flex-grow-1 { display: flex; flex-direction: column; min-height: 0; }
