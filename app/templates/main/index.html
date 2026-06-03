@@ -5,10 +5,11 @@
 {% block meta_description %}Rugram — a minimalist social platform. {% if is_subs %}Browse your subscriptions feed.{% else %}Browse the public feed, discover posts, follow friends.{% endif %}{% endblock %}
 {% block og_title %}Rugram — {% if is_subs %}subscriptions{% else %}feed{% endif %}{% endblock %}
 {% block og_description %}Rugram — a minimalist social platform. {% if is_subs %}View posts from users you follow.{% else %}Share posts, follow friends, chat.{% endif %}{% endblock %}
-{% block canonical_url %}{{ request.url_root }}{% if is_subs %}?followed=1{% endif %}{% endblock %}
-{% block hreflang_en %}{{ request.url_root }}{% if is_subs %}?followed=1&amp;{% else %}?{% endif %}lang=en{% endblock %}
-{% block hreflang_ru %}{{ request.url_root }}{% if is_subs %}?followed=1&amp;{% else %}?{% endif %}lang=ru{% endblock %}
-{% block hreflang_xdefault %}{{ request.url_root }}{% if is_subs %}?followed=1{% endif %}{% endblock %}
+{% set _index_url = url_for('main.index', _external=True) %}
+{% block canonical_url %}{{ _index_url }}{% if is_subs %}?followed=1{% endif %}{% endblock %}
+{% block hreflang_en %}{{ _index_url }}{% if is_subs %}?followed=1&amp;{% else %}?{% endif %}lang=en{% endblock %}
+{% block hreflang_ru %}{{ _index_url }}{% if is_subs %}?followed=1&amp;{% else %}?{% endif %}lang=ru{% endblock %}
+{% block hreflang_xdefault %}{{ _index_url }}{% if is_subs %}?followed=1{% endif %}{% endblock %}
 
 {% block content %}
 <h1 class="sr-only">Rugram</h1>
