@@ -80,6 +80,8 @@ RU: dict[str, str] = {
         'Пользователь ещё не написал ни одного поста',
 
     # ── Auth ──
+    'Remember me':
+        'Запомнить меня',
     'Don\'t have an account?':
         'Нет аккаунта?',
     'Already have an account?':
