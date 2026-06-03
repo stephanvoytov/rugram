@@ -1,59 +1,55 @@
-// ── Rugram Terminal — Nano Editor ──
+// ── Rugram Terminal — Nano Editor (VFS-powered) ──
+// Path resolution via T.vfs.resolve()
 (function(T) {
   'use strict';
 
-  // ── Resolve virtual filesystem path ──
-  T.resolvePath = function(input, cwd) {
-    input = (input || '').trim();
-    if (!input) return null;
-    var section, filename;
-
-    var abs = input.match(/^\/(\w+)\/(.+)$/);
-    if (abs) {
-      section = abs[1]; filename = abs[2];
-    } else if (input.startsWith('/')) {
-      return null;
-    } else {
-      if (!cwd || cwd === '' || cwd === '~') return null;
-      section = cwd;
-      filename = input;
-    }
-
-    if (section === 'profile' && filename === 'description.txt') {
-      return { type: 'profile' };
-    }
-    if (section === 'feed') {
-      var idMatch = filename.match(/^(\d+)\.txt$/);
-      if (idMatch) return { type: 'post', id: parseInt(idMatch[1], 10) };
-    }
-    return null;
-  };
-
-  // ── COMMAND: nano ──
+  // ── COMMAND: nano <path> ──
   T.cmdNano = function(args) {
     args = (args || '').trim();
 
-    var resolved = T.resolvePath(args, T.cwd);
-    if (!resolved) {
-      T.addOutputLine('<span class="tp-err">nano: \'' + T.escapeHtml(args) + '\': No such file</span>');
-      T.addOutputLine('<span class="tp-desc"># files: description.txt (profile), &lt;id&gt;.txt (feed)</span>');
+    // Без аргументов: если мы в create — открыть новый пост
+    if (!args) {
+      T.cmdCreate();
       return;
     }
 
-    if (resolved.type === 'post') {
-      var postId = resolved.id;
-      var post = T.feedData.find(function(p) { return p.id === postId; });
-      if (!post) {
-        T.addOutputLine('<span class="tp-err">nano: post #' + postId + ' not in cache</span>');
-        return;
-      }
-      if (!T.isLoggedIn) {
-        T.addOutputLine('<span class="tp-err">nano: ' + T._('Требуется вход.', 'Login required.') + '</span>');
-        T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
-        return;
-      }
-      T.showNanoEditor('post', postId, post.text, function(newText) {
-        var url = window.EDIT_POST_URL.replace('/0/', '/' + postId + '/');
+    // ── VFS resolution ──
+    var node = T.vfs.resolve(args);
+    if (!node || node.error) {
+      T.addOutputLine('<span class="tp-err">nano: ' + T.escapeHtml(args) + ': No such file</span>');
+      T.addOutputLine('<span class="tp-desc">  # ' + T._('файлы: description.txt (profile), &lt;id&gt;.txt (feed), tmp/&lt;file&gt;', 'files: description.txt (profile), &lt;id&gt;.txt (feed), tmp/&lt;file&gt;') + '</span>');
+      return;
+    }
+
+    if (node.type !== 'file') {
+      T.addOutputLine('<span class="tp-err">nano: ' + T.escapeHtml(args) + ': Is a directory</span>');
+      return;
+    }
+
+    if (!T.isLoggedIn) {
+      T.addOutputLine('<span class="tp-err">nano: ' + T._('Требуется вход.', 'Login required.') + '</span>');
+      T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
+      return;
+    }
+
+    // Определяем тип редактора и начальный текст
+    var editorType = 'file';
+    var editorId = null;
+    var initialText = '';
+    var apiSaveFn = null;
+
+    if (node.remove && typeof node.remove === 'function') {
+      // Пост — можно редактировать (edit handler в VFS)
+    }
+
+    // ── Определяем save-функцию по контексту ──
+    if (node.id !== undefined && node.text !== undefined) {
+      // Пост
+      editorType = 'post';
+      editorId = node.id;
+      initialText = node.text || '';
+      apiSaveFn = function(newText) {
+        var url = window.EDIT_POST_URL.replace('/0/', '/' + editorId + '/');
         return fetch(url, {
           method: 'POST',
           headers: {
@@ -63,19 +59,17 @@
           },
           body: 'text=' + encodeURIComponent(newText)
         });
-      });
-      return;
-    }
-
-    if (resolved.type === 'profile') {
-      if (!T.isLoggedIn) {
-        T.addOutputLine('<span class="tp-err">nano: ' + T._('Требуется вход.', 'Login required.') + '</span>');
-        T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
-        return;
-      }
+      };
+    } else if (args === 'description.txt' || args === 'profile/description.txt') {
+      // Профиль (bio)
+      editorType = 'profile';
+      initialText = '';
+      // Загружаем текущее описание
+      T.showLoading(T._('Загрузка профиля...', 'Loading profile...'));
       fetch(window.API_ME_URL, { credentials: 'same-origin' })
         .then(function(r) { return r.json(); })
         .then(function(data) {
+          T.hideLoading();
           if (!data.ok) throw new Error('not authenticated');
           T.showNanoEditor('profile', null, data.user.description || '', function(newDesc) {
             return fetch(window.EDIT_PROFILE_URL, {
@@ -90,10 +84,19 @@
           });
         })
         .catch(function() {
-          T.addOutputLine('<span class="tp-err">nano: could not load profile</span>');
+          T.hideLoading();
+          T.addOutputLine('<span class="tp-err">nano: ' + T._('не удалось загрузить профиль', 'could not load profile') + '</span>');
         });
       return;
     }
+
+    if (apiSaveFn) {
+      T.showNanoEditor(editorType, editorId, initialText, apiSaveFn);
+      return;
+    }
+
+    T.addOutputLine('<span class="tp-err">nano: ' + T.escapeHtml(args) + ': ' + T._('нельзя редактировать', 'not editable') + '</span>');
+    T.addOutputLine('<span class="tp-desc">  # ' + T._('Редактировать можно посты и описание профиля', 'Editable: posts and profile description') + '</span>');
   };
 
   // ── Show nano full-screen editor ──
@@ -123,7 +126,7 @@
     overlay.appendChild(topBar);
 
     var textarea = document.createElement('textarea');
-    textarea.value = initialText;
+    textarea.value = initialText || '';
     overlay.appendChild(textarea);
 
     var bottomBar = document.createElement('div');
@@ -245,7 +248,7 @@
       if (e.ctrlKey && (e.key === 'x' || e.key === 'X')) {
         e.preventDefault();
         if (modified) {
-          setStatus('unsaved changes — use ^O to save or ^C to cancel', 'error');
+          setStatus('unsaved changes \u2014 use ^O to save or ^C to cancel', 'error');
           return;
         }
         removeEventListener('keydown', onKey, true);

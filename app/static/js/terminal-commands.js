@@ -275,6 +275,186 @@
     .catch(function() {});
   };
 
+  // ── COMMAND: id (Unix-style user info) ──
+  T.cmdId = function(args) {
+    args = (args || '').trim();
+    var userMatch = args.match(/^@?(\w+)$/);
+    if (userMatch) {
+      T.addOutputLine('uid=0(' + T.escapeHtml(userMatch[1]) + ') gid=0(' + T.escapeHtml(userMatch[1]) + ') groups=0(' + T.escapeHtml(userMatch[1]) + ')');
+      return;
+    }
+    if (T.isLoggedIn) {
+      T.addOutputLine('uid=' + T.currentUserId + '(' + T.escapeHtml(T.username) + ') gid=' + T.currentUserId + '(' + T.escapeHtml(T.username) + ') groups=' + T.currentUserId + '(' + T.escapeHtml(T.username) + ')');
+    } else {
+      T.addOutputLine('uid=0(guest) gid=0(guest) groups=0(guest)');
+    }
+  };
+
+  // ── COMMAND: alias ──
+  T.cmdAlias = function(args) {
+    args = (args || '').trim();
+    if (!args) {
+      var aliases = T._loadAliases();
+      var keys = Object.keys(aliases);
+      if (!keys.length) { T.addOutputLine('<span class="tp-muted">no aliases</span>'); return; }
+      keys.sort().forEach(function(k) {
+        T.addOutputLine('alias ' + T.escapeHtml(k) + '="' + T.escapeHtml(aliases[k]) + '"');
+      });
+      return;
+    }
+    var m = args.match(/^(\w+)=['"]?(.+?)['"]?$/);
+    if (m) {
+      var aliases = T._loadAliases();
+      aliases[m[1]] = m[2];
+      T._saveAliases(aliases);
+      T.addOutputLine('<span class="tp-ok">' + T.escapeHtml(m[1]) + ' aliased to "' + T.escapeHtml(m[2]) + '"</span>');
+      return;
+    }
+    T.addOutputLine('<span class="tp-err">alias: invalid syntax. Usage: alias name="command"</span>');
+  };
+
+  // ── COMMAND: rm — delete posts, comments, and tmp files (VFS-powered) ──
+  T.cmdRm = function(args) {
+    if (!T.isLoggedIn) {
+      T.addOutputLine('<span class="tp-err">rm: ' + T._('Требуется вход.', 'Login required.') + '</span>');
+      T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
+      return;
+    }
+    args = (args || '').trim();
+
+    // rm comment <id> — не path-based, оставляем как есть
+    var commentMatch = args.match(/^comment\s+(\d+)$/i);
+    if (commentMatch) {
+      var commentId = parseInt(commentMatch[1], 10);
+      T.showLoading(T._('Удаление комментария...', 'Deleting comment...'));
+      var token = T.csrfToken();
+      fetch('/comment/' + commentId, {
+        method: 'DELETE',
+        headers: { 'X-CSRFToken': token ? token.content : '', 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin'
+      })
+      .then(function(r) {
+        if (!r.ok) { throw new Error('HTTP ' + r.status); }
+        return r.json();
+      })
+      .then(function() {
+        T.hideLoading();
+        T.addSysLine('<span class="tp-ok">' + T._('Комментарий #', 'Comment #') + commentId + ' ' + T._('удалён', 'deleted') + '</span>');
+        T.toast(T._('Комментарий удалён', 'Comment deleted'), 'ok');
+      })
+      .catch(function() {
+        T.hideLoading();
+        T.addOutputLine('<span class="tp-err">rm: ' + T._('ошибка удаления комментария #', 'could not delete comment #') + commentId + '</span>');
+      });
+      return;
+    }
+
+    // ── Голый номер — fallback с лоадером (для backward compat) ──
+    var idMatch = args.match(/^(\d+)$/i);
+    if (idMatch) {
+      var postId = parseInt(idMatch[1], 10);
+      T.showLoading(T._('Удаление поста...', 'Deleting post...'));
+      var token = T.csrfToken();
+      fetch('/delete/' + postId, {
+        method: 'DELETE',
+        headers: { 'X-CSRFToken': token ? token.content : '', 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin'
+      })
+      .then(function(r) {
+        if (!r.ok) { throw new Error('HTTP ' + r.status); }
+        return r.json();
+      })
+      .then(function() {
+        T.hideLoading();
+        T.feedData = T.feedData.filter(function(p) { return p.id !== postId; });
+        T.addSysLine('<span class="tp-ok">' + T._('Пост #', 'Post #') + postId + ' ' + T._('удалён', 'deleted') + '</span>');
+        T.toast(T._('Пост удалён', 'Post deleted'), 'ok');
+      })
+      .catch(function() {
+        T.hideLoading();
+        T.addOutputLine('<span class="tp-err">rm: ' + T._('ошибка удаления поста #', 'could not delete post #') + postId + ' ' + T._('(можно удалять только свои посты)', '(you can only delete your own posts)') + '</span>');
+      });
+      return;
+    }
+
+    // ── VFS resolution: rm feed/42.txt, rm tmp/draft.txt ──
+    var node = T.vfs.resolve(args);
+    if (node && !node.error && typeof node.remove === 'function') {
+      node.remove(T.addOutputLine);
+      return;
+    }
+
+    T.addOutputLine('<span class="tp-err">rm: ' + T._('использование: rm &lt;id&gt; | rm comment &lt;id&gt; | rm &lt;path&gt;', 'usage: rm &lt;id&gt; | rm comment &lt;id&gt; | rm &lt;path&gt;') + '</span>');
+  };
+
+  // ── COMMAND: source — load and run scripts ──
+  T.cmdSource = function(args) {
+    args = (args || '').trim();
+    // Load scripts from localStorage
+    var scripts = {};
+    try { scripts = JSON.parse(localStorage.getItem('rugram_scripts')) || {}; } catch(e) {}
+
+    if (!args) {
+      var keys = Object.keys(scripts);
+      if (!keys.length) {
+        T.addOutputLine('<span class="tp-muted">no scripts. Use <span class="tp-cmd">source --save name</span> followed by commands, or <span class="tp-cmd">alias</span> to see aliases.</span>');
+        return;
+      }
+      T.addOutputLine('<span class="tp-section">Scripts:</span>');
+      keys.sort().forEach(function(k) {
+        T.addOutputLine('  <span class="tp-cmd">' + T.escapeHtml(k) + '</span>  <span class="tp-desc">' + T.escapeHtml(scripts[k].substring(0, 80)) + '</span>');
+      });
+      return;
+    }
+
+    // source --save <name> <command...>
+    var saveMatch = args.match(/^--save\s+(\w+)\s+(.+)$/);
+    if (saveMatch) {
+      var name = saveMatch[1];
+      var cmds = saveMatch[2];
+      scripts[name] = cmds;
+      localStorage.setItem('rugram_scripts', JSON.stringify(scripts));
+      T.addOutputLine('<span class="tp-ok">script "' + T.escapeHtml(name) + '" saved</span>');
+      return;
+    }
+
+    // source --rm <name>
+    var rmMatch = args.match(/^--rm\s+(\w+)$/);
+    if (rmMatch) {
+      if (scripts[rmMatch[1]]) {
+        delete scripts[rmMatch[1]];
+        localStorage.setItem('rugram_scripts', JSON.stringify(scripts));
+        T.addOutputLine('<span class="tp-ok">script "' + T.escapeHtml(rmMatch[1]) + '" removed</span>');
+      } else {
+        T.addOutputLine('<span class="tp-err">source: script "' + T.escapeHtml(rmMatch[1]) + '" not found</span>');
+      }
+      return;
+    }
+
+    // source <name> — run the script
+    if (scripts[args]) {
+      T.addSysLine('<span class="tp-ok">Running script "' + T.escapeHtml(args) + '"...</span>');
+      T.processCommand(scripts[args]);
+      return;
+    }
+
+    T.addOutputLine('<span class="tp-err">source: ' + T.escapeHtml(args) + ': script not found</span>');
+  };
+
+  // ── COMMAND: unalias ──
+  T.cmdUnalias = function(args) {
+    args = (args || '').trim();
+    if (!args) { T.addOutputLine('<span class="tp-err">unalias: usage: unalias name</span>'); return; }
+    var aliases = T._loadAliases();
+    if (aliases[args] !== undefined) {
+      delete aliases[args];
+      T._saveAliases(aliases);
+      T.addOutputLine('<span class="tp-ok">unalias: ' + T.escapeHtml(args) + ' removed</span>');
+    } else {
+      T.addOutputLine('<span class="tp-err">unalias: ' + T.escapeHtml(args) + ': not found</span>');
+    }
+  };
+
   // ── Render neofetch ──
   T.renderNeofetch = function(name, desc, imageUrl) {
     T.addSysLine('<span class="tp-section">User: ' + T.escapeHtml(name) + '</span>');
@@ -321,13 +501,6 @@
 
   // ── COMMAND: neofetch @user ──
   T.cmdNeofetch = function(targetUser) {
-    var localFound = T.feedData.some(function(p) {
-      return p.author.toLowerCase() === targetUser.toLowerCase();
-    });
-    if (localFound) {
-      T._showNeofetch(targetUser, true);
-      return;
-    }
     T.addSysLine('<span class="tp-muted">Looking up @' + T.escapeHtml(targetUser) + '...</span>');
     fetch(window.API_USERS_SEARCH_URL + '?q=' + encodeURIComponent(targetUser), {
       credentials: 'same-origin'
@@ -338,7 +511,7 @@
         return u.username.toLowerCase() === targetUser.toLowerCase();
       });
       if (user) {
-        T._showNeofetch(targetUser, true, user.profile_image);
+        T._showNeofetch(targetUser, user.is_online || false, user.profile_image);
       } else {
         T.addSysLine('<span class="tp-err">neofetch: @' + T.escapeHtml(targetUser) + ': user not found</span>');
       }
@@ -349,11 +522,12 @@
   };
 
   // ── Internal neofetch display ──
-  T._showNeofetch = function(username, found, imageUrl) {
-    var desc = found ? 'Active user' : 'User not found';
+  T._showNeofetch = function(username, isOnline, imageUrl) {
+    var desc = 'Active user';
     var postsCount = T.feedData.filter(function(p) {
       return p.author.toLowerCase() === username.toLowerCase();
     }).length;
+    var onlineIcon = isOnline ? '<span class="tp-ok">●</span>' : '<span class="tp-muted">○</span>';
 
     if (imageUrl) {
       var artId = 'neo-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
@@ -372,7 +546,8 @@
       html += '      <span class="tp-bold">@' + T.escapeHtml(username) + '</span>\n';
       html += '      <span class="tp-muted">OS:</span> tty.so v' + T.APP_VERSION + '\n';
       html += '      <span class="tp-muted">Shell:</span> rugram-terminal 2026\n';
-      html += '      <span class="tp-muted">Posts:</span> ' + (found ? String(postsCount) : '<span class="tp-err">unknown</span>') + '\n';
+      html += '      <span class="tp-muted">Posts:</span> ' + String(postsCount) + '\n';
+      html += '      ' + onlineIcon + ' <span class="tp-muted">Status:</span> ' + (isOnline ? '<span class="tp-ok">online</span>' : '<span class="tp-muted">offline</span>') + '\n';
       html += '      <span class="tp-muted">Bio:</span> ' + T.escapeHtml(desc) + '\n';
       html += '    </div>';
       html += '  </div>';
@@ -399,7 +574,8 @@
       html += '      <span class="tp-bold">@' + T.escapeHtml(username) + '</span>\n';
       html += '      <span class="tp-muted">OS:</span> tty.so v' + T.APP_VERSION + '\n';
       html += '      <span class="tp-muted">Shell:</span> rugram-terminal 2026\n';
-      html += '      <span class="tp-muted">Posts:</span> ' + (found ? String(postsCount) : '<span class="tp-err">unknown</span>') + '\n';
+      html += '      <span class="tp-muted">Posts:</span> ' + String(postsCount) + '\n';
+      html += '      ' + onlineIcon + ' <span class="tp-muted">Status:</span> ' + (isOnline ? '<span class="tp-ok">online</span>' : '<span class="tp-muted">offline</span>') + '\n';
       html += '      <span class="tp-muted">Bio:</span> ' + T.escapeHtml(desc) + '\n';
       html += '    </div>';
       html += '  </div>';
@@ -412,8 +588,8 @@
     T.addSysLine('<span class="tp-section">User: @' + T.escapeHtml(username) + '</span>');
     T.addOutputLine('<span class="tp-muted">OS:</span> tty.so v' + T.APP_VERSION);
     T.addOutputLine('<span class="tp-muted">Shell:</span> rugram-terminal 2026');
-    T.addOutputLine('<span class="tp-muted">Posts:</span> ' + (found ? String(postsCount) : '<span class="tp-err">unknown</span>'));
-    T.addOutputLine('<span class="tp-muted">Status:</span> ' + (found ? '<span class="tp-ok">online</span>' : '<span class="tp-err">offline</span>'));
+    T.addOutputLine('<span class="tp-muted">Posts:</span> ' + String(postsCount));
+    T.addOutputLine(onlineIcon + ' <span class="tp-muted">Status:</span> ' + (isOnline ? '<span class="tp-ok">online</span>' : '<span class="tp-muted">offline</span>'));
     T.addOutputLine('<span class="tp-muted">Bio:</span> ' + T.escapeHtml(desc));
     T.addOutputLine('<span class="tp-desc"># <span class="tp-cmd">follow @' + T.escapeHtml(username) + '</span> to subscribe</span>');
   };
@@ -856,11 +1032,28 @@
   };
 
   // ── COMMAND: history ──
-  T.cmdHistory = function(clearFlag) {
-    if (clearFlag) {
+  T.cmdHistory = function(args) {
+    args = (args || '').trim();
+    if (args === '-c' || args === '--clear') {
       T.commandHistory = [];
       T.historyIdx = -1;
       T.addOutputLine('<span class="tp-ok">history cleared</span>');
+      return;
+    }
+    var searchMatch = args.match(/^(?:-[sS]|--search)\s+(.+)$/);
+    if (searchMatch) {
+      var q = searchMatch[1].toLowerCase();
+      var results = T.commandHistory.filter(function(c) {
+        return c.toLowerCase().indexOf(q) >= 0;
+      });
+      if (!results.length) {
+        T.addOutputLine('<span class="tp-err">history: ' + T._('нет совпадений с "', 'no matches for "') + T.escapeHtml(searchMatch[1]) + '"</span>');
+        return;
+      }
+      results.forEach(function(c, i) {
+        T.addOutputLine('  ' + (i + 1) + '  ' + T.escapeHtml(c));
+      });
+      T.addSysLine('<span class="tp-muted">' + results.length + ' ' + T._('совпадений', 'matches') + '</span>');
       return;
     }
     if (!T.commandHistory.length) {
@@ -1146,54 +1339,66 @@
     T.renderFeed(list);
   };
 
-  // ── COMMAND: cat <id> or cat post_<id> or cat <file> ──
+  // ── COMMAND: cat <path> — powered by VFS ──
   T.cmdCat = function(args) {
     args = (args || '').trim();
 
     if (!args) {
-      T.addOutputLine('<span class="tp-err">Usage: cat &lt;id&gt; | cat post_&lt;id&gt; | cat &lt;file&gt;</span>');
+      T.addOutputLine('<span class="tp-err">Usage: cat &lt;path&gt; | cat post_&lt;id&gt; | cat &lt;number&gt;</span>');
       return;
     }
 
-    // cat <number> or cat post_<number> or cat #<number>
-    var idMatch = args.match(/^(?:post[_\s#]?)?(\d+)$/i);
-    if (idMatch) {
-      T.cmdPostView(parseInt(idMatch[1], 10));
+    // cat --img <id> — render image as ASCII art (специальный флаг, не путь)
+    var imgMatch = args.match(/^--img\s+(\d+)$/i);
+    if (imgMatch) {
+      var postId = parseInt(imgMatch[1], 10);
+      var post = null;
+      for (var i = 0; i < T.feedData.length; i++) {
+        if (T.feedData[i].id === postId) { post = T.feedData[i]; break; }
+      }
+      if (!post || !post.image) {
+        T.addOutputLine('<span class="tp-err">cat --img: post #' + postId + ' has no image</span>');
+        return;
+      }
+      T.showLoading(T._('Загрузка изображения...', 'Loading image...'));
+      T.imageToAscii(post.image, 60, function(ascii) {
+        T.hideLoading();
+        T.addOutputLine('<span class="tp-section">' + T._('Пост #', 'Post #') + postId + ' ' + T._('— изображение', '— image') + '</span>');
+        T.addOutput(ascii);
+        if (post.text) T.addOutputLine('<span class="tp-desc">' + T.escapeHtml(post.text.substring(0, 200)) + '</span>');
+      });
       return;
     }
 
-    // cat /feed — show all feed
-    if (args === '/feed' || args === 'feed') {
-      T.cmdFeed('');
+    // ── VFS resolution ──
+    var node = T.vfs.resolve(args);
+    if (node && !node.error) {
+      // Если у узла есть content callback — вызываем
+      if (typeof node.content === 'function') {
+        node.content(T.addOutputLine);
+        return;
+      }
+      // Файл без контента
+      if (node.type === 'file') {
+        T.addOutputLine('<span class="tp-muted">  (empty)</span>');
+        return;
+      }
+      // Директория без content-обработчика
+      if (node.type === 'dir') {
+        T.addOutputLine('<span class="tp-desc">cat: ' + T.escapeHtml(args) + ': Is a directory</span>');
+        T.addOutputLine('<span class="tp-desc">  # <span class="tp-cmd">ls ' + T.escapeHtml(args) + '</span> ' + T._('для просмотра содержимого', 'to list contents') + '</span>');
+        return;
+      }
+    }
+
+    // ── Fallback: голый номер в feed/saved ──
+    var bareNumMatch = args.match(/^(\d+)$/);
+    if (bareNumMatch && (T.cwd === 'feed' || T.cwd === 'saved')) {
+      T.cmdPostView(parseInt(bareNumMatch[1], 10));
       return;
     }
 
-    // cat /saved — show all saved
-    if (args === '/saved' || args === 'saved') {
-      T.cmdSaved('');
-      return;
-    }
-
-    // cat description.txt (profile)
-    if (args === 'description.txt' && T.cwd === 'profile') {
-      T.cmdWhoami();
-      return;
-    }
-
-    // cat draft.txt (create dir)
-    if (args === 'draft.txt' && T.cwd === 'create') {
-      T.cmdNano('');
-      return;
-    }
-
-    // cat @user — show neofetch
-    var userMatch = args.match(/^@?(\w+)$/);
-    if (userMatch) {
-      T.cmdNeofetch(userMatch[1]);
-      return;
-    }
-
-    T.addOutputLine('<span class="tp-err">cat: ' + T.escapeHtml(args) + ': No such file</span>');
+    T.addOutputLine('<span class="tp-err">cat: ' + T.escapeHtml(args) + ': No such file or directory</span>');
   };
 
   // ── COMMAND: less [dir] — interactive pager ──
@@ -1300,8 +1505,7 @@
     match: 'regex', regex: /^date(\s+-[uU][tT][cC]|\s+-[uU])?$/i,
     parse: function(m){return[!!m[1]]} });
   T.register('history',  { handler: T.cmdHistory, auth: false, category: 'system',
-    match: 'regex', regex: /^history(\s+-[cC]|\s+--clear)?$/i,
-    parse: function(m){return[!!m[1]]} });
+    match: 'prefix' });
   T.register('uptime',   { handler: T.cmdUptime, auth: false, category: 'system' });
   T.register('man',      { handler: T.cmdMan, auth: false, category: 'help', match: 'prefix' });
   T.register('export',   { handler: T.cmdExport, auth: false, category: 'system', match: 'prefix' });
@@ -1317,5 +1521,10 @@
   T.register('clear',    { handler: function(){T.clearOutput()}, auth: false, category: 'system' });
   T.register('help',     { handler: T.cmdHelp, auth: false, category: 'help' });
   T.register('pwd',      { handler: T.cmdPwd, auth: false, category: 'system' });
+  T.register('id',       { handler: T.cmdId, auth: false, category: 'info', match: 'prefix' });
+  T.register('alias',    { handler: T.cmdAlias, auth: false, category: 'system', match: 'prefix' });
+  T.register('unalias',  { handler: T.cmdUnalias, auth: false, category: 'system', match: 'prefix' });
+  T.register('source',   { handler: T.cmdSource, auth: false, category: 'system', match: 'prefix' });
+  T.register('rm',       { handler: T.cmdRm, auth: true, category: 'posts', match: 'prefix' });
 
 })(window.TERMINAL);

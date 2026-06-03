@@ -30,6 +30,9 @@
 
   T.register = function(name, meta) {
     meta._order = T._regOrder++;
+    // Default: exact match with no args (must be set BEFORE regex auto-generation)
+    if (!meta.match) meta.match = 'exact';
+    if (!meta.auth) meta.auth = false;
     // Auto-generate match regex
     if (meta.match === 'exact' && !meta.regex) {
       meta.regex = new RegExp('^' + name + '$', 'i');
@@ -38,9 +41,6 @@
     } else if (meta.match === 'regex' && !meta.regex) {
       meta.regex = new RegExp(name, 'i');
     }
-    // Default: exact match with no args
-    if (!meta.match) meta.match = 'exact';
-    if (!meta.auth) meta.auth = false;
     T.registry[name] = meta;
   };
 
@@ -101,6 +101,10 @@
 
   // ── Nano overlay state ──
   T.nanoOverlay = null;
+
+  // ── Reverse-i-search state ──
+  T._reverseSearchActive = false;
+  T._reverseSearchQuery = '';
 
   // ── Pre-cache default avatar in advance ──
   (function preloadDefaultAvatar() {
@@ -250,6 +254,25 @@
     });
   };
 
+  // ── Alias system ──
+  T._loadAliases = function() {
+    try { return JSON.parse(localStorage.getItem('rugram_aliases')) || {}; }
+    catch(e) { return {}; }
+  };
+
+  T._saveAliases = function(aliases) {
+    localStorage.setItem('rugram_aliases', JSON.stringify(aliases));
+  };
+
+  T._expandAliases = function(cmd) {
+    var aliases = T._loadAliases();
+    var firstWord = cmd.split(/\s+/)[0];
+    if (aliases[firstWord] !== undefined) {
+      return aliases[firstWord] + cmd.substring(firstWord.length);
+    }
+    return cmd;
+  };
+
   // ── Check if command should be stored in history (filter passwords) ──
   T._shouldAddToHistory = function(cmd) {
     var lower = cmd.toLowerCase().trim();
@@ -262,6 +285,9 @@
   T.processCommand = function(cmd) {
     cmd = cmd.trim();
     if (!cmd) return;
+
+    // Expand aliases before any processing
+    cmd = T._expandAliases(cmd);
 
     var addToHistory = T._shouldAddToHistory(cmd);
 
@@ -365,6 +391,138 @@
 
   // ── Input handler ──
   T.onInputKey = function(e) {
+    // Ctrl+R — reverse-i-search
+    if (e.ctrlKey && (e.key === 'r' || e.key === 'R')) {
+      e.preventDefault();
+      if (T._reverseSearchActive) {
+        // Cycle to previous (older) match
+        var q = T._reverseSearchQuery.toLowerCase();
+        var found = false;
+        for (var i = T._reverseSearchMatchIdx - 1; i >= 0; i--) {
+          if (T.commandHistory[i].toLowerCase().indexOf(q) >= 0) {
+            T.el.input.value = T.commandHistory[i];
+            T._reverseSearchMatchIdx = i;
+            found = true;
+            break;
+          }
+        }
+        if (!found) { /* beep silently */ }
+      } else {
+        T._reverseSearchActive = true;
+        T._reverseSearchQuery = '';
+        T._reverseSearchMatchIdx = -1;
+        T.el.input.value = '';
+        T.el.input.placeholder = '(reverse-i-search) ``\'';
+      }
+      return;
+    }
+
+    // If reverse search is active, intercept keys
+    if (T._reverseSearchActive) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        var matchedCmd = T.el.input.value;
+        T._reverseSearchActive = false;
+        T.el.input.placeholder = '';
+        T._reverseSearchQuery = '';
+        T.el.input.value = '';
+        if (matchedCmd.trim()) {
+          var fullPrompt = T.escapeHtml(T.username) + '@tty:' + (T.cwd ? '~/' + T.escapeHtml(T.cwd) : '~');
+          T.addOutputLine('<span class="tp-prompt">' + fullPrompt + '$</span><span class="tp-cmd">' + T.escapeHtml(matchedCmd.trim()) + '</span>');
+          T.processCommand(matchedCmd.trim());
+        }
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        T._reverseSearchActive = false;
+        T.el.input.placeholder = '';
+        T.el.input.value = '';
+        T._reverseSearchQuery = '';
+        return;
+      }
+      if (e.key === 'Backspace') {
+        e.preventDefault();
+        T._reverseSearchQuery = T._reverseSearchQuery.slice(0, -1);
+        if (T._reverseSearchQuery) {
+          var lower = T._reverseSearchQuery.toLowerCase();
+          var found = false;
+          for (var i = T.commandHistory.length - 1; i >= 0; i--) {
+            if (T.commandHistory[i].toLowerCase().indexOf(lower) >= 0) {
+              T.el.input.value = T.commandHistory[i];
+              T._reverseSearchMatchIdx = i;
+              found = true;
+              break;
+            }
+          }
+          if (!found) T.el.input.value = '';
+        } else {
+          T.el.input.value = '';
+          T._reverseSearchMatchIdx = -1;
+        }
+        T.el.input.placeholder = '(reverse-i-search) `' + T._reverseSearchQuery + '\'';
+        return;
+      }
+      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        T._reverseSearchQuery += e.key;
+        var lower = T._reverseSearchQuery.toLowerCase();
+        var found = false;
+        for (var i = T.commandHistory.length - 1; i >= 0; i--) {
+          if (T.commandHistory[i].toLowerCase().indexOf(lower) >= 0) {
+            T.el.input.value = T.commandHistory[i];
+            T._reverseSearchMatchIdx = i;
+            found = true;
+            break;
+          }
+        }
+        if (!found) T.el.input.value = '';
+        T.el.input.placeholder = '(reverse-i-search) `' + T._reverseSearchQuery + '\'';
+        return;
+      }
+      // Block other keys during search
+      e.preventDefault();
+      return;
+    }
+
+    // Tab — autocomplete
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      var input = T.el.input.value.trim();
+      if (!input) return;
+      var words = input.split(/\s+/);
+      var partial = words[0].toLowerCase();
+      var candidates = [];
+
+      // Match against registry keys
+      var names = Object.keys(T.registry);
+      for (var i = 0; i < names.length; i++) {
+        if (names[i].toLowerCase().startsWith(partial)) {
+          candidates.push(names[i]);
+        }
+      }
+
+      // If second word starts with @, match usernames from feedData
+      if (words.length > 1 && words[1].startsWith('@')) {
+        var userPartial = words[1].toLowerCase().replace('@', '');
+        T.feedData.forEach(function(p) {
+          if (p.author.toLowerCase().startsWith(userPartial)) {
+            var at = '@' + p.author;
+            if (candidates.indexOf(at) < 0) candidates.push(at);
+          }
+        });
+      }
+
+      if (candidates.length === 0) return;
+      if (candidates.length === 1) {
+        words[0] = candidates[0];
+        T.el.input.value = words.join(' ') + ' ';
+      } else {
+        T.addOutputLine('<span class="tp-desc">' + candidates.join('  ') + '</span>');
+      }
+      return;
+    }
+
     if (e.key === 'Enter') {
       var cmd = T.el.input.value.trim();
       if (cmd) {
@@ -535,20 +693,28 @@
 
   // ── Program view stack (save/restore terminal output) ──
   T._programStack = [];
+  T._programDepth = 0;
 
   T.enterProgramView = function() {
-    T._programStack.push({
-      output: T.el.output.innerHTML,
-      scrollTop: T.el.output.scrollTop
-    });
+    if (T._programDepth === 0) {
+      T._programStack.push({
+        output: T.el.output.innerHTML,
+        scrollTop: T.el.output.scrollTop
+      });
+    }
+    T._programDepth++;
     T.clearOutput();
   };
 
   T.exitProgramView = function() {
-    var saved = T._programStack.pop();
-    if (saved) {
-      T.el.output.innerHTML = saved.output;
-      T.el.output.scrollTop = saved.scrollTop;
+    if (T._programDepth <= 0) return;
+    T._programDepth--;
+    if (T._programDepth === 0) {
+      var saved = T._programStack.pop();
+      if (saved) {
+        T.el.output.innerHTML = saved.output;
+        T.el.output.scrollTop = saved.scrollTop;
+      }
     }
     T.updatePrompt();
     if (T.el.input) setTimeout(function() { T.el.input.focus(); }, 50);
