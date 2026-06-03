@@ -4,9 +4,6 @@
 > **Социальная сеть, которой управляют через терминал.**  
 > **👉 [rugram.mooo.com](https://rugram.mooo.com) — живой демо-инстанс**
 
-<p align="center">
-  <img src="app/static/images/screenshot.png" alt="Rugram screenshot" width="700">
-</p>  
 > Поставить лайк → `like 42`. Написать в чат → `say привет!`.  
 > Найти пост → `grep "python"`. Посмотреть профиль → `neofetch @user`.  
 > Обычный GUI тоже есть — для тех, кто не дружит с клавиатурой.
