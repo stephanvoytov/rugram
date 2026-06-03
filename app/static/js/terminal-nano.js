@@ -47,8 +47,9 @@
         T.addOutputLine('<span class="tp-err">nano: post #' + postId + ' not in cache</span>');
         return;
       }
-      if (!T.csrfToken()) {
-        T.addOutputLine('<span class="tp-err">nano: login required</span>');
+      if (!T.isLoggedIn) {
+        T.addOutputLine('<span class="tp-err">nano: ' + T._('Требуется вход.', 'Login required.') + '</span>');
+        T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
         return;
       }
       T.showNanoEditor('post', postId, post.text, function(newText) {
@@ -67,8 +68,9 @@
     }
 
     if (resolved.type === 'profile') {
-      if (!T.csrfToken()) {
-        T.addOutputLine('<span class="tp-err">nano: login required</span>');
+      if (!T.isLoggedIn) {
+        T.addOutputLine('<span class="tp-err">nano: ' + T._('Требуется вход.', 'Login required.') + '</span>');
+        T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
         return;
       }
       fetch(window.API_ME_URL, { credentials: 'same-origin' })

@@ -16,6 +16,7 @@
   T.commandHistory = [];
   T.historyIdx = -1;
   T.username = 'guest';
+  T.isLoggedIn = false;
   T.feedData = [];
   T._fetchingFeed = false;
   T.bootShown = false;
@@ -61,6 +62,7 @@
   T.lastMessageId = 0;
   T.currentChatUser = '';
   T.currentUserId = window.CURRENT_USER_ID || 0;
+  T.isLoggedIn = window.isAuthenticated === true && T.currentUserId > 0;
 
   // ── Nano overlay state ──
   T.nanoOverlay = null;
@@ -652,6 +654,27 @@
     T._welcomeMessage();
   };
 
+  // ── Program view stack (save/restore terminal output) ──
+  T._programStack = [];
+
+  T.enterProgramView = function() {
+    T._programStack.push({
+      output: T.el.output.innerHTML,
+      scrollTop: T.el.output.scrollTop
+    });
+    T.clearOutput();
+  };
+
+  T.exitProgramView = function() {
+    var saved = T._programStack.pop();
+    if (saved) {
+      T.el.output.innerHTML = saved.output;
+      T.el.output.scrollTop = saved.scrollTop;
+    }
+    T.updatePrompt();
+    if (T.el.input) setTimeout(function() { T.el.input.focus(); }, 50);
+  };
+
   // ── Less mode state ──
   T._lessActive = false;
   T._lessItems = [];
@@ -680,7 +703,7 @@
     // Calculate items per page
     T._lessPerPage = Math.max(10, Math.floor((T.el.output.clientHeight || 400) / 20));
 
-    T.clearOutput();
+    T.enterProgramView();
     T._renderLess();
 
     if (T.el.input) T.el.input.blur();
@@ -830,10 +853,7 @@
       document.removeEventListener('keydown', T._lessSearchHandler);
       T._lessSearchHandler = null;
     }
-    T.clearOutput();
-    T.addOutputLine('<span class="tp-muted">--- less end ---</span>');
-    T.updatePrompt();
-    if (T.el.input) setTimeout(function() { T.el.input.focus(); }, 50);
+    T.exitProgramView();
   };
 
   T._renderLess = function() {
@@ -958,6 +978,18 @@
   T._lessRenderItem = function(item, idx) {
     // Default: show brief info
     var buf = '';
+    // Unread/read indicator (for notifications)
+    if (item.is_read !== undefined) {
+      buf += item.is_read ? '<span class="tp-muted">·</span> ' : '<span class="tp-ok">◆</span> ';
+    }
+    // Online indicator (for chat list)
+    if (item.is_online !== undefined) {
+      buf += item.is_online ? '<span class="tp-ok">●</span> ' : '<span class="tp-muted">○</span> ';
+    }
+    // Unread count (for chat list)
+    if (item.unread && item.unread > 0) {
+      buf += '<span class="tp-ok">[' + item.unread + ']</span> ';
+    }
     if (item.id) buf += '<span class="tp-post-id">#' + item.id + '</span> ';
     if (item.author) buf += '<span class="tp-post-author">@' + T.escapeHtml(item.author) + '</span> ';
     if (item.username) buf += '<span class="tp-post-author">@' + T.escapeHtml(item.username) + '</span> ';
@@ -1119,6 +1151,7 @@
 
     if (window.CURRENT_USERNAME && window.CURRENT_USERNAME !== 'guest') {
       T.username = window.CURRENT_USERNAME;
+      T.isLoggedIn = true;
     } else {
       var userEl = document.querySelector('.term-username') || document.querySelector('[data-username]');
       if (userEl) T.username = userEl.textContent.trim() || userEl.dataset.username || 'guest';
@@ -1130,6 +1163,8 @@
         .then(function(data) {
           if (data.authenticated) {
             T.username = data.user.username;
+            T.currentUserId = data.user.id || T.currentUserId;
+            T.isLoggedIn = true;
             T.updatePrompt();
           }
         })

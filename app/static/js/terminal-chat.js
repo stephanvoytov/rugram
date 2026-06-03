@@ -10,49 +10,92 @@
     }
   };
 
-  // ── Render chat list ──
+  // ── Render chat list (program view) ──
   T.renderChatList = function() {
+    if (!T.isLoggedIn) {
+      T.addOutputLine('<span class="tp-err">chat: ' + T._('Требуется вход.', 'Login required.') + '</span>');
+      T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
+      return;
+    }
+    T.enterProgramView();
     T.addSysLine('Fetching conversations...');
     fetch(window.API_CHAT_LIST_URL, { credentials: 'same-origin' })
       .then(function(r) { return r.json(); })
       .then(function(data) {
-        T.addOutputLine('<span class="tp-section">Conversations</span>');
+        T.clearOutput();
+        T.addOutputLine('<span class="tp-section">' + T._('Диалоги', 'Conversations') + '</span>');
         if (!data.chats || !data.chats.length) {
-          T.addOutputLine('<span class="tp-muted">  no conversations</span>');
-          T.addOutputLine('<span class="tp-desc">  # <span class="tp-cmd">start @user</span> to start a chat</span>');
+          T.addOutputLine('<span class="tp-muted">  ' + T._('нет диалогов', 'no conversations') + '</span>');
+          T.addOutputLine('<span class="tp-desc">  # <span class="tp-cmd">start @user</span> ' + T._('начать диалог', 'to start a chat') + '</span>');
+          T.addOutputLine('');
+          T.addOutputLine('<span class="tp-muted"># ' + T._('q — выйти', 'q — quit') + '</span>');
+          // Wait for key to exit
+          var keyHandler = function(e) {
+            if (e.key === 'q' || e.key === 'Q' || e.key === 'Escape') {
+              document.removeEventListener('keydown', keyHandler);
+              T.exitProgramView();
+              e.preventDefault();
+            }
+          };
+          setTimeout(function() { document.addEventListener('keydown', keyHandler); }, 100);
           return;
         }
-        data.chats.forEach(function(chat) {
-          var last = chat.last_message || '';
-          var preview = last.length > 50 ? T.escapeHtml(last.substring(0, 50)) + '…' : T.escapeHtml(last);
-          var time = chat.last_message_time ? T.relTime(chat.last_message_time) : '';
-          var unread = chat.unread_count > 0 ? ' <span class="tp-ok">[' + chat.unread_count + ']</span>' : '';
-          var online = chat.other_user.is_online ? '<span class="tp-ok">●</span>' : '<span class="tp-muted">○</span>';
-          T.addOutputLine('  <span class="tp-cmd">' + chat.id + '</span>  ' + online + ' @' + T.escapeHtml(chat.other_user.username) + unread);
-          if (preview) T.addOutputLine('      <span class="tp-muted">' + preview + '</span>  <span class="tp-muted">' + time + '</span>');
+        // Build items for less-like program view
+        var items = data.chats.map(function(chat) {
+          return {
+            id: chat.id,
+            username: chat.other_user.username,
+            time: chat.last_message_time,
+            text: chat.last_message || '',
+            unread: chat.unread_count,
+            is_online: chat.other_user.is_online,
+            chat_id: chat.id
+          };
         });
-        T.addSysLine(data.chats.length + ' conversations');
+        T.enterLessMode(items, T._('Диалоги', 'Conversations') + ' (' + items.length + ')', function(item) {
+          T._exitLessMode();
+          T.cwd = 'chat/' + item.chat_id;
+          T.updatePrompt();
+          T.loadChatMessages(item.chat_id);
+        });
       })
       .catch(function() {
-        T.addOutputLine('<span class="tp-err">error: could not load conversations</span>');
-        T.addOutputLine('<span class="tp-desc">  # try <span class="tp-cmd">cd feed</span> first to load data</span>');
+        T.clearOutput();
+        T.addOutputLine('<span class="tp-err">' + T._('Ошибка загрузки диалогов.', 'Error loading conversations.') + '</span>');
+        T.addOutputLine('');
+        T.addOutputLine('<span class="tp-muted"># q — ' + T._('выйти', 'quit') + '</span>');
+        var keyHandler = function(e) {
+          if (e.key === 'q' || e.key === 'Q' || e.key === 'Escape') {
+            document.removeEventListener('keydown', keyHandler);
+            T.exitProgramView();
+            e.preventDefault();
+          }
+        };
+        setTimeout(function() { document.addEventListener('keydown', keyHandler); }, 100);
       });
   };
 
-  // ── Load chat messages ──
+  // ── Load chat messages (program view) ──
   T.loadChatMessages = function(chatId) {
+    if (!T.isLoggedIn) {
+      T.addOutputLine('<span class="tp-err">chat: ' + T._('Требуется вход.', 'Login required.') + '</span>');
+      T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
+      return;
+    }
     T.stopChatPolling();
+    T.enterProgramView();
     T.addSysLine('Loading chat...');
     fetch('/chat/' + chatId + '/messages?limit=50', { credentials: 'same-origin' })
       .then(function(r) { return r.json(); })
       .then(function(data) {
+        T.clearOutput();
         T.currentChatUser = data.other_user?.username || 'unknown';
-        T.addOutputLine('<span class="tp-section">Chat with @' + T.escapeHtml(T.currentChatUser) + '</span>');
-        T.addOutputLine('<span class="tp-desc">  # <span class="tp-cmd">say &lt;text&gt;</span> to send  ·  <span class="tp-cmd">cd ..</span> to go back</span>');
+        T.addOutputLine('<span class="tp-section">' + T._('Чат с @', 'Chat with @') + T.escapeHtml(T.currentChatUser) + '</span>');
+        T.addOutputLine('<span class="tp-desc">  # <span class="tp-cmd">say &lt;text&gt;</span> ' + T._('отправить', 'to send') + '  ·  q ' + T._('выйти', 'quit') + '</span>');
 
         var msgs = data.messages || [];
         if (!msgs.length) {
-          T.addOutputLine('<span class="tp-muted">  no messages yet</span>');
+          T.addOutputLine('<span class="tp-muted">  ' + T._('нет сообщений', 'no messages yet') + '</span>');
         } else {
           msgs.forEach(function(msg) {
             var isOwn = msg.author_id === T.currentUserId;
@@ -83,14 +126,42 @@
             })
             .catch(function() { /* silent */ });
         }, 3000);
+
+        // Key handler to exit chat view
+        T._chatKeyHandler = function(e) {
+          if (e.key === 'q' || e.key === 'Q' || e.key === 'Escape') {
+            T.stopChatPolling();
+            document.removeEventListener('keydown', T._chatKeyHandler);
+            delete T._chatKeyHandler;
+            T.exitProgramView();
+            e.preventDefault();
+          }
+        };
+        setTimeout(function() { document.addEventListener('keydown', T._chatKeyHandler); }, 100);
       })
       .catch(function() {
-        T.addOutputLine('<span class="tp-err">chat: could not load messages</span>');
+        T.clearOutput();
+        T.addOutputLine('<span class="tp-err">' + T._('Ошибка загрузки чата.', 'Chat: could not load messages.') + '</span>');
+        T.addOutputLine('');
+        T.addOutputLine('<span class="tp-muted"># q — ' + T._('выйти', 'quit') + '</span>');
+        var keyHandler = function(e) {
+          if (e.key === 'q' || e.key === 'Q' || e.key === 'Escape') {
+            document.removeEventListener('keydown', keyHandler);
+            T.exitProgramView();
+            e.preventDefault();
+          }
+        };
+        setTimeout(function() { document.addEventListener('keydown', keyHandler); }, 100);
       });
   };
 
   // ── COMMAND: say ──
   T.cmdSay = function(text) {
+    if (!T.isLoggedIn) {
+      T.addOutputLine('<span class="tp-err">say: ' + T._('Требуется вход.', 'Login required.') + '</span>');
+      T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
+      return;
+    }
     var chatMatch = T.cwd.match(/^chat\/(\d+)$/);
     if (!chatMatch) {
       T.addOutputLine('<span class="tp-err">say: not in a chat. Use <span class="tp-cmd">cd chat &lt;id&gt;</span> first</span>');
@@ -123,6 +194,11 @@
 
   // ── Start chat with user ──
   T.startChatWithUser = function(username, shouldEnter) {
+    if (!T.isLoggedIn) {
+      T.addOutputLine('<span class="tp-err">start: ' + T._('Требуется вход.', 'Login required.') + '</span>');
+      T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
+      return;
+    }
     if (!username) {
       T.addOutputLine('<span class="tp-err">start: username required. Use <span class="tp-cmd">start @user</span></span>');
       return;
