@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}VFS — {{ _('Файловая структура терминала') }}{% endblock %}
+{% block meta_description %}{{ _('Файловая система TTY-терминала Rugram') }}{% endblock %}
+
+{% block content %}
+<div class="tty-help" style="max-width:720px;margin:24px auto">
+
+  <div class="tty-help-hero">
+    <h1 style="font-size:1.4rem">~/ — {{ _('Файловая структура терминала') }}</h1>
+  </div>
+
+  <div class="tty-help-section">
+    <p class="tty-help-intro">
+      {{ _('Виртуальная файловая система (VFS) TTY-терминала. Используйте') }}
+      <code>cd</code> {{ _('для навигации,') }} <code>ls</code> {{ _('для просмотра содержимого,') }}
+      <code>cat</code> {{ _('для чтения файлов,') }} <code>nano</code> {{ _('для редактирования.') }}
+    </p>
+  </div>
+
+  <!-- ── Directory tree ── -->
+  <div class="tty-help-section">
+    <h2>~/</h2>
+
+    <div style="font-family:var(--font-mono);font-size:0.9rem;line-height:1.7">
+
+      <div class="tty-help-category" style="margin-bottom:2px">
+        <div class="tty-help-section-header">── {{ _('Разделы') }} ──</div>
+      </div>
+
+      <details open style="margin-bottom:6px">
+        <summary style="cursor:pointer;padding:2px 0"><span class="tty-help-cmd">posts/</span>
+          <span class="tty-help-desc">— {{ _('лента постов') }}</span></summary>
+        <div style="padding-left:28px">
+          <div><span class="tty-help-cmd">42.post</span> <span class="tty-help-desc">— {{ _('пост (cat, nano)') }}</span></div>
+          <div><span class="tty-help-cmd">.meta</span> <span class="tty-help-desc">— {{ _('метаданные (likes, comments, time)') }}</span></div>
+          <div><span class="tty-help-cmd">image</span> <span class="tty-help-desc">— {{ _('ASCII-арт изображения (cat --img)') }}</span></div>
+          <div><span class="tty-help-cmd">comments/</span> <span class="tty-help-desc">— {{ _('комментарии к посту') }}</span></div>
+        </div>
+      </details>
+
+      <div style="padding-left:16px">
+        <div><span class="tty-help-cmd">saved/</span>
+          <span class="tty-help-desc">— {{ _('сохранённые посты (symlink → posts/)') }}</span></div>
+        <div><span class="tty-help-cmd">drafts/</span>
+          <span class="tty-help-desc">— {{ _('черновики') }}</span></div>
+        <div><span class="tty-help-cmd">trash/</span>
+          <span class="tty-help-desc">— {{ _('корзина (rm без -f)') }}</span></div>
+      </div>
+
+      <div style="margin-top:10px;padding-left:16px">
+        <div><span class="tty-help-cmd">profile/</span>
+          <span class="tty-help-desc">— {{ _('профиль (info, posts/)') }}</span></div>
+        <div style="padding-left:16px">
+          <div><span class="tty-help-cmd">info</span> <span class="tty-help-desc">— {{ _('био и статистика (cat, nano)') }}</span></div>
+          <div><span class="tty-help-cmd">posts/</span> <span class="tty-help-desc">— {{ _('посты пользователя') }}</span></div>
+        </div>
+      </div>
+
+      <div style="margin-top:6px;padding-left:16px">
+        <div><span class="tty-help-cmd">users/@name/</span>
+          <span class="tty-help-desc">— {{ _('профиль пользователя (info, posts/)') }}</span></div>
+      </div>
+
+      <div style="margin-top:6px;padding-left:16px">
+        <div><span class="tty-help-cmd">chat/@name/</span>
+          <span class="tty-help-desc">— {{ _('чат с пользователем') }}</span></div>
+        <div style="padding-left:16px">
+          <div><span class="tty-help-cmd">inbox/</span> <span class="tty-help-desc">— {{ _('входящие сообщения') }}</span></div>
+          <div><span class="tty-help-cmd">outbox/</span> <span class="tty-help-desc">— {{ _('исходящие сообщения') }}</span></div>
+        </div>
+      </div>
+
+      <div style="margin-top:6px;padding-left:16px">
+        <div><span class="tty-help-cmd">followers/</span>
+          <span class="tty-help-desc">— {{ _('подписчики (hint → команда followers)') }}</span></div>
+        <div><span class="tty-help-cmd">following/</span>
+          <span class="tty-help-desc">— {{ _('подписки (hint → команда following)') }}</span></div>
+        <div><span class="tty-help-cmd">notifications/</span>
+          <span class="tty-help-desc">— {{ _('уведомления (hint → команда notifications)') }}</span></div>
+      </div>
+
+      <div style="margin-top:6px;padding-left:16px">
+        <div><span class="tty-help-cmd">mnt/</span>
+          <span class="tty-help-desc">— {{ _('точки монтирования GUI') }}</span></div>
+        <div style="padding-left:16px">
+          <div><span class="tty-help-cmd">settings</span> <span class="tty-help-desc">— {{ _('настройки') }}</span></div>
+          <div><span class="tty-help-cmd">edit_profile</span> <span class="tty-help-desc">— {{ _('редактирование профиля') }}</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── File types ── -->
+  <div class="tty-help-section">
+    <h2>{{ _('Типы файлов') }}</h2>
+    <table class="tty-help-table">
+      <thead>
+        <tr><th>{{ _('Файл') }}</th><th>{{ _('Описание') }}</th><th>{{ _('Команды') }}</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="tty-help-cmd">42.post</td><td>{{ _('пост') }}</td><td><code>cat</code>, <code>nano</code></td></tr>
+        <tr><td class="tty-help-cmd">.meta</td><td>{{ _('метаданные (likes, comments, time)') }}</td><td><code>cat</code></td></tr>
+        <tr><td class="tty-help-cmd">image</td><td>{{ _('ASCII-арт изображения') }}</td><td><code>cat --img</code></td></tr>
+        <tr><td class="tty-help-cmd">info</td><td>{{ _('информация профиля') }}</td><td><code>cat</code>, <code>nano</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── Key commands ── -->
+  <div class="tty-help-section">
+    <h2>{{ _('Основные команды') }}</h2>
+    <table class="tty-help-table">
+      <thead>
+        <tr><th>{{ _('Команда') }}</th><th>{{ _('Описание') }}</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="tty-help-cmd">cd &lt;dir&gt;</td><td>{{ _('перейти в раздел') }}</td></tr>
+        <tr><td class="tty-help-cmd">ls [-l]</td><td>{{ _('список файлов') }}</td></tr>
+        <tr><td class="tty-help-cmd">cat &lt;path&gt;</td><td>{{ _('просмотр файла') }}</td></tr>
+        <tr><td class="tty-help-cmd">nano &lt;path&gt;</td><td>{{ _('редактирование') }}</td></tr>
+        <tr><td class="tty-help-cmd">rm [-f] &lt;id&gt;</td><td>{{ _('удаление (в корзину / навсегда)') }}</td></tr>
+        <tr><td class="tty-help-cmd">feed</td><td>{{ _('лента постов') }}</td></tr>
+        <tr><td class="tty-help-cmd">saved</td><td>{{ _('сохранённые посты') }}</td></tr>
+        <tr><td class="tty-help-cmd">help / man</td><td>{{ _('справка') }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="tty-help-section tty-help-cta">
+    <p>{{ _('Вся функциональность доступна через TTY-терминал.') }}</p>
+    <button class="tty-help-open-btn" id="vfsOpenBtn">[ {{ _('Открыть TTY') }} ]</button>
+    <a href="{{ url_for('main.tty_help') }}" class="tty-help-open-btn" style="display:inline-block;text-decoration:none;margin-left:8px">[ ? {{ _('Справка') }} ]</a>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('vfsOpenBtn')?.addEventListener('click', function() {
+  var btn = document.getElementById('termToggle');
+  if (btn) { btn.click(); window.scrollTo(0,0); }
+});
+</script>
+{% endblock %}
