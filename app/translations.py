@@ -235,7 +235,6 @@ RU: dict[str, str] = {
     'SEO: sitemap, OG/Twitter cards, canonical URLs':
         'SEO: sitemap, OG/Twitter карточки, canonical URL',
     'source': 'исходный код',
-    'MIT License': 'MIT License',
     'links': 'ссылки',
     'Type': 'Введите',
     'in the terminal for your profile': 'в терминале чтобы увидеть свой профиль',
