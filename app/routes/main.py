@@ -896,3 +896,9 @@ def sitemap_xml() -> Response:
 def tty_help() -> Response:
     """Show the TTY terminal reference page."""
     return render_template('main/tty_help.html')
+
+
+@main_bp.route('/about')
+def about() -> Response:
+    """Show the About page with project info."""
+    return render_template('main/about.html')

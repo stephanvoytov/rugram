@@ -215,6 +215,30 @@ RU: dict[str, str] = {
     'Error updating profile':  'Ошибка при обновлении профиля',
     'Error updating post':     'Ошибка при обновлении поста',
     'Error updating settings': 'Ошибка при обновлении настроек',
+
+    # ── About page ──
+    'About Rugram': 'О проекте',
+    'a minimalist social platform with a terminal-style interface. Share posts, follow friends, and chat in real time.':
+        'минималистичная социальная платформа в стиле терминала. Делитесь постами, подписывайтесь на друзей и общайтесь в реальном времени.',
+    'stack': 'стек',
+    'features': 'возможности',
+    'Terminal-mode (TTY) interface with Unix-like commands':
+        'Терминальный интерфейс (TTY) с Unix-подобными командами',
+    'Bilingual UI: English / Russian':
+        'Двуязычный интерфейс: английский / русский',
+    'Real-time chat with encryption at rest':
+        'Чат в реальном времени с шифрованием',
+    'Push notifications via Web Push API':
+        'Push-уведомления через Web Push API',
+    'Image upload with auto-thumbnail':
+        'Загрузка изображений с авто-превью',
+    'SEO: sitemap, OG/Twitter cards, canonical URLs':
+        'SEO: sitemap, OG/Twitter карточки, canonical URL',
+    'source': 'исходный код',
+    'MIT License': 'MIT License',
+    'links': 'ссылки',
+    'Type': 'Введите',
+    'in the terminal for your profile': 'в терминале чтобы увидеть свой профиль',
 }
 
 
