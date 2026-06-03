@@ -181,7 +181,7 @@
     .then(function(data) {
       T.hideLoading();
       var icon = data.status === 'followed' ? '+' : '-';
-      T.addSysLine('<span class="tp-ok">' + icon + ' @' + targetUser + ' — ' + data.followers_count + ' followers</span>');
+      T.addSysLine('<span class="tp-ok">' + icon + ' @' + T.escapeHtml(targetUser) + ' — ' + data.followers_count + ' followers</span>');
       T.toast(icon + ' @' + targetUser, 'ok');
     })
     .catch(function(err) {
@@ -302,7 +302,7 @@
       T._showNeofetch(targetUser, true);
       return;
     }
-    T.addSysLine('<span class="tp-muted">Looking up @' + targetUser + '...</span>');
+    T.addSysLine('<span class="tp-muted">Looking up @' + T.escapeHtml(targetUser) + '...</span>');
     fetch(window.API_USERS_SEARCH_URL + '?q=' + encodeURIComponent(targetUser), {
       credentials: 'same-origin'
     })
@@ -314,11 +314,11 @@
       if (user) {
         T._showNeofetch(targetUser, true, user.profile_image);
       } else {
-        T.addSysLine('<span class="tp-err">neofetch: @' + targetUser + ': user not found</span>');
+        T.addSysLine('<span class="tp-err">neofetch: @' + T.escapeHtml(targetUser) + ': user not found</span>');
       }
     })
     .catch(function() {
-      T.addSysLine('<span class="tp-err">neofetch: @' + targetUser + ': request failed</span>');
+      T.addSysLine('<span class="tp-err">neofetch: @' + T.escapeHtml(targetUser) + ': request failed</span>');
     });
   };
 
@@ -352,7 +352,7 @@
       html += '  </div>';
       html += '</div>';
       T.addOutput(html);
-      T.addOutputLine('<span class="tp-desc"># <span class="tp-cmd">follow @' + username + '</span> to subscribe</span>');
+      T.addOutputLine('<span class="tp-desc"># <span class="tp-cmd">follow @' + T.escapeHtml(username) + '</span> to subscribe</span>');
 
       T.imageToAscii(imageUrl, 22, function(ascii) {
         var pre = document.getElementById(artId);
@@ -379,17 +379,17 @@
       html += '  </div>';
       html += '</div>';
       T.addOutput(html);
-      T.addOutputLine('<span class="tp-desc"># <span class="tp-cmd">follow @' + username + '</span> to subscribe</span>');
+      T.addOutputLine('<span class="tp-desc"># <span class="tp-cmd">follow @' + T.escapeHtml(username) + '</span> to subscribe</span>');
       return;
     }
 
-    T.addSysLine('<span class="tp-section">User: @' + username + '</span>');
+    T.addSysLine('<span class="tp-section">User: @' + T.escapeHtml(username) + '</span>');
     T.addOutputLine('<span class="tp-muted">OS:</span> tty.so v' + T.APP_VERSION);
     T.addOutputLine('<span class="tp-muted">Shell:</span> rugram-terminal 2026');
     T.addOutputLine('<span class="tp-muted">Posts:</span> ' + (found ? String(postsCount) : '<span class="tp-err">unknown</span>'));
     T.addOutputLine('<span class="tp-muted">Status:</span> ' + (found ? '<span class="tp-ok">online</span>' : '<span class="tp-err">offline</span>'));
     T.addOutputLine('<span class="tp-muted">Bio:</span> ' + T.escapeHtml(desc));
-    T.addOutputLine('<span class="tp-desc"># <span class="tp-cmd">follow @' + username + '</span> to subscribe</span>');
+    T.addOutputLine('<span class="tp-desc"># <span class="tp-cmd">follow @' + T.escapeHtml(username) + '</span> to subscribe</span>');
   };
 
   // ── COMMAND: grep ──
@@ -426,7 +426,7 @@
                     n.type === 'comment' ? T._('прокомментировал(а) ваш пост', 'commented on your post') :
                     T._('подписался(ась) на вас', 'followed you');
           var cls = n.is_read ? 'tp-desc' : 'tp-ok';
-          T.addOutputLine('<span class="' + cls + '">' + icon + ' @' + actor + ' ' + msg + '</span>');
+          T.addOutputLine('<span class="' + cls + '">' + icon + ' @' + T.escapeHtml(actor) + ' ' + T.escapeHtml(msg) + '</span>');
         });
         T.addSysLine('<span class="tp-muted">Page ' + data.current_page + '/' + data.pages + '</span>');
       })
@@ -437,7 +437,14 @@
   };
 
   // ── COMMAND: cd saved ──
-  T.cmdSaved = function() {
+  T.cmdSaved = function(args) {
+    args = (args || '').trim().toLowerCase();
+
+    var tailN = null;
+    var lessMode = /\b--less\b/.test(args);
+    var tailMatch = args.match(/--tail\s+(\d+)/);
+    if (tailMatch) tailN = parseInt(tailMatch[1], 10);
+
     T.showLoading(T._('Загрузка сохранённого...', 'Loading saved posts...'));
     fetch('/api/saved', { credentials: 'same-origin' })
       .then(function(r) {
@@ -446,13 +453,28 @@
       })
       .then(function(data) {
         T.hideLoading();
-        T.clearOutput();
         var posts = data.posts || [];
-        T.addOutputLine('<span class="tp-section">-- /saved -- (' + posts.length + ' posts)</span>');
+
         if (!posts.length) {
+          T.clearOutput();
           T.addOutputLine('<span class="tp-muted">  ' + T._('Нет сохранённых постов.', 'No saved posts.') + '</span>');
           return;
         }
+
+        // Tail
+        if (tailN) posts = posts.slice(-tailN);
+
+        // Less mode
+        if (lessMode) {
+          T.enterLessMode(posts, 'saved (' + posts.length + ' posts)', function(item) {
+            T._exitLessMode();
+            T.cmdPostView(item.id);
+          });
+          return;
+        }
+
+        T.clearOutput();
+        T.addOutputLine('<span class="tp-section">-- /saved -- (' + posts.length + ' posts)</span>');
         posts.forEach(function(p) {
           var timeDisplay = p.time && p.time.indexOf('T') > 0 ? T.relTime(p.time) : (p.time || '');
           T.addOutputLine('  #' + p.id + '  <span class="tp-post-author">@' + T.escapeHtml(p.author) + '</span>  <span class="tp-post-time">' + T.escapeHtml(timeDisplay) + '</span>');
@@ -492,11 +514,16 @@
     });
   };
 
-  // ── COMMAND: cd followers ──
-  T.cmdFollowers = function(username) {
-    var user = username || (T.username !== 'guest' ? T.username : null);
+  // ── COMMAND: followers [--of @user] [--less] ──
+  T.cmdFollowers = function(args) {
+    args = (args || '').trim();
+    var lessMode = /\b--less\b/.test(args);
+    var ofMatch = args.match(/--of\s+@?(\w+)/);
+    var user = ofMatch ? ofMatch[1] : (T.username !== 'guest' ? T.username : null);
+
     if (!user) {
-      T.addOutputLine('<span class="tp-err">cd: followers: ' + T._('пользователь не определён', 'could not resolve current user') + '</span>');
+      T.addOutputLine('<span class="tp-err">followers: ' + T._('пользователь не определён', 'could not resolve current user') + '</span>');
+      T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">followers --of @user</span></span>');
       return;
     }
     T.showLoading(T._('Загрузка подписчиков...', 'Loading followers...'));
@@ -507,13 +534,25 @@
       })
       .then(function(data) {
         T.hideLoading();
-        T.clearOutput();
         var users = data.users || [];
-        T.addOutputLine('<span class="tp-section">-- /followers (' + user + ') -- (' + users.length + ')</span>');
+
         if (!users.length) {
+          T.clearOutput();
           T.addOutputLine('<span class="tp-muted">  ' + T._('Нет подписчиков.', 'No followers.') + '</span>');
           return;
         }
+
+        // Less mode
+        if (lessMode) {
+          T.enterLessMode(users, 'followers (' + user + ') (' + users.length + ')', function(item) {
+            T._exitLessMode();
+            T.cmdNeofetch(item.username);
+          });
+          return;
+        }
+
+        T.clearOutput();
+        T.addOutputLine('<span class="tp-section">-- /followers (' + T.escapeHtml(user) + ') -- (' + users.length + ')</span>');
         users.forEach(function(u) {
           var online = u.is_online ? '<span class="tp-ok">●</span>' : '<span class="tp-muted">○</span>';
           T.addOutputLine('  ' + online + ' <span class="tp-post-author">@' + T.escapeHtml(u.username) + '</span>');
@@ -526,11 +565,16 @@
       });
   };
 
-  // ── COMMAND: cd following ──
-  T.cmdFollowing = function(username) {
-    var user = username || (T.username !== 'guest' ? T.username : null);
+  // ── COMMAND: following [--of @user] [--less] ──
+  T.cmdFollowing = function(args) {
+    args = (args || '').trim();
+    var lessMode = /\b--less\b/.test(args);
+    var ofMatch = args.match(/--of\s+@?(\w+)/);
+    var user = ofMatch ? ofMatch[1] : (T.username !== 'guest' ? T.username : null);
+
     if (!user) {
-      T.addOutputLine('<span class="tp-err">cd: following: ' + T._('пользователь не определён', 'could not resolve current user') + '</span>');
+      T.addOutputLine('<span class="tp-err">following: ' + T._('пользователь не определён', 'could not resolve current user') + '</span>');
+      T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">following --of @user</span></span>');
       return;
     }
     T.showLoading(T._('Загрузка подписок...', 'Loading following...'));
@@ -541,13 +585,25 @@
       })
       .then(function(data) {
         T.hideLoading();
-        T.clearOutput();
         var users = data.users || [];
-        T.addOutputLine('<span class="tp-section">-- /following (' + user + ') -- (' + users.length + ')</span>');
+
         if (!users.length) {
+          T.clearOutput();
           T.addOutputLine('<span class="tp-muted">  ' + T._('Нет подписок.', 'Not following anyone.') + '</span>');
           return;
         }
+
+        // Less mode
+        if (lessMode) {
+          T.enterLessMode(users, 'following (' + user + ') (' + users.length + ')', function(item) {
+            T._exitLessMode();
+            T.cmdNeofetch(item.username);
+          });
+          return;
+        }
+
+        T.clearOutput();
+        T.addOutputLine('<span class="tp-section">-- /following (' + T.escapeHtml(user) + ') -- (' + users.length + ')</span>');
         users.forEach(function(u) {
           var online = u.is_online ? '<span class="tp-ok">●</span>' : '<span class="tp-muted">○</span>';
           T.addOutputLine('  ' + online + ' <span class="tp-post-author">@' + T.escapeHtml(u.username) + '</span>');
@@ -636,7 +692,7 @@
 
     var apiStart = Date.now();
     var userFound = null;
-    T.addOutputLine('PING @' + target + ' (' + window.location.host + '): 56 data bytes');
+    T.addOutputLine('PING @' + T.escapeHtml(target) + ' (' + window.location.host + '): 56 data bytes');
 
     fetch(window.API_USERS_SEARCH_URL + '?q=' + encodeURIComponent(target), {
       credentials: 'same-origin'
@@ -655,7 +711,7 @@
               T.addOutputLine('<span class="tp-err">From ' + window.location.host + ' icmp_seq=' + s + ' Destination Host Unreachable</span>');
               seq++;
               if (seq >= PACKETS) {
-                T.addOutputLine('--- @' + target + ' ping statistics ---');
+                T.addOutputLine('--- @' + T.escapeHtml(target) + ' ping statistics ---');
                 T.addOutputLine(PACKETS + ' packets transmitted, 0 received, 100% packet loss');
               }
             }, Math.random() * 300 + 100);
@@ -666,7 +722,7 @@
 
       function sendUser() {
         if (seq >= PACKETS) {
-          T.addOutputLine('--- @' + target + ' ping statistics ---');
+          T.addOutputLine('--- @' + T.escapeHtml(target) + ' ping statistics ---');
           T.addOutputLine(PACKETS + ' packets transmitted, ' + received + ' received, ' +
             Math.round((PACKETS - received) / PACKETS * 100) + '% packet loss');
           if (rtts.length) {
@@ -692,7 +748,7 @@
         received++;
 
         var ttl = 64 - Math.floor(Math.random() * 20 + 2);
-        T.addOutputLine('64 bytes from @' + target + ' (' + window.location.host + '): icmp_seq=' + seq +
+        T.addOutputLine('64 bytes from @' + T.escapeHtml(target) + ' (' + window.location.host + '): icmp_seq=' + seq +
           ' ttl=' + ttl + ' time=' + ms.toFixed(2) + ' ms');
         seq++;
         setTimeout(sendUser, Math.random() * 200 + 50);
@@ -701,7 +757,7 @@
       setTimeout(sendUser, 50);
     })
     .catch(function() {
-      T.addOutputLine('<span class="tp-err">ping: ' + target + ': Temporary failure in name resolution</span>');
+      T.addOutputLine('<span class="tp-err">ping: ' + T.escapeHtml(target) + ': Temporary failure in name resolution</span>');
     });
   };
 
@@ -735,7 +791,7 @@
     var out = text.replace(/\$(\w+)/g, function(m, key) {
       return T.env[key] !== undefined ? T.env[key] : '$' + key;
     });
-    T.addOutputLine(out);
+    T.addOutputLine(T.escapeHtml(out));
   };
 
   // ── COMMAND: history ──
@@ -762,14 +818,14 @@
     if (!args) {
       T.addOutputLine('<span class="tp-section">Environment:</span>');
       Object.keys(T.env).sort().forEach(function(k) {
-        T.addOutputLine('  ' + k + '=' + T.env[k]);
+        T.addOutputLine('  ' + T.escapeHtml(k) + '=' + T.escapeHtml(T.env[k]));
       });
       return;
     }
     var m = args.match(/^(\w+)=(.+)$/);
     if (m) {
       T.env[m[1]] = m[2];
-      T.addOutputLine('<span class="tp-ok">' + m[1] + '=' + m[2] + '</span>');
+      T.addOutputLine('<span class="tp-ok">' + T.escapeHtml(m[1]) + '=' + T.escapeHtml(m[2]) + '</span>');
       if (m[1] === 'MATRIX') T.matrixEnabled = m[2] === '1' || m[2] === 'true';
       if (m[1] === 'THEME') {
         var theme = m[2].toLowerCase();
@@ -928,6 +984,193 @@
     setTimeout(function() {
       document.addEventListener('keydown', exitTop);
     }, 200);
+  };
+
+  // ── COMMAND: feed [--tail N] [--page N] [--search text] [--less] ──
+  T.cmdFeed = function(args) {
+    args = (args || '').trim().toLowerCase();
+
+    var tailN = null;
+    var pageN = null;
+    var searchQ = null;
+    var lessMode = false;
+
+    // Parse flags
+    var tailMatch = args.match(/--tail\s+(\d+)/);
+    if (tailMatch) tailN = parseInt(tailMatch[1], 10);
+
+    var pageMatch = args.match(/--page\s+(\d+)/);
+    if (pageMatch) pageN = parseInt(pageMatch[1], 10);
+
+    var searchMatch = args.match(/--search\s+(.+?)(?:\s+--\w+)?$/);
+    if (searchMatch) searchQ = searchMatch[1].trim();
+
+    if (/\b--less\b/.test(args)) lessMode = true;
+
+    var list = T.feedData;
+
+    // Search filter
+    if (searchQ) {
+      var q = searchQ.toLowerCase();
+      list = list.filter(function(p) {
+        return (p.text && p.text.toLowerCase().indexOf(q) >= 0) ||
+               (p.author && p.author.toLowerCase().indexOf(q) >= 0);
+      });
+    }
+
+    if (!list.length) {
+      if (!T.feedData.length) {
+        if (window.location.pathname !== '/' && window.location.pathname !== '/index') {
+          T.addSysLine('<span class="tp-muted">No feed cache — navigating to homepage...</span>');
+          sessionStorage.setItem('cd_nav', 'feed');
+          localStorage.setItem('rugram_mode', 'tty');
+          window.location.href = window.HOME_URL;
+          return;
+        }
+      }
+      T.addOutputLine('<span class="tp-muted">feed: no matching posts</span>');
+      return;
+    }
+
+    // Tail
+    if (tailN) {
+      list = list.slice(-tailN);
+    }
+
+    // Page
+    if (pageN && !tailN) {
+      var perPage = 10;
+      var start = (pageN - 1) * perPage;
+      list = list.slice(start, start + perPage);
+    }
+
+    // Less mode
+    if (lessMode) {
+      T.enterLessMode(list, 'feed (' + list.length + ' posts)', function(item) {
+        T._exitLessMode();
+        T.cmdPostView(item.id);
+      });
+      return;
+    }
+
+    T.renderFeed(list);
+  };
+
+  // ── COMMAND: cat <id> or cat post_<id> or cat <file> ──
+  T.cmdCat = function(args) {
+    args = (args || '').trim();
+
+    if (!args) {
+      T.addOutputLine('<span class="tp-err">Usage: cat &lt;id&gt; | cat post_&lt;id&gt; | cat &lt;file&gt;</span>');
+      return;
+    }
+
+    // cat <number> or cat post_<number> or cat #<number>
+    var idMatch = args.match(/^(?:post[_\s#]?)?(\d+)$/i);
+    if (idMatch) {
+      T.cmdPostView(parseInt(idMatch[1], 10));
+      return;
+    }
+
+    // cat /feed — show all feed
+    if (args === '/feed' || args === 'feed') {
+      T.cmdFeed('');
+      return;
+    }
+
+    // cat /saved — show all saved
+    if (args === '/saved' || args === 'saved') {
+      T.cmdSaved('');
+      return;
+    }
+
+    // cat description.txt (profile)
+    if (args === 'description.txt' && T.cwd === 'profile') {
+      T.cmdWhoami();
+      return;
+    }
+
+    // cat draft.txt (create dir)
+    if (args === 'draft.txt' && T.cwd === 'create') {
+      T.cmdNano('');
+      return;
+    }
+
+    // cat @user — show neofetch
+    var userMatch = args.match(/^@?(\w+)$/);
+    if (userMatch) {
+      T.cmdNeofetch(userMatch[1]);
+      return;
+    }
+
+    T.addOutputLine('<span class="tp-err">cat: ' + T.escapeHtml(args) + ': No such file</span>');
+  };
+
+  // ── COMMAND: less [dir] — interactive pager ──
+  T.cmdLess = function(args) {
+    args = (args || '').trim().toLowerCase();
+
+    var target = args || T.cwd || '~';
+
+    // less with no args defaults to current dir
+    if (!args) {
+      if (T.cwd === 'feed' || !T.cwd) {
+        if (T.feedData.length) {
+          T.enterLessMode(T.feedData, 'feed (' + T.feedData.length + ' posts)', function(item) {
+            T._exitLessMode();
+            T.cmdPostView(item.id);
+          });
+        } else {
+          T.addOutputLine('<span class="tp-muted">feed: empty</span>');
+        }
+        return;
+      }
+      if (T.cwd === 'saved') {
+        T.cmdSaved('--less');
+        return;
+      }
+      if (T.cwd === 'followers') {
+        T.cmdFollowers('--less');
+        return;
+      }
+      if (T.cwd === 'following') {
+        T.cmdFollowing('--less');
+        return;
+      }
+      T.addOutputLine('<span class="tp-muted">less: nothing to page in ' + T.escapeHtml(T.cwd) + '</span>');
+      return;
+    }
+
+    // less feed
+    if (target === 'feed' || target === '/feed') {
+      if (T.feedData.length) {
+        T.enterLessMode(T.feedData, 'feed (' + T.feedData.length + ' posts)', function(item) {
+          T._exitLessMode();
+          T.cmdPostView(item.id);
+        });
+      } else {
+        T.addOutputLine('<span class="tp-err">feed: empty</span>');
+      }
+      return;
+    }
+
+    // less saved
+    if (target === 'saved' || target === '/saved') {
+      T.cmdSaved('--less');
+      return;
+    }
+
+    // less followers/following
+    if (target === 'followers' || target === '/followers') {
+      T.cmdFollowers('--less');
+      return;
+    }
+    if (target === 'following' || target === '/following') {
+      T.cmdFollowing('--less');
+      return;
+    }
+
+    T.addOutputLine('<span class="tp-err">less: ' + T.escapeHtml(target) + ': No such section</span>');
   };
 
 })(window.TERMINAL);

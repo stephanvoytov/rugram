@@ -21,6 +21,9 @@ class Config:
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'app', 'static', 'uploads')
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024
 
+    # Auto-reload templates on every request (no need to restart after docker cp)
+    TEMPLATES_AUTO_RELOAD = True
+
     # Pagination defaults
     POSTS_PER_PAGE = 15
     NOTIFICATIONS_PER_PAGE = 10
