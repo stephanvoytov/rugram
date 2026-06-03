@@ -26,6 +26,14 @@ class Config:
     NOTIFICATIONS_PER_PAGE = 10
     CHAT_MESSAGE_LIMIT = 50
 
+    # Legacy keys for Fernet decryption (key rotation via MultiFernet)
+    # Add old SECRET_KEY values here if you ever change SECRET_KEY,
+    # so old chat messages remain decryptable:
+    #   SECRET_KEY_V1=<prev_secret_key>
+    #   SECRET_KEY_V2=<older_secret_key>
+    SECRET_KEY_V1 = os.environ.get('SECRET_KEY_V1')
+    SECRET_KEY_V2 = os.environ.get('SECRET_KEY_V2')
+
     # VAPID keys for Web Push (Push API) — optional, push disabled if not set
     VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY')
     VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY')
