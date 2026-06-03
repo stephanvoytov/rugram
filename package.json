@@ -1,0 +1,24 @@
+{
+  "name": "rugram",
+  "version": "1.0.0",
+  "description": "![Flask](https://img.shields.io/badge/Flask-000000?logo=flask&logoColor=white) ![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white) ![Bootstrap 5.3](https://img.shields.io/badge/Bootstrap-5.3-712CF9?logo=bootstrap&logoColor=white) ![Stars](https://img.shields.io/github/stars/stephanvoytov/rugram) [![Site](https://img.shields.io/badge/demo-rugram.mooo.com-89b4fa)](https://rugram.mooo.com)",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stephanvoytov/rugram.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/stephanvoytov/rugram/issues"
+  },
+  "homepage": "https://github.com/stephanvoytov/rugram#readme"
+}
