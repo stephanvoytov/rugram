@@ -206,6 +206,7 @@ def notifications_list() -> Response:
                 'profile_image': n.actor.profile_image
             },
             'post_id': n.post_id,
+            'text': n.text,
             'is_read': n.is_read,
             'created_date': n.created_date.isoformat()
         } for n in notifications.items],
@@ -707,7 +708,6 @@ def chat_list() -> Response:
 
 
 @main_bp.route('/api/users/search')
-@login_required
 def search_users() -> Response:
     query = request.args.get('q', '').strip().lower()
 
@@ -722,7 +722,8 @@ def search_users() -> Response:
         'users': [{
             'id': user.id,
             'username': user.username,
-            'profile_image': user.profile_image
+            'profile_image': user.profile_image,
+            'is_online': user.is_online
         } for user in users]
     })
 

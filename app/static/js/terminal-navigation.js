@@ -1,50 +1,39 @@
 // ── Rugram Terminal — Navigation (cd & ls) ──
+// Powered by T.vfs (terminal-vfs.js)
 (function(T) {
   'use strict';
 
-  // ── Valid directories ──
-  T.VALID_DIRS = {
-    'feed': true,
-    'saved': true,
-    'followers': true,
-    'following': true,
-    'notifications': true,
-    'profile': true,
-    'chat': true,
-    'create': true,
-    'settings': true,
-    'edit_profile': true
-  };
-
   // ── COMMAND: cd <target> ──
-  // cd now ONLY changes $PWD — no rendering
   T.processCd = function(target) {
-    target = target.trim().toLowerCase();
+    target = (target || '').trim().toLowerCase();
 
-    // Home
-    if (target === '' || target === '/' || target === '~' || target === 'home') {
+    // gui / exit
+    if (target === 'gui' || target === 'exit') {
+      T.setMode('gui');
+      return;
+    }
+
+    // Без аргументов — домой
+    if (!target || target === '~' || target === '/' || target === 'home') {
       T.stopChatPolling();
       T.cwd = '';
       T.updatePrompt();
       return;
     }
 
-    // gui / exit — leave terminal
-    if (target === 'gui' || target === 'exit') {
-      T.setMode('gui');
-      return;
-    }
-
-    // ..
+    // .. — вверх
     if (target === '..') {
       var newCwd = '';
-      if (T.cwd.indexOf('/') >= 0) {
+      if (T.cwd && T.cwd.indexOf('/') >= 0) {
         var parts = T.cwd.split('/');
         parts.pop();
         newCwd = parts.join('/');
+      } else if (T.cwd) {
+        // Были в одноуровневой директории — выходим в корень
+        newCwd = '';
       }
-      // If leaving a chat conversation/list, exit program view
-      if (T.cwd.startsWith('chat')) {
+      // Если выходим из чата — чистим
+      if (T.cwd.startsWith('chat') || (T.cwd === 'chat')) {
         T.stopChatPolling();
         if (T._programStack && T._programStack.length > 0) {
           T.exitProgramView();
@@ -55,233 +44,168 @@
       return;
     }
 
-    // @user — profile directory
-    var userMatch = target.match(/^@(\w+)$/);
-    if (userMatch) {
-      T.cwd = '@' + userMatch[1];
-      T.updatePrompt();
+    // Проверка через VFS: существует ли такой путь как директория?
+    var node = T.vfs.resolve(target);
+    if (!node || node.error) {
+      T.addOutputLine('<span class="tp-err">bash: cd: ' + T.escapeHtml(target) + ': No such directory</span>');
+      T.addOutputLine('<span class="tp-desc"># Sections: feed, saved, followers, following, notifications, profile, chat, create</span>');
       return;
     }
 
-    // post/<id> — single post directory
-    var postMatch = target.match(/^post[\s/]+(\d+)$/i);
-    if (postMatch) {
-      T.cwd = 'post/' + postMatch[1];
-      T.updatePrompt();
-      return;
-    }
-
-    // chat/<id> — just change cwd (use `chat <id>` to open)
-    var chatIdMatch = target.match(/^chat[\s/]+(\d+)$/i);
-    if (chatIdMatch) {
+    // chat/<id> — если уходили из чата, остановить поллинг
+    var chatMatch = target.match(/^chat[\/\s]\d+$/i);
+    if (!chatMatch && T.cwd && T.cwd.startsWith('chat')) {
       T.stopChatPolling();
-      T.cwd = 'chat/' + chatIdMatch[1];
-      T.updatePrompt();
-      return;
+    }
+    if (chatMatch && !T.cwd.startsWith('chat')) {
+      T.stopChatPolling();
     }
 
-    // chat — just change cwd (use `chat` command to open)
+    // chat — переключение, не меняем cwd
     if (target === 'chat') {
       T.cwd = 'chat';
       T.updatePrompt();
       return;
     }
 
-    // Known sections
-    if (T.VALID_DIRS[target]) {
-      T.cwd = target;
-      T.updatePrompt();
-      return;
-    }
+    // Устанавливаем cwd
+    T.cwd = target;
+    T.updatePrompt();
 
-    // URL-routed sections (settings, edit_profile)
+    // Специальные подсказки для GUI-секций
     var url = T.sectionUrls[target];
     if (url) {
-      T.cwd = target;
-      T.updatePrompt();
       T.addOutputLine('<span class="tp-desc">  ' + T.escapeHtml(target) + '/  — <span class="tp-cmd">gui</span> ' + T._('для перехода в настройки', 'to open settings in GUI') + '</span>');
       T.addOutputLine('<span class="tp-muted">  # ' + T._('Настройки доступны в графическом интерфейсе', 'Settings are available in the GUI') + '</span>');
-      return;
     }
-
-    // Not found
-    T.addOutputLine('<span class="tp-err">bash: cd: ' + T.escapeHtml(target) + ': No such directory</span>');
-    T.addOutputLine('<span class="tp-desc"># Sections: feed, saved, followers, following, notifications, profile, chat, create</span>');
-    T.addOutputLine('<span class="tp-muted">  # use <span class="tp-cmd">ls</span> to see all available sections</span>');
   };
 
   // ── COMMAND: ls [-l] [dir] ──
   T.cmdLs = function(args) {
     args = args || '';
     var detailed = /-l/.test(args);
-    var target = args.replace(/-l/g, '').trim();
+    var target = args.replace(/-l/g, '').trim() || T.cwd || '~';
 
-    var listFrom = target || T.cwd || '~';
-    var items = [];
+    var node = T.vfs.resolve(target);
+    if (!node || node.error) {
+      T.addOutputLine('<span class="tp-err">ls: ' + T.escapeHtml(target) + ': No such directory</span>');
+      T.addOutputLine('<span class="tp-desc"># <span class="tp-cmd">cd</span> to a section, or <span class="tp-cmd">ls &lt;section&gt;</span></span>');
+      return;
+    }
 
-    // ── Home / ~ ──
-    if (listFrom === '~' || listFrom === '' || listFrom === 'home') {
-      var sections = [
-        ['feed', 'd', T._('Лента постов', 'Post feed'), 4096],
-        ['notifications', 'd', T._('Уведомления', 'Notifications'), 512],
-        ['profile', 'd', T._('Мой профиль', 'My profile'), 2048],
-        ['settings', 'f', T._('Настройки', 'Settings'), 1024],
-        ['saved', 'd', T._('Сохранённое', 'Saved'), 2048],
-        ['chat', 'd', T._('Сообщения', 'Messages'), 4096],
-        ['create', 'd', T._('Новый пост', 'New post'), 0],
-        ['followers', 'd', T._('Подписчики', 'Followers'), 1024],
-        ['following', 'd', T._('Подписки', 'Following'), 512],
-      ];
+    if (node.type !== 'dir') {
+      // Если это файл — показываем один файл
+      T.addOutputLine('  <span class="tp-post-id">' + T.escapeHtml(node.name || target) + '</span>');
+      T.addSysLine('<span class="tp-muted">1 file</span>');
+      return;
+    }
+
+    var children = node.children;
+    if (!children || children.length === 0) {
+      if (target === '' || target === '~' || target === 'feed') {
+        T.addOutputLine('<span class="tp-muted">  empty</span>');
+        return;
+      }
+      T.addOutputLine('<span class="tp-desc">' + target.replace(/^\//, '') + '/</span>');
+      T.addOutputLine('<span class="tp-muted">  use program command: <span class="tp-cmd">' + target + '</span></span>');
+      T.addSysLine('<span class="tp-muted">1 directory</span>');
+      return;
+    }
+
+    // ── Корень (~) ──
+    if (target === '' || target === '~' || target === 'home' || target === '.') {
       if (detailed) {
         var now = new Date();
         var dateStr = now.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
-        sections.forEach(function(s) {
-          var perms = s[1] === 'f' ? '-rw-r--r--' : 'drwxr-xr-x';
-          var size = String(s[3]).padStart(8);
-          T.addOutputLine('<span class="tp-ok">' + perms + '</span> 1 ' + T.escapeHtml(T.username) + ' staff ' + size + ' ' + dateStr + ' <span class="tp-section">' + s[0] + '</span>');
+        children.forEach(function(s) {
+          var perms = s.type === 'file' ? '-rw-r--r--' : 'drwxr-xr-x';
+          var size = '    4096';
+          T.addOutputLine('<span class="tp-ok">' + perms + '</span> 1 ' + T.escapeHtml(T.username) + ' staff ' + size + ' ' + dateStr + ' <span class="tp-section">' + T.escapeHtml(s.name) + '</span>');
         });
       } else {
-        sections.forEach(function(s) {
-          T.addOutputLine('  <span class="tp-cmd">' + s[0] + '</span>');
+        children.forEach(function(s) {
+          T.addOutputLine('  <span class="tp-cmd">' + T.escapeHtml(s.name) + '</span>');
         });
       }
-      T.addSysLine('<span class="tp-muted">' + sections.length + ' sections</span>');
+      T.addSysLine('<span class="tp-muted">' + children.length + ' ' + T._('секций', 'sections') + '</span>');
       if (!T.isLoggedIn) {
         T.addOutputLine('<span class="tp-muted">  ' + T._('★ — без входа', '★ — works as guest') + ': feed, followers --of, neofetch, cat</span>');
       }
       return;
     }
 
-    // ── /feed ──
-    if (listFrom === 'feed') {
-      if (!T.feedData.length) {
-        T.addOutputLine('<span class="tp-muted">  feed: empty</span>');
-        return;
-      }
+    // ── /feed — список постов ──
+    if (target === 'feed') {
       if (detailed) {
-        T.feedData.forEach(function(p) {
-          var size = p.text.length;
-          var d = new Date(Date.now() - (p.id % 7) * 86400000 - (p.id % 24) * 3600000);
+        children.forEach(function(c) {
+          var d = new Date(Date.now() - ((c.id || 0) % 7) * 86400000 - ((c.id || 0) % 24) * 3600000);
           var ds = d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
-          var sizeStr = String(size).padStart(8);
-          T.addOutputLine('<span class="tp-ok">-rw-r--r--</span> 1 ' + T.escapeHtml(p.author) + ' staff ' + sizeStr + ' ' + ds + ' <span class="tp-post-id">post_' + p.id + '.txt</span>');
+          var size = String(c.id ? 200 : 0).padStart(8);
+          T.addOutputLine('<span class="tp-ok">-rw-r--r--</span> 1 ' + T.escapeHtml(c.author || '?') + ' staff ' + size + ' ' + ds + ' <span class="tp-post-id">' + T.escapeHtml(c.name) + '</span>');
         });
       } else {
-        T.feedData.forEach(function(p) {
-          T.addOutputLine('  <span class="tp-post-id">post_' + p.id + '.txt</span>  <span class="tp-post-author">@' + T.escapeHtml(p.author) + '</span>');
+        children.forEach(function(c) {
+          T.addOutputLine('  <span class="tp-post-id">' + T.escapeHtml(c.name) + '</span>  <span class="tp-post-author">@' + T.escapeHtml(c.author || '?') + '</span>');
         });
       }
-      T.addSysLine('<span class="tp-muted">' + T.feedData.length + ' files</span>');
-      return;
-    }
-
-    // ── /saved ──
-    if (listFrom === 'saved') {
-      T.addOutputLine('<span class="tp-desc">saved/</span>');
-      T.addOutputLine('<span class="tp-muted">  use <span class="tp-cmd">saved</span> to view saved posts</span>');
-      T.addOutputLine('<span class="tp-muted">  use <span class="tp-cmd">saved --less</span> for interactive pager</span>');
-      T.addSysLine('<span class="tp-muted">1 directory</span>');
+      T.addSysLine('<span class="tp-muted">' + children.length + ' ' + T._('файл(а/ов)', 'file(s)') + '</span>');
       return;
     }
 
     // ── /profile ──
-    if (listFrom === 'profile') {
-      var myName = T.username || 'unknown';
-      var myPosts = T.feedData.filter(function(p) { return p.author.toLowerCase() === myName.toLowerCase(); });
+    if (target === 'profile') {
       if (detailed) {
-        T.addOutputLine('<span class="tp-ok">-rw-r--r--</span> 1 ' + T.escapeHtml(myName) + ' staff        8 Apr 01 2025 <span class="tp-cmd">description.txt</span>');
-        myPosts.forEach(function(p) {
-          var size = p.text.length;
-          var d = new Date(Date.now() - (p.id % 7) * 86400000 - (p.id % 24) * 3600000);
-          var ds = d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
-          var sizeStr = String(size).padStart(8);
-          T.addOutputLine('<span class="tp-ok">-rw-r--r--</span> 1 ' + T.escapeHtml(myName) + ' staff ' + sizeStr + ' ' + ds + ' <span class="tp-post-id">post_' + p.id + '.txt</span>');
+        var myName = T.username || 'unknown';
+        var now = new Date();
+        var dateStr = now.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+        children.forEach(function(c) {
+          if (c.name === 'description.txt') {
+            T.addOutputLine('<span class="tp-ok">-rw-r--r--</span> 1 ' + T.escapeHtml(myName) + ' staff        8 ' + dateStr + ' <span class="tp-cmd">description.txt</span>');
+          } else {
+            var d = new Date(Date.now() - ((c.id || 0) % 7) * 86400000);
+            var ds = d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+            T.addOutputLine('<span class="tp-ok">-rw-r--r--</span> 1 ' + T.escapeHtml(myName) + ' staff      200 ' + ds + ' <span class="tp-post-id">' + T.escapeHtml(c.name) + '</span>');
+          }
         });
       } else {
-        T.addOutputLine('  <span class="tp-cmd">description.txt</span>');
-        myPosts.forEach(function(p) {
-          T.addOutputLine('  <span class="tp-post-id">post_' + p.id + '.txt</span>');
+        children.forEach(function(c) {
+          if (c.name === 'description.txt') {
+            T.addOutputLine('  <span class="tp-cmd">description.txt</span>');
+          } else {
+            T.addOutputLine('  <span class="tp-post-id">' + T.escapeHtml(c.name) + '</span>');
+          }
         });
       }
-      T.addSysLine('<span class="tp-muted">' + (1 + myPosts.length) + ' files</span>');
+      T.addSysLine('<span class="tp-muted">' + children.length + ' ' + T._('файл(а/ов)', 'file(s)') + '</span>');
       return;
     }
 
-    // ── /notifications ──
-    if (listFrom === 'notifications') {
-      T.addOutputLine('<span class="tp-desc">notifications/</span>');
-      T.addOutputLine('<span class="tp-muted">  use <span class="tp-cmd">notifications</span> to view</span>');
-      T.addSysLine('<span class="tp-muted">1 entry</span>');
-      return;
-    }
-
-    // ── /chat ──
-    if (listFrom === 'chat' || listFrom === 'chats') {
-      T.addOutputLine('<span class="tp-desc">chat/</span>');
-      T.addOutputLine('<span class="tp-muted">  # <span class="tp-cmd">chat</span> ' + T._('показать диалоги', 'to list conversations') + '</span>');
-      T.addOutputLine('<span class="tp-muted">  # <span class="tp-cmd">chat &lt;id&gt;</span> ' + T._('открыть диалог', 'to open a conversation') + '</span>');
-      T.addSysLine('<span class="tp-muted">1 directory</span>');
-      return;
-    }
-
-    // ── /settings ──
-    if (listFrom === 'settings') {
-      if (detailed) {
-        T.addOutputLine('<span class="tp-ok">-rw-r--r--</span> 1 ' + T.escapeHtml(T.username || 'user') + ' staff      512 Apr 01 2025 <span class="tp-cmd">config.yaml</span>');
+    // ── Все остальные секции ──
+    if (children.length > 0 && children[0].hasOwnProperty('name')) {
+      // Дочерние элементы с именами
+      var hasFiles = children.some(function(c) { return c.type === 'file'; });
+      if (hasFiles && detailed) {
+        children.forEach(function(c) {
+          var perms = c.type === 'file' ? '-rw-r--r--' : 'drwxr-xr-x';
+          T.addOutputLine('<span class="tp-ok">' + perms + '</span> 1 ' + T.escapeHtml(T.username || 'user') + ' staff        0 Apr 01 2025 <span class="tp-cmd">' + T.escapeHtml(c.name) + '</span>');
+        });
       } else {
-        T.addOutputLine('  <span class="tp-cmd">config.yaml</span>');
+        children.forEach(function(c) {
+          if (c.type === 'dir') {
+            T.addOutputLine('  <span class="tp-cmd">' + T.escapeHtml(c.name) + '/</span>');
+          } else {
+            T.addOutputLine('  <span class="tp-post-id">' + T.escapeHtml(c.name) + '</span>');
+          }
+        });
       }
-      T.addSysLine('<span class="tp-muted">1 file</span>');
+      T.addSysLine('<span class="tp-muted">' + children.length + ' ' + T._('элемент(а/ов)', 'item(s)') + '</span>');
       return;
     }
 
-    // ── /create ──
-    if (listFrom === 'create') {
-      if (detailed) {
-        T.addOutputLine('<span class="tp-ok">-rw-r--r--</span> 1 ' + T.escapeHtml(T.username || 'user') + ' staff        0 Apr 01 2025 <span class="tp-cmd">draft.txt</span>');
-      } else {
-        T.addOutputLine('  <span class="tp-cmd">draft.txt</span>');
-      }
-      T.addSysLine('<span class="tp-muted">1 file (use <span class="tp-cmd">nano</span> to edit)</span>');
-      return;
-    }
-
-    // ── /followers /following ──
-    if (listFrom === 'followers' || listFrom === 'following') {
-      T.addOutputLine('<span class="tp-desc">' + listFrom + '/</span>');
-      T.addOutputLine('<span class="tp-muted">  use <span class="tp-cmd">' + listFrom + '</span> to view the list</span>');
-      T.addOutputLine('<span class="tp-muted">  use <span class="tp-cmd">' + listFrom + ' --of @user</span> for a specific user</span>');
-      T.addSysLine('<span class="tp-muted">1 directory</span>');
-      return;
-    }
-
-    // ── /post/<id> ──
-    var postMatch = listFrom.match(/^post\/(\d+)$/i);
-    if (postMatch) {
-      T.addOutputLine('<span class="tp-desc">post/' + postMatch[1] + '/</span>');
-      T.addOutputLine('<span class="tp-muted">  use <span class="tp-cmd">cat ' + postMatch[1] + '</span> to view this post</span>');
-      T.addSysLine('<span class="tp-muted">1 file</span>');
-      return;
-    }
-
-    // ── /chat/<id> — show hint, don't open automatically ──
-    var chatSubMatch = listFrom.match(/^chat\/(\d+)$/);
-    if (chatSubMatch) {
-      T.addOutputLine('<span class="tp-desc">chat/' + chatSubMatch[1] + '/</span>');
-      T.addOutputLine('<span class="tp-muted">  use <span class="tp-cmd">chat ' + chatSubMatch[1] + '</span> ' + T._('чтобы открыть', 'to open conversation') + '</span>');
-      T.addSysLine('<span class="tp-muted">1 conversation</span>');
-      return;
-    }
-
-    // ── /@user ──
-    if (listFrom.charAt(0) === '@') {
-      T.addOutputLine('<span class="tp-desc">Profile: ' + T.escapeHtml(listFrom) + '</span>');
-      T.addOutputLine('<span class="tp-muted">  use <span class="tp-cmd">cat ' + T.escapeHtml(listFrom) + '</span> or <span class="tp-cmd">neofetch ' + T.escapeHtml(listFrom) + '</span> to view</span>');
-      T.addSysLine('<span class="tp-muted">1 profile</span>');
-      return;
-    }
-
-    T.addOutputLine('<span class="tp-err">ls: ' + T.escapeHtml(listFrom) + ': No such directory</span>');
+    // fallback
+    T.addOutputLine('<span class="tp-desc">' + target.replace(/^\//, '') + '/</span>');
+    T.addOutputLine('<span class="tp-muted">  use <span class="tp-cmd">' + target + '</span> to view</span>');
+    T.addSysLine('<span class="tp-muted">1 directory</span>');
   };
 
   // ── Registry ──

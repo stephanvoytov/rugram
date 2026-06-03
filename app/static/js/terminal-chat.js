@@ -204,6 +204,47 @@
     });
   };
 
+  // ── COMMAND: write @user <message> ──
+  T.cmdWrite = function(args) {
+    if (!T.isLoggedIn) {
+      T.addOutputLine('<span class="tp-err">write: ' + T._('Требуется вход.', 'Login required.') + '</span>');
+      T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
+      return;
+    }
+    var m = (args || '').trim().match(/^@?(\w+)\s+(.+)$/);
+    if (!m) {
+      T.addOutputLine('<span class="tp-err">write: usage: write @user &lt;message&gt;</span>');
+      return;
+    }
+    var targetUser = m[1];
+    var text = m[2];
+    T.showLoading(T._('Отправка...', 'Sending...'));
+    var token = T.csrfToken();
+    fetch('/chat/start/' + encodeURIComponent(targetUser), {
+      method: 'POST',
+      headers: { 'X-CSRFToken': token ? token.content : '', 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin'
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.chat_id) { T.hideLoading(); T.addOutputLine('<span class="tp-err">write: could not reach @' + T.escapeHtml(targetUser) + '</span>'); return; }
+      fetch('/chat/' + data.chat_id + '/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': token ? token.content : '', 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify({ text: text }),
+        credentials: 'same-origin'
+      })
+      .then(function(r) { return r.json(); })
+      .then(function() {
+        T.hideLoading();
+        T.addSysLine('<span class="tp-ok">' + T._('Сообщение отправлено @', 'Message sent to @') + T.escapeHtml(targetUser) + '</span>');
+        T.toast(T._('Отправлено @', 'Sent to @') + targetUser, 'ok');
+      })
+      .catch(function() { T.hideLoading(); T.addOutputLine('<span class="tp-err">write: could not send message</span>'); });
+    })
+    .catch(function() { T.hideLoading(); T.addOutputLine('<span class="tp-err">write: could not reach @' + T.escapeHtml(targetUser) + '</span>'); });
+  };
+
   // ── Registry ──
   // chat = list conversations, chat <id> = open conversation
   T.register('chat', { handler: function(args) {
@@ -212,6 +253,7 @@
     else { T.renderChatList(); }
   }, auth: true, category: 'chat', match: 'prefix' });
   T.register('say',  { handler: T.cmdSay, auth: true, category: 'chat', match: 'prefix' });
+  T.register('write',{ handler: T.cmdWrite, auth: true, category: 'chat', match: 'prefix' });
   T.register('start',{ handler: function(u){T.startChatWithUser(u||'',true)}, auth: true, category: 'chat',
     match: 'regex', regex: /^start\s+@?(\w+)$/i,
     parse: function(m){return[m[1]]} });

@@ -215,8 +215,9 @@ class Notification(db.Model, SerializerMixin):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(db.ForeignKey('users.id', ondelete='CASCADE'))
     actor_id: Mapped[int] = mapped_column(db.ForeignKey('users.id', ondelete='CASCADE'))
-    type: Mapped[str] = mapped_column()  # 'like', 'comment', 'follow', 'repost'
+    type: Mapped[str] = mapped_column()  # 'like', 'comment', 'follow', 'repost', 'wall'
     post_id: Mapped[int] = mapped_column(db.ForeignKey('posts.id', ondelete='SET NULL'), nullable=True)
+    text: Mapped[str] = mapped_column(nullable=True)  # message body (for 'wall' type)
     is_read: Mapped[bool] = mapped_column(default=False)
     created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
 
