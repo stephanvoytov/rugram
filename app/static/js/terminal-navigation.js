@@ -88,6 +88,11 @@
 
     var children = node.children;
     if (!children || children.length === 0) {
+      // Hint-directories (followers, following, notifications) have dynamic content
+      if (typeof node.content === 'function') {
+        node.content(function(line) { T.addOutputLine(line); });
+        return;
+      }
       if (target === '' || target === '~') {
         T.addOutputLine('<span class="tp-muted">  empty</span>');
         return;

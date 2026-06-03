@@ -7,7 +7,7 @@
     T.showLoading('Logging in...');
     fetch(window.API_LOGIN_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': (document.querySelector('meta[name="csrf-token"]') || {}).content || '' },
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': T.csrfToken() },
       body: JSON.stringify({ login: loginOrEmail, password: password }),
       credentials: 'same-origin'
     })
@@ -21,7 +21,7 @@
       T.username = data.user.username;
       T.currentUserId = data.user.id || 0;
       T.isLoggedIn = true;
-      T.cwd = 'feed';
+      T.cwd = 'posts';
       T.updatePrompt();
       T.addSysLine('<span class="tp-ok">' + T._('Вошли как @', 'Logged in as @') + T.escapeHtml(T.username) + '</span>');
       T.fetchFeedFromAPI();
@@ -37,7 +37,7 @@
     T.showLoading('Registering...');
     fetch(window.API_REGISTER_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': (document.querySelector('meta[name="csrf-token"]') || {}).content || '' },
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': T.csrfToken() },
       body: JSON.stringify({ username: uname, email: email, password: password }),
       credentials: 'same-origin'
     })
@@ -51,7 +51,7 @@
       T.username = data.user.username;
       T.currentUserId = data.user.id || 0;
       T.isLoggedIn = true;
-      T.cwd = 'feed';
+      T.cwd = 'posts';
       T.updatePrompt();
       T.fetchFeedFromAPI();
       T.addSysLine('<span class="tp-ok">' + T._('Зарегистрированы и вошли как @', 'Registered and logged in as @') + T.escapeHtml(T.username) + '</span>');
@@ -67,7 +67,7 @@
     T.showLoading('Logging out...');
     fetch(window.API_LOGOUT_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': (document.querySelector('meta[name="csrf-token"]') || {}).content || '' },
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': T.csrfToken() },
       credentials: 'same-origin'
     })
     .then(function(r) { return r.json(); })
@@ -95,7 +95,7 @@
       T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
       return;
     }
-    var csrf = document.querySelector('meta[name="csrf-token"]');
+    
     T.showLoading('Liking post #' + id);
 
     fetch(window.LIKE_URL.replace('/0/', '/' + id + '/'), {
@@ -103,7 +103,7 @@
       headers: {
         'Content-Type': 'application/json',
         'X-Requested-With': 'XMLHttpRequest',
-        'X-CSRFToken': csrf.content
+        'X-CSRFToken': T.csrfToken()
       },
       body: '{}',
       credentials: 'same-origin'
@@ -144,7 +144,7 @@
       T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
       return;
     }
-    var csrf = document.querySelector('meta[name="csrf-token"]');
+    
     T.showLoading('Adding comment');
 
     fetch(window.COMMENT_URL.replace('/0/', '/' + id + '/'), {
@@ -152,7 +152,7 @@
       headers: {
         'Content-Type': 'application/json',
         'X-Requested-With': 'XMLHttpRequest',
-        'X-CSRFToken': csrf.content
+        'X-CSRFToken': T.csrfToken()
       },
       body: JSON.stringify({ text: text }),
       credentials: 'same-origin'
@@ -175,14 +175,25 @@
     });
   };
 
-  // ── COMMAND: follow/unfollow ──
+  // ── COMMAND: unfollow ──
+  T.cmdUnfollow = function(args) {
+    args = (args || '').trim();
+    var m = args.match(/^@?(\w+)/);
+    if (!m) {
+      T.addOutputLine('<span class="tp-err">unfollow: ' + T._('использование: unfollow @user', 'usage: unfollow @user') + '</span>');
+      return;
+    }
+    T.cmdFollow('unfollow', m[1]);
+  };
+
+  // ── COMMAND: follow (also used by unfollow) ──
   T.cmdFollow = function(action, targetUser) {
     if (!T.isLoggedIn) {
       T.addOutputLine('<span class="tp-err">follow: ' + T._('Требуется вход.', 'Login required.') + '</span>');
       T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
       return;
     }
-    var csrf = document.querySelector('meta[name="csrf-token"]');
+    
     T.showLoading('@' + targetUser);
 
     fetch(window.FOLLOW_URL + targetUser, {
@@ -190,7 +201,7 @@
       headers: {
         'Content-Type': 'application/json',
         'X-Requested-With': 'XMLHttpRequest',
-        'X-CSRFToken': csrf.content
+        'X-CSRFToken': T.csrfToken()
       },
       credentials: 'same-origin'
     })
@@ -225,7 +236,7 @@
       T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
       return;
     }
-    var csrf = document.querySelector('meta[name="csrf-token"]');
+    
     T.showLoading('Saving post #' + id);
 
     fetch(window.SAVE_URL.replace('/0/', '/' + id + '/'), {
@@ -233,7 +244,7 @@
       headers: {
         'Content-Type': 'application/json',
         'X-Requested-With': 'XMLHttpRequest',
-        'X-CSRFToken': csrf.content
+        'X-CSRFToken': T.csrfToken()
       },
       credentials: 'same-origin'
     })
@@ -338,10 +349,9 @@
       }
       var commentId = parseInt(commentMatch[1], 10);
       T.showLoading(T._('Удаление комментария...', 'Deleting comment...'));
-      var token = T.csrfToken();
       fetch('/comment/' + commentId, {
         method: 'DELETE',
-        headers: { 'X-CSRFToken': token ? token.content : '', 'X-Requested-With': 'XMLHttpRequest' },
+        headers: { 'X-CSRFToken': T.csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
         credentials: 'same-origin'
       })
       .then(function(r) {
@@ -396,10 +406,9 @@
       }
       if (force) {
         T.showLoading(T._('Удаление навсегда...', 'Deleting permanently...'));
-        var token = T.csrfToken();
         fetch('/delete/' + postId, {
           method: 'DELETE',
-          headers: { 'X-CSRFToken': token ? token.content : '', 'X-Requested-With': 'XMLHttpRequest' },
+          headers: { 'X-CSRFToken': T.csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
           credentials: 'same-origin'
         }).then(function(r) {
           if (!r.ok) throw new Error();
@@ -412,30 +421,14 @@
           T.addOutputLine('<span class="tp-err">rm: ' + T._('ошибка удаления поста #', 'could not delete post #') + postId + '</span>');
         });
       } else {
-        // В корзину
-        T._movePostToTrash(post);
+        // В корзину (force=false)
+        T.vfs.movePostToTrash(post, T.addOutputLine, false);
         T.feedData = T.feedData.filter(function(p) { return p.id !== postId; });
-        T.addSysLine('<span class="tp-ok">' + T._('Пост #', 'Post #') + postId + ' ' + T._('перемещён в корзину', 'moved to trash') + '</span>');
-        T.addOutputLine('<span class="tp-muted">  # <span class="tp-cmd">rm -f ' + postId + '</span> ' + T._('для безвозвратного удаления', 'to delete permanently') + '</span>');
       }
       return;
     }
 
     T.addOutputLine('<span class="tp-err">rm: ' + T._('использование: rm [-f] &lt;id&gt; | rm comment &lt;id&gt; | rm &lt;path&gt;', 'usage: rm [-f] &lt;id&gt; | rm comment &lt;id&gt; | rm &lt;path&gt;') + '</span>');
-  };
-
-  // ── Trash helper (shared between VFS and fallback) ──
-  T._movePostToTrash = function(post) {
-    try {
-      var trash = JSON.parse(localStorage.getItem('rugram_trash')) || [];
-      trash.push({
-        id: post.id, author: post.author, text: post.text, time: post.time,
-        likes: post.likes, image: post.image,
-        original_path: 'posts/' + post.id + '.post',
-        deleted_at: new Date().toISOString(),
-      });
-      localStorage.setItem('rugram_trash', JSON.stringify(trash));
-    } catch(e) {}
   };
 
   // ── COMMAND: source — load and run scripts ──
@@ -506,33 +499,52 @@
     }
   };
 
-  // ── Render neofetch ──
-  T.renderNeofetch = function(name, desc, imageUrl) {
-    T.addSysLine('<span class="tp-section">User: ' + T.escapeHtml(name) + '</span>');
+  // ── Render neofetch (unified) ──
+  T.renderNeofetch = function(name, desc, imageUrl, opts) {
+    opts = opts || {};
+    var prefix = opts.username ? '@' + T.escapeHtml(opts.username) : T.escapeHtml(name);
+    var isOnline = opts.isOnline || false;
+    var onlineIcon = isOnline ? '<span class="tp-ok">●</span>' : '<span class="tp-muted">○</span>';
+    var postsCount = opts.postsCount !== undefined ? opts.postsCount :
+      T.feedData.filter(function(p) { return p.author.toLowerCase() === name.toLowerCase(); }).length;
+
+    T.addSysLine('<span class="tp-section">User: ' + prefix + '</span>');
     var artId = 'neo-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
     var html = '<div class="tp-neofetch">';
     html += '  <div class="tp-neofetch-row">';
     html += '    <div class="tp-neofetch-art">';
     html += '      <pre id="' + artId + '">';
-    html += '             ___\n';
-    html += '            /   \\\n';
-    html += '       .-. |O O  |\n';
-    html += '       |_| |     |\n';
-    html += '      /   \\|  U  |\n';
-    html += '     /     \\ ___ /\n';
-    html += '    |  _   |/   \\\n';
-    html += '    | |_|  |     |\n';
-    html += '    |      |  _  |\n';
-    html += '     \\    /| |_| |\n';
-    html += '      \\__/ \\___/\n';
+    if (imageUrl) {
+      html += '       ________\n';
+      html += '      |        |\n';
+      html += '      | loading |\n';
+      html += '      |________|\n';
+    } else if (T.asciiCache[T.DEFAULT_AVATAR_URL]) {
+      html += T.asciiCache[T.DEFAULT_AVATAR_URL];
+    } else {
+      html += '             ___\n';
+      html += '            /   \\\n';
+      html += '       .-. |O O  |\n';
+      html += '       |_| |     |\n';
+      html += '      /   \\|  U  |\n';
+      html += '     /     \\ ___ /\n';
+      html += '    |  _   |/   \\\n';
+      html += '    | |_|  |     |\n';
+      html += '    |      |  _  |\n';
+      html += '     \\    /| |_| |\n';
+      html += '      \\__/ \\___/\n';
+    }
     html += '      </pre>';
     html += '    </div>';
     html += '    <div class="tp-neofetch-info">';
-    html += '      <span class="tp-bold">' + T.escapeHtml(name) + '</span>\n';
+    html += '      <span class="tp-bold">' + prefix + '</span>\n';
     html += '      <span class="tp-muted">OS:</span> tty.so v' + T.APP_VERSION + '\n';
     html += '      <span class="tp-muted">Shell:</span> rugram-terminal 2026\n';
     html += '      <span class="tp-muted">Uptime:</span> ' + Math.floor(Math.random() * 99 + 1) + 'h\n';
-    html += '      <span class="tp-muted">Posts:</span> ' + T.feedData.filter(function(p) { return p.author.toLowerCase() === name.toLowerCase(); }).length + '\n';
+    html += '      <span class="tp-muted">Posts:</span> ' + String(postsCount) + '\n';
+    if (opts.username) {
+      html += '      ' + onlineIcon + ' <span class="tp-muted">Status:</span> ' + (isOnline ? '<span class="tp-ok">online</span>' : '<span class="tp-muted">offline</span>') + '\n';
+    }
     html += '      <span class="tp-muted">Bio:</span> ' + T.escapeHtml(desc) + '\n';
     html += '    </div>';
     html += '  </div>';
@@ -544,9 +556,10 @@
         var pre = document.getElementById(artId);
         if (pre) pre.innerHTML = ascii;
       });
-    } else if (T.asciiCache[T.DEFAULT_AVATAR_URL]) {
-      var pre = document.getElementById(artId);
-      if (pre) pre.innerHTML = T.asciiCache[T.DEFAULT_AVATAR_URL];
+    }
+
+    if (opts.showFollow) {
+      T.addOutputLine('<span class="tp-desc"># <span class="tp-cmd">follow ' + prefix + '</span> ' + T._('чтобы подписаться', 'to subscribe') + '</span>');
     }
   };
 
@@ -572,77 +585,16 @@
     });
   };
 
-  // ── Internal neofetch display ──
+  // ── Internal neofetch display (delegates to renderNeofetch) ──
   T._showNeofetch = function(username, isOnline, imageUrl) {
-    var desc = 'Active user';
-    var postsCount = T.feedData.filter(function(p) {
-      return p.author.toLowerCase() === username.toLowerCase();
-    }).length;
-    var onlineIcon = isOnline ? '<span class="tp-ok">●</span>' : '<span class="tp-muted">○</span>';
-
-    if (imageUrl) {
-      var artId = 'neo-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
-      T.addSysLine('<span class="tp-section">User: @' + T.escapeHtml(username) + '</span>');
-      var html = '<div class="tp-neofetch">';
-      html += '  <div class="tp-neofetch-row">';
-      html += '    <div class="tp-neofetch-art">';
-      html += '      <pre id="' + artId + '">';
-      html += '       ________\n';
-      html += '      |        |\n';
-      html += '      | loading |\n';
-      html += '      |________|\n';
-      html += '      </pre>';
-      html += '    </div>';
-      html += '    <div class="tp-neofetch-info">';
-      html += '      <span class="tp-bold">@' + T.escapeHtml(username) + '</span>\n';
-      html += '      <span class="tp-muted">OS:</span> tty.so v' + T.APP_VERSION + '\n';
-      html += '      <span class="tp-muted">Shell:</span> rugram-terminal 2026\n';
-      html += '      <span class="tp-muted">Posts:</span> ' + String(postsCount) + '\n';
-      html += '      ' + onlineIcon + ' <span class="tp-muted">Status:</span> ' + (isOnline ? '<span class="tp-ok">online</span>' : '<span class="tp-muted">offline</span>') + '\n';
-      html += '      <span class="tp-muted">Bio:</span> ' + T.escapeHtml(desc) + '\n';
-      html += '    </div>';
-      html += '  </div>';
-      html += '</div>';
-      T.addOutput(html);
-      T.addOutputLine('<span class="tp-desc"># <span class="tp-cmd">follow @' + T.escapeHtml(username) + '</span> to subscribe</span>');
-
-      T.imageToAscii(imageUrl, 22, function(ascii) {
-        var pre = document.getElementById(artId);
-        if (pre) pre.innerHTML = ascii;
-      });
-      return;
-    }
-
-    if (imageUrl === null && T.asciiCache[T.DEFAULT_AVATAR_URL]) {
-      var artId = 'neo-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
-      T.addSysLine('<span class="tp-section">User: @' + T.escapeHtml(username) + '</span>');
-      var html = '<div class="tp-neofetch">';
-      html += '  <div class="tp-neofetch-row">';
-      html += '    <div class="tp-neofetch-art">';
-      html += '      <pre id="' + artId + '">' + T.asciiCache[T.DEFAULT_AVATAR_URL] + '</pre>';
-      html += '    </div>';
-      html += '    <div class="tp-neofetch-info">';
-      html += '      <span class="tp-bold">@' + T.escapeHtml(username) + '</span>\n';
-      html += '      <span class="tp-muted">OS:</span> tty.so v' + T.APP_VERSION + '\n';
-      html += '      <span class="tp-muted">Shell:</span> rugram-terminal 2026\n';
-      html += '      <span class="tp-muted">Posts:</span> ' + String(postsCount) + '\n';
-      html += '      ' + onlineIcon + ' <span class="tp-muted">Status:</span> ' + (isOnline ? '<span class="tp-ok">online</span>' : '<span class="tp-muted">offline</span>') + '\n';
-      html += '      <span class="tp-muted">Bio:</span> ' + T.escapeHtml(desc) + '\n';
-      html += '    </div>';
-      html += '  </div>';
-      html += '</div>';
-      T.addOutput(html);
-      T.addOutputLine('<span class="tp-desc"># <span class="tp-cmd">follow @' + T.escapeHtml(username) + '</span> to subscribe</span>');
-      return;
-    }
-
-    T.addSysLine('<span class="tp-section">User: @' + T.escapeHtml(username) + '</span>');
-    T.addOutputLine('<span class="tp-muted">OS:</span> tty.so v' + T.APP_VERSION);
-    T.addOutputLine('<span class="tp-muted">Shell:</span> rugram-terminal 2026');
-    T.addOutputLine('<span class="tp-muted">Posts:</span> ' + String(postsCount));
-    T.addOutputLine(onlineIcon + ' <span class="tp-muted">Status:</span> ' + (isOnline ? '<span class="tp-ok">online</span>' : '<span class="tp-muted">offline</span>'));
-    T.addOutputLine('<span class="tp-muted">Bio:</span> ' + T.escapeHtml(desc));
-    T.addOutputLine('<span class="tp-desc"># <span class="tp-cmd">follow @' + T.escapeHtml(username) + '</span> to subscribe</span>');
+    T.renderNeofetch(username, 'Active user', imageUrl, {
+      username: username,
+      isOnline: isOnline,
+      showFollow: true,
+      postsCount: T.feedData.filter(function(p) {
+        return p.author.toLowerCase() === username.toLowerCase();
+      }).length,
+    });
   };
 
   // ── COMMAND: grep ──
@@ -788,7 +740,7 @@
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRFToken': T.csrfToken().content,
+          'X-CSRFToken': T.csrfToken(),
           'X-Requested-With': 'XMLHttpRequest'
         },
         body: JSON.stringify({ text: newText }),
@@ -797,8 +749,8 @@
     });
   };
 
-  // ── COMMAND: followers [--of @user] [--less] ──
-  T.cmdFollowers = function(args) {
+  // ── Shared user listing helper (used by followers / following) ──
+  T._listUsers = function(cfg, args) {
     args = (args || '').trim();
     var inlineMode = /\b--inline\b/.test(args);
     var ofMatch = args.match(/--of\s+@?(\w+)/);
@@ -806,16 +758,16 @@
 
     if (!user) {
       if (!T.isLoggedIn) {
-        T.addOutputLine('<span class="tp-err">followers: ' + T._('Требуется вход.', 'Login required.') + '</span>');
-        T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span>, or <span class="tp-cmd">followers --of @user</span></span>');
+        T.addOutputLine('<span class="tp-err">' + cfg.name + ': ' + T._('Требуется вход.', 'Login required.') + '</span>');
+        T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span>, or <span class="tp-cmd">' + cfg.name + ' --of @user</span></span>');
       } else {
-        T.addOutputLine('<span class="tp-err">followers: ' + T._('пользователь не определён', 'could not resolve current user') + '</span>');
-        T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">followers --of @user</span></span>');
+        T.addOutputLine('<span class="tp-err">' + cfg.name + ': ' + T._('пользователь не определён', 'could not resolve current user') + '</span>');
+        T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">' + cfg.name + ' --of @user</span></span>');
       }
       return;
     }
-    T.showLoading(T._('Загрузка подписчиков...', 'Loading followers...'));
-    fetch('/api/followers/' + encodeURIComponent(user), { credentials: 'same-origin' })
+    T.showLoading(cfg.loadingText);
+    fetch(cfg.apiUrl + encodeURIComponent(user), { credentials: 'same-origin' })
       .then(function(r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();
@@ -825,20 +777,20 @@
         var users = data.users || [];
 
         if (!users.length) {
-          T.addOutputLine('<span class="tp-muted">  ' + T._('Нет подписчиков.', 'No followers.') + '</span>');
+          T.addOutputLine('<span class="tp-muted">  ' + cfg.emptyText + '</span>');
           return;
         }
 
         // Default: program view (less)
         if (!inlineMode) {
-          T.enterLessMode(users, T._('Подписчики', 'Followers') + ' (' + user + ')', function(item) {
+          T.enterLessMode(users, cfg.lessTitle + ' (' + user + ')', function(item) {
             T._exitLessMode();
             T.cmdNeofetch(item.username);
           });
           return;
         }
 
-        T.addOutputLine('<span class="tp-section">-- /followers (' + T.escapeHtml(user) + ') -- (' + users.length + ')</span>');
+        T.addOutputLine('<span class="tp-section">-- /' + cfg.name + ' (' + T.escapeHtml(user) + ') -- (' + users.length + ')</span>');
         users.forEach(function(u) {
           var online = u.is_online ? '<span class="tp-ok">●</span>' : '<span class="tp-muted">○</span>';
           T.addOutputLine('  ' + online + ' <span class="tp-post-author">@' + T.escapeHtml(u.username) + '</span>');
@@ -847,62 +799,32 @@
       })
       .catch(function() {
         T.hideLoading();
-        T.addOutputLine('<span class="tp-err">' + T._('Ошибка загрузки подписчиков.', 'Error loading followers.') + '</span>');
+        T.addOutputLine('<span class="tp-err">' + cfg.errorText + '</span>');
       });
+  };
+
+  // ── COMMAND: followers [--of @user] [--less] ──
+  T.cmdFollowers = function(args) {
+    T._listUsers({
+      name: 'followers',
+      apiUrl: '/api/followers/',
+      loadingText: T._('Загрузка подписчиков...', 'Loading followers...'),
+      emptyText: T._('Нет подписчиков.', 'No followers.'),
+      lessTitle: T._('Подписчики', 'Followers'),
+      errorText: T._('Ошибка загрузки подписчиков.', 'Error loading followers.'),
+    }, args);
   };
 
   // ── COMMAND: following [--of @user] [--less] ──
   T.cmdFollowing = function(args) {
-    args = (args || '').trim();
-    var inlineMode = /\b--inline\b/.test(args);
-    var ofMatch = args.match(/--of\s+@?(\w+)/);
-    var user = ofMatch ? ofMatch[1] : (T.isLoggedIn ? T.username : null);
-
-    if (!user) {
-      if (!T.isLoggedIn) {
-        T.addOutputLine('<span class="tp-err">following: ' + T._('Требуется вход.', 'Login required.') + '</span>');
-        T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span>, or <span class="tp-cmd">following --of @user</span></span>');
-      } else {
-        T.addOutputLine('<span class="tp-err">following: ' + T._('пользователь не определён', 'could not resolve current user') + '</span>');
-        T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">following --of @user</span></span>');
-      }
-      return;
-    }
-    T.showLoading(T._('Загрузка подписок...', 'Loading following...'));
-    fetch('/api/following/' + encodeURIComponent(user), { credentials: 'same-origin' })
-      .then(function(r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json();
-      })
-      .then(function(data) {
-        T.hideLoading();
-        var users = data.users || [];
-
-        if (!users.length) {
-          T.addOutputLine('<span class="tp-muted">  ' + T._('Нет подписок.', 'Not following anyone.') + '</span>');
-          return;
-        }
-
-        // Default: program view (less)
-        if (!inlineMode) {
-          T.enterLessMode(users, T._('Подписки', 'Following') + ' (' + user + ')', function(item) {
-            T._exitLessMode();
-            T.cmdNeofetch(item.username);
-          });
-          return;
-        }
-
-        T.addOutputLine('<span class="tp-section">-- /following (' + T.escapeHtml(user) + ') -- (' + users.length + ')</span>');
-        users.forEach(function(u) {
-          var online = u.is_online ? '<span class="tp-ok">●</span>' : '<span class="tp-muted">○</span>';
-          T.addOutputLine('  ' + online + ' <span class="tp-post-author">@' + T.escapeHtml(u.username) + '</span>');
-          if (u.description) T.addOutputLine('    <span class="tp-muted">' + T.escapeHtml(u.description.substring(0, 80)) + '</span>');
-        });
-      })
-      .catch(function() {
-        T.hideLoading();
-        T.addOutputLine('<span class="tp-err">' + T._('Ошибка загрузки подписок.', 'Error loading following.') + '</span>');
-      });
+    T._listUsers({
+      name: 'following',
+      apiUrl: '/api/following/',
+      loadingText: T._('Загрузка подписок...', 'Loading following...'),
+      emptyText: T._('Нет подписок.', 'Not following anyone.'),
+      lessTitle: T._('Подписки', 'Following'),
+      errorText: T._('Ошибка загрузки подписок.', 'Error loading following.'),
+    }, args);
   };
 
   // ── COMMAND: cd post <id> ──
@@ -1533,8 +1455,9 @@
   T.register('comment',  { handler: T.cmdComment, auth: true, category: 'posts',
     match: 'regex', regex: /^comment\s+(\d+)\s+(.+)$/i,
     parse: function(m){var t=m[2];if(t.startsWith('"')&&t.endsWith('"'))t=t.slice(1,-1);return[parseInt(m[1],10),t]} });
+  T.register('unfollow', { handler: T.cmdUnfollow, auth: true, category: 'posts', match: 'prefix' });
   T.register('follow',   { handler: T.cmdFollow, auth: true, category: 'posts',
-    match: 'regex', regex: /^(follow|unfollow)\s+@?(\w+)$/i,
+    match: 'regex', regex: /^follow\s+@?(\w+)$/i,
     parse: function(m){return[m[1].toLowerCase(),m[2]]} });
   T.register('bookmark', { handler: T.cmdBookmark, auth: true, category: 'posts',
     match: 'regex', regex: /^bookmark\s+(\d+)$/i,

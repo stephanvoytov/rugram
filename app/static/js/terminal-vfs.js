@@ -166,7 +166,7 @@
       name: post.id + '.post',
       content: function(out) { T.cmdPostView(post.id); },
       edit: isOwn ? function(out, newText) { _editPost(post.id, newText, out); } : null,
-      remove: isOwn ? function(out) { _moveToTrash(post, out); } : null,
+      remove: isOwn ? function(out, force) { T.vfs.movePostToTrash(post, out, force); } : null,
       id: post.id, author: post.author, text: post.text, image: post.image,
     });
   }
@@ -241,10 +241,9 @@
       },
       remove: function(out) {
         T.showLoading(T._('Удаление навсегда...', 'Deleting permanently...'));
-        var token = T.csrfToken();
         fetch('/delete/' + id, {
           method: 'DELETE',
-          headers: { 'X-CSRFToken': token ? token.content : '', 'X-Requested-With': 'XMLHttpRequest' },
+          headers: { 'X-CSRFToken': T.csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
           credentials: 'same-origin'
         }).then(function(r) {
           if (!r.ok) throw new Error();
@@ -289,7 +288,7 @@
           if (!T.isLoggedIn) { out('<span class="tp-err">' + T._('Требуется вход.', 'Login required.') + '</span>'); return; }
           fetch(window.EDIT_PROFILE_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': T.csrfToken().content, 'X-Requested-With': 'XMLHttpRequest' },
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': T.csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
             body: 'description=' + encodeURIComponent(newText),
           }).then(function(r) {
             out(r.ok ? '<span class="tp-ok">' + T._('Профиль обновлён', 'Profile updated') + '</span>' : '<span class="tp-err">' + T._('Ошибка', 'Error') + '</span>');
@@ -471,7 +470,7 @@
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        'X-CSRFToken': T.csrfToken().content,
+        'X-CSRFToken': T.csrfToken(),
         'X-Requested-With': 'XMLHttpRequest'
       },
       body: 'text=' + encodeURIComponent(newText),
@@ -487,7 +486,26 @@
     });
   }
 
-  function _moveToTrash(post, out) {
+  // ── Trash / permanent-delete a post (shared, used by VFS and cmdRm) ──
+  T.vfs.movePostToTrash = function(post, out, force) {
+    if (force) {
+      fetch('/delete/' + post.id, {
+        method: 'DELETE',
+        headers: { 'X-CSRFToken': T.csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin'
+      }).then(function(r) {
+        if (r.ok) {
+          T.feedData = T.feedData.filter(function(p) { return p.id !== post.id; });
+          out('<span class="tp-ok">' + T._('Пост #', 'Post #') + post.id + ' ' + T._('удалён навсегда', 'permanently deleted') + '</span>');
+        } else {
+          out('<span class="tp-err">rm: ' + T._('ошибка удаления', 'could not delete') + '</span>');
+        }
+      }).catch(function() {
+        out('<span class="tp-err">rm: ' + T._('ошибка запроса', 'request failed') + '</span>');
+      });
+      return;
+    }
+    // — default: move to trash —
     var trash = _loadTrash();
     trash.push({
       id: post.id, author: post.author, text: post.text, time: post.time,
@@ -496,7 +514,6 @@
       deleted_at: new Date().toISOString(),
     });
     localStorage.setItem('rugram_trash', JSON.stringify(trash));
-    // Remove from feedData so local state reflects trash
     T.feedData = T.feedData.filter(function(p) { return p.id !== post.id; });
     out('<span class="tp-ok">' + T._('Пост #', 'Post #') + post.id + ' ' + T._('перемещён в корзину', 'moved to trash') + '</span>');
     out('<span class="tp-muted">  # ' + T._('Восстановление: пока не реализовано', 'Restore: not yet implemented') + '</span>');

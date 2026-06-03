@@ -99,18 +99,6 @@
 </div>
 
 <script>
-function deletePost(postId) {
-    if (confirm('Delete post?')) {
-        var csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-        fetch('{{ url_for('posts.delete_post', post_id=0) }}'.replace('/0', '/' + postId), {
-            method: 'DELETE',
-            headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-        })
-        .then(function(r) { if (r.ok) window.location.href = '{{ url_for('main.index') }}'; else if (r.status === 401) window.location.href = window.LOGIN_URL; else alert('Error'); })
-        .catch(function() { alert('Error'); });
-    }
-}
-
 document.addEventListener('DOMContentLoaded', function() {
     var csrfToken = document.querySelector('meta[name="csrf-token"]').content;
     window.currentUserId = {{ current_user.id|tojson if current_user.is_authenticated else 'null' }};
