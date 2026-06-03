@@ -245,14 +245,12 @@ def add_comment(post_id: int) -> Response:
 
     db.session.commit()
 
-    # Push-уведомление
+    # Push-уведомление (после коммита)
     if post.author_id != current_user.id:
         try:
             send_notification_push(post.author_id, current_user.username, 'comment', post_id)
         except Exception:
             logger.warning('push notification failed')
-
-    db.session.commit()
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return jsonify({

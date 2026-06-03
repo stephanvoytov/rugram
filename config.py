@@ -22,7 +22,8 @@ class Config:
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024
 
     # Auto-reload templates on every request (no need to restart after docker cp)
-    TEMPLATES_AUTO_RELOAD = True
+    # Enabled only when FLASK_DEBUG is set (local dev)
+    TEMPLATES_AUTO_RELOAD = os.environ.get('FLASK_DEBUG', '').lower() in ('1', 'true')
 
     # Pagination defaults
     POSTS_PER_PAGE = 15
