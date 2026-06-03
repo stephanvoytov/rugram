@@ -1558,7 +1558,7 @@
   T.register('unfollow', { handler: T.cmdUnfollow, auth: true, category: 'posts', match: 'prefix' });
   T.register('follow',   { handler: T.cmdFollow, auth: true, category: 'posts',
     match: 'regex', regex: /^follow\s+@?(\w+)$/i,
-    parse: function(m){return[m[1].toLowerCase(),m[2]]} });
+    parse: function(m){return['follow', m[1].toLowerCase()]} });
   T.register('bookmark', { handler: T.cmdBookmark, auth: true, category: 'posts',
     match: 'regex', regex: /^bookmark\s+(\d+)$/i,
     parse: function(m){return[parseInt(m[1],10)]} });
