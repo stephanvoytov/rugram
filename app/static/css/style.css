@@ -170,7 +170,7 @@ a:hover { color: var(--blue); }
 .post-action {
     color: var(--subtle); cursor: pointer; padding: 3px 8px;
     transition: all 0.12s; font-family: var(--font); background: none;
-    border: none; font-size: 0.72rem;
+    border: none; font-size: 0.72rem; white-space: nowrap;
 }
 .post-action:hover { color: var(--text); background: var(--surface2); }
 .post-action.liked { color: var(--red); }
@@ -197,7 +197,7 @@ a:hover { color: var(--blue); }
 .btn-term {
     background: none; border: 1px solid var(--overlay); color: var(--subtext);
     font-family: var(--font); font-size: 0.78rem; padding: 4px 14px;
-    cursor: pointer; transition: all 0.15s;
+    cursor: pointer; transition: all 0.15s; white-space: nowrap;
 }
 .btn-term:hover { border-color: var(--accent); color: var(--accent); }
 .btn-term.primary { border-color: var(--accent); color: var(--accent); }
@@ -353,6 +353,10 @@ code, .inline-code {
 }
 
 /* ── Responsive ── */
+/* Widen container on desktop — more room for buttons, profiles, posts */
+@media (min-width: 900px) {
+    :root { --max-width: 800px; }
+}
 @media (max-width: 600px) {
     .status-bar { flex-wrap: wrap; gap: 6px; padding: 8px 12px; font-size: 0.78rem; }
     .status-right .status-item:not(.status-user):not(.theme-toggle):not(.term-toggle-btn) { display: none; }
