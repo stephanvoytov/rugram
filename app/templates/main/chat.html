@@ -8,6 +8,27 @@
 #mainContainer.container { max-width: 100% !important; padding: 0 !important; display: flex; flex-direction: column; flex: 1; min-height: 0; }
 /* Keep flash messages padded */
 #mainContainer .alert { margin: 12px 16px !important; }
+
+/* Emoji picker */
+.emoji-picker {
+    position: absolute;
+    bottom: 56px; left: 14px;
+    width: 320px; max-height: 200px;
+    overflow-y: auto;
+    background: var(--surface);
+    border: 2px solid var(--border);
+    padding: 8px;
+    display: flex; flex-wrap: wrap; gap: 2px;
+    z-index: 100;
+    font-size: 1.3rem;
+    line-height: 1;
+}
+.emoji-picker span {
+    cursor: pointer; padding: 2px 4px; border-radius: 2px;
+    width: 32px; text-align: center;
+}
+.emoji-picker span:hover { background: var(--overlay); }
+.chat-input-area { position: relative; }
 </style>
 {% endblock %}
 
@@ -43,8 +64,10 @@
             <div class="chat-input-area">
                 <form id="messageForm" style="display:flex;gap:4px;flex:1">
                     <input type="text" id="messageInput" class="chat-input" placeholder="{{ _('Type a message...') }}" autocomplete="off">
+                    <button type="button" class="btn-term" id="emojiBtn" title="Emoji" style="padding:4px 8px;font-size:1rem;line-height:1">[😊]</button>
                     <button type="submit" class="btn-term primary">[>>]</button>
                 </form>
+                <div id="emojiPicker" class="emoji-picker" style="display:none"></div>
             </div>
         </div>
 
@@ -361,6 +384,35 @@ async function sendMessage(e) {
         if (response.ok) { input.value = ''; await loadMessages(); }
     } catch (error) { console.error('Error sending message:', error); }
 }
+
+// ── Emoji picker ──
+(function() {
+    const emojis = ['😀','😃','😄','😁','😅','😂','🤣','😊','😇','🙂','😉','😌','😍','🥰','😘','😗','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🤫','🤔','🤐','😐','😑','😶','😏','😒','🙄','😬','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮','🤧','🥵','🥶','🥴','😵','🤯','🤠','🥳','😎','🤓','🧐','😕','😟','🙁','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😤','😡','😠','🤬','👍','👎','👊','✊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','✌️','🤞','🤟','🤘','👌','💪','🫶','❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','✨','🔥','⭐','🌟','💯','🎉','🎊','🎈','🎁','🎀','🕊️','🍀','🏆','🥇','🥈','🥉','👋','🤚','🖐️','✋','🖖','🫡','💅','👀','🗣️','👤','👥','🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🙈','🙉','🙊','🐒','🐔','🐧','🐦','🐤','🐣','🐥','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🐛','🦋','🐌','🐞','🐜','🦟','🦗','🦠','🌹','🌺','🌻','🌷','🌿','🍃','🍂','🍁','🌾','🌵','🌲','🌳','🌴','🌱','🌿','☘️','🍀','🎍','💐','🌸','🌼','🌽','🍄','🥜','🌰','🍞','🧀','🥚','🍳','🥓','🥞','🧇','🍔','🍟','🍕','🌭','🥪','🥨','🧀','🥙','🧆','🌮','🌯','🥗','🥘','🍲','🍜','🍝','🍛','🍣','🍱','🥟','🦪','🍤','🍙','🍚','🍘','🍥','🥠','🥮','🍢','🍡','🍧','🍨','🍦','🍰','🧁','🍮','🍭','🍬','🍫','🍿','🍩','🍪','🌰','🥜','🍯','🥛','☕','🍵','🍶','🍺','🍻','🥂','🍷','🥃','🍸','🍹','🧊','🥤','🧃','🧉','☀️','🌤️','⛅','🌥️','🌦️','🌈','☁️','🌧️','⛈️','🌩️','🌨️','❄️','☃️','⛄','🌬️','💨','🌪️','🌫️','🌊','☔','💧','🔥','🌟','🌙','☀️','🌞','⭐','🌍','🌎','🌏','🌐','🗺️','🏔️','⛰️','🌋','🏜️','🏝️','🏖️','🏗️','🏘️','🏙️','🌃','🌆','🌇','🌉','🎄','🎆','🎇','✨','🎈','🎉','🎊','🎃','🎄','🎅','🤶','🦌','☃️','❄️','🎁','🕎','🔔','🕯️','📯','🎵','🎶','🎤','🎧','🎼','🎹','🥁','🎷','🎺','🎸','🎻','🪕','📱','💻','🖥️','🖨️','⌨️','🖱️','🖲️','💾','💿','📀','📷','📸','📹','🎥','📽️','🎞️','📞','☎️','📟','📠','📺','📻','⏰','⌚','📡','🔋','🪫','💡','🔦','🕯️','🗑️','🛢️','💰','💴','💵','💶','💷','💸','💳','🧾','📧','📨','📩','📤','📥','📦','📫','📪','📬','📭','📮','📝','📃','📄','📑','📊','📈','📉','🗒️','🗓️','📅','📆','✅','❌','❓','❔','❗','‼️','⁉️','➕','➖','➗','✖️','♻️','🔄','🔃','🆗','🆕','🆙','🆒','🆓','🆔','🆖','🆗','🆘','🆙','🆚','🈁','🈂️','🈷️','🈶','🈯','🉐','🈹','🈚','🈲','🈸','🈺','🈺','🈴','🈵','🈶','🈷️','🈸','🈹','🈺','🉐','🈯','🉑','🈲','🈳','🈴','🈵','🈶','🈷️','🈸','🈹','🈺','🉐','🈯','🉑','🈲','🈳','🈴','🈵','🈶','🆎','🆑','🆒','🆓','🆔','🆕','🆖','🆗','🆘','🆙','🆚','🇺🇳','🏁','🚩','🎌','🏴','🏳️','🏳️‍🌈','🏳️‍⚧️'];
+    const picker = document.getElementById('emojiPicker');
+    const btn = document.getElementById('emojiBtn');
+    if (!picker || !btn) return;
+    // Populate
+    emojis.forEach(e => {
+        const span = document.createElement('span');
+        span.textContent = e;
+        span.addEventListener('click', function() {
+            const input = document.getElementById('messageInput');
+            const start = input.selectionStart;
+            const end = input.selectionEnd;
+            input.value = input.value.substring(0, start) + e + input.value.substring(end);
+            input.selectionStart = input.selectionEnd = start + e.length;
+            input.focus();
+            picker.style.display = 'none';
+        });
+        picker.appendChild(span);
+    });
+    btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        picker.style.display = picker.style.display === 'none' ? 'flex' : 'none';
+    });
+    document.addEventListener('click', function() { picker.style.display = 'none'; });
+    picker.addEventListener('click', function(e) { e.stopPropagation(); });
+})();
 
 async function searchUser() {
     const username = document.getElementById('newChatUsername').value.trim();
