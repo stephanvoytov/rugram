@@ -79,13 +79,69 @@
     const PERMISSION_KEY = 'rugram_notification_permission';
     const stored = localStorage.getItem(PERMISSION_KEY);
 
-    if (Notification.permission === 'granted' || stored === 'granted') {
-        if (Notification.permission === 'granted') enablePush();
+    // Already granted at browser level — enable push
+    if (Notification.permission === 'granted') {
+        localStorage.setItem(PERMISSION_KEY, 'granted');
+        enablePush();
         return;
     }
-    if (stored === 'denied' || stored === 'dismissed') return;
 
+    // Browser-level denied — show blocked banner with re-enable instructions
+    if (Notification.permission === 'denied') {
+        const blockedShown = sessionStorage.getItem('rugram_notif_blocked_shown');
+        if (!blockedShown) {
+            showBlockedBanner();
+        }
+        return;
+    }
+
+    // Permission is 'default' — check localStorage to decide if we show the banner
+    if (stored === 'denied' || stored === 'dismissed') return;
     showBanner();
+
+    function showBlockedBanner() {
+        const container = document.getElementById('toastContainer');
+        if (!container) return;
+        const id = 'notif-blocked-banner';
+        if (document.getElementById(id)) return;
+
+        const html = `
+            <div id="${id}" style="background:var(--bg);border:1px solid var(--red);padding:8px 12px;margin-bottom:6px;font-family:var(--font);max-width:360px;box-shadow:0 2px 8px rgba(0,0,0,0.3);border-left:3px solid var(--red);">
+                <div style="display:flex;gap:8px;align-items:flex-start">
+                    <span style="color:var(--red);font-weight:700;flex-shrink:0">[✗]</span>
+                    <div>
+                        <div style="color:var(--text);font-size:0.82rem;margin-bottom:2px"><strong>notifications blocked in browser</strong></div>
+                        <div style="color:var(--subtle);font-size:0.72rem;margin-bottom:6px">to re-enable, click the lock icon in the URL bar → Site Settings → Notifications → Allow, then reload the page</div>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap">
+                            <button class="btn-term" id="notifBlockedGotIt" style="padding:2px 10px;font-size:0.72rem">[got it]</button>
+                            <button class="btn-term primary" id="notifBlockedRecheck" style="padding:2px 10px;font-size:0.72rem">[re-check]</button>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        container.insertAdjacentHTML('beforeend', html);
+
+        document.getElementById('notifBlockedGotIt').addEventListener('click', function() {
+            sessionStorage.setItem('rugram_notif_blocked_shown', '1');
+            const banner = document.getElementById(id);
+            if (banner) banner.remove();
+        });
+
+        document.getElementById('notifBlockedRecheck').addEventListener('click', async function() {
+            try {
+                const permission = await Notification.requestPermission();
+                if (permission === 'granted') {
+                    localStorage.setItem(PERMISSION_KEY, 'granted');
+                    enablePush();
+                    showToast('[*] notifications enabled', 'push notifications are now active', 'success');
+                    const banner = document.getElementById(id);
+                    if (banner) banner.remove();
+                } else {
+                    showToast('[!] still blocked', 'change site permission and reload the page', 'danger');
+                }
+            } catch (e) { console.error(e); }
+        });
+    }
 
     function showBanner() {
         const container = document.getElementById('toastContainer');
