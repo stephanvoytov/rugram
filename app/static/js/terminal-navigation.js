@@ -62,7 +62,8 @@
     }
 
     // ✅ Меняем директорию
-    T.cwd = target;
+    var parts = T.vfs.normalize(target);
+    T.cwd = T.vfs.canonical(parts);
     T.updatePrompt();
   };
 
@@ -70,8 +71,9 @@
   T.cmdLs = function(args) {
     args = args || '';
     var detailed = /-l/.test(args);
-    var target = (args.replace(/-l/g, '').trim()) || T.cwd || '~';
-    var isRoot = !target || target === '~' || target === 'home' || target === '.';
+    var rawTarget = (args.replace(/-l/g, '').trim());
+    var target = rawTarget || '.';
+    var isRoot = !rawTarget && (!T.cwd || T.cwd === '');
 
     var node = T.vfs.resolve(target);
     if (!node || node.error) {
