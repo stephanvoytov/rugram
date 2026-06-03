@@ -184,7 +184,13 @@ async function selectChat(chatId, otherUser) {
     const avatarEl = document.getElementById('chatAvatar');
     avatarEl.src = otherUser.profile_image ? '{{ url_for('static', filename='uploads/profile_images/') }}' + otherUser.profile_image : '{{ url_for('static', filename='default-profile.png') }}';
     avatarEl.onerror = function() { this.src = '{{ url_for('static', filename='default-profile.png') }}'; };
-    document.getElementById('chatUsername').textContent = otherUser.username;
+    avatarEl.style.cursor = 'pointer';
+    avatarEl.onclick = function() { window.location.href = '{{ url_for('main.profile', user_id_or_username='') }}' + otherUser.username; };
+
+    const usernameEl = document.getElementById('chatUsername');
+    usernameEl.textContent = otherUser.username;
+    usernameEl.style.cursor = 'pointer';
+    usernameEl.onclick = function() { window.location.href = '{{ url_for('main.profile', user_id_or_username='') }}' + otherUser.username; };
     updateChatStatus(otherUser.is_online, otherUser.last_seen);
     showChatOnMobile();
     await loadMessages();
