@@ -19,6 +19,8 @@
         return;
       }
       T.username = data.user.username;
+      T.currentUserId = data.user.id || 0;
+      T.isLoggedIn = true;
       T.cwd = 'feed';
       T.updatePrompt();
       T.addSysLine('<span class="tp-ok">' + T._('Вошли как @', 'Logged in as @') + T.escapeHtml(T.username) + '</span>');
@@ -47,6 +49,8 @@
         return;
       }
       T.username = data.user.username;
+      T.currentUserId = data.user.id || 0;
+      T.isLoggedIn = true;
       T.cwd = 'feed';
       T.updatePrompt();
       T.fetchFeedFromAPI();
@@ -70,8 +74,11 @@
     .then(function(data) {
       T.hideLoading();
       T.username = 'guest';
+      T.currentUserId = 0;
+      T.isLoggedIn = false;
       T.cwd = '';
       T.feedData = [];
+      T.stopChatPolling();
       T.updatePrompt();
       T.addSysLine('<span class="tp-ok">' + T._('Вышли из системы', 'Logged out') + '</span>');
     })
@@ -83,8 +90,12 @@
 
   // ── COMMAND: like ──
   T.cmdLike = function(id) {
+    if (!T.isLoggedIn) {
+      T.addOutputLine('<span class="tp-err">like: ' + T._('Требуется вход.', 'Login required.') + '</span>');
+      T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
+      return;
+    }
     var csrf = document.querySelector('meta[name="csrf-token"]');
-    if (!csrf) { T.addOutputLine('<span class="tp-err">error: login required</span>'); return; }
     T.showLoading('Liking post #' + id);
 
     fetch(window.LIKE_URL.replace('/0/', '/' + id + '/'), {
@@ -128,8 +139,12 @@
 
   // ── COMMAND: comment ──
   T.cmdComment = function(id, text) {
+    if (!T.isLoggedIn) {
+      T.addOutputLine('<span class="tp-err">comment: ' + T._('Требуется вход.', 'Login required.') + '</span>');
+      T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
+      return;
+    }
     var csrf = document.querySelector('meta[name="csrf-token"]');
-    if (!csrf) { T.addOutputLine('<span class="tp-err">error: login required</span>'); return; }
     T.showLoading('Adding comment');
 
     fetch(window.COMMENT_URL.replace('/0/', '/' + id + '/'), {
@@ -162,8 +177,12 @@
 
   // ── COMMAND: follow/unfollow ──
   T.cmdFollow = function(action, targetUser) {
+    if (!T.isLoggedIn) {
+      T.addOutputLine('<span class="tp-err">follow: ' + T._('Требуется вход.', 'Login required.') + '</span>');
+      T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
+      return;
+    }
     var csrf = document.querySelector('meta[name="csrf-token"]');
-    if (!csrf) { T.addOutputLine('<span class="tp-err">error: login required</span>'); return; }
     T.showLoading('@' + targetUser);
 
     fetch(window.FOLLOW_URL + targetUser, {
@@ -201,8 +220,12 @@
 
   // ── COMMAND: bookmark ──
   T.cmdBookmark = function(id) {
+    if (!T.isLoggedIn) {
+      T.addOutputLine('<span class="tp-err">bookmark: ' + T._('Требуется вход.', 'Login required.') + '</span>');
+      T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
+      return;
+    }
     var csrf = document.querySelector('meta[name="csrf-token"]');
-    if (!csrf) { T.addOutputLine('<span class="tp-err">error: login required</span>'); return; }
     T.showLoading('Saving post #' + id);
 
     fetch(window.SAVE_URL.replace('/0/', '/' + id + '/'), {
@@ -232,22 +255,24 @@
 
   // ── COMMAND: whoami (neofetch-style profile) ──
   T.cmdWhoami = function() {
+    if (!T.isLoggedIn) {
+      T.addOutputLine('<span class="tp-muted">' + T._('Не в системе.', 'Not logged in.') + '</span>');
+      T.addOutputLine('<span class="tp-desc">' + T._('Используйте ', 'Use ') + '<span class="tp-cmd">login</span> ' + T._('или', 'or') + ' <span class="tp-cmd">register</span> ' + T._('для входа.', 'to authenticate.') + '</span>');
+      T.addOutputLine('<span class="tp-desc">' + T._('Гостевые команды: ', 'Guest commands: ') + '<span class="tp-cmd">feed</span>, <span class="tp-cmd">cat &lt;id&gt;</span>, <span class="tp-cmd">neofetch @user</span>, <span class="tp-cmd">followers --of @user</span></span>');
+      return;
+    }
+    T.renderNeofetch(T.username, 'No description', null);
+    // Also fetch to get fresh data
     fetch(window.API_ME_URL, { credentials: 'same-origin' })
-    .then(function(r) {
-      if (!r.ok) throw new Error('not-authenticated');
-      return r.json();
-    })
+    .then(function(r) { return r.json(); })
     .then(function(data) {
       if (data.authenticated) {
         T.username = data.user.username;
+        T.currentUserId = data.user.id || T.currentUserId;
         T.updatePrompt();
-        T.renderNeofetch(data.user.username, data.user.description || 'No description', data.user.profile_image);
       }
     })
-    .catch(function() {
-      T.addOutputLine('<span class="tp-muted">' + T._('Не в системе.', 'Not logged in.') + '</span>');
-      T.addOutputLine('<span class="tp-desc">' + T._('Используйте ', 'Use ') + '<span class="tp-cmd">login</span> ' + T._('или', 'or') + ' <span class="tp-cmd">register</span> ' + T._('для входа.', 'to authenticate.') + '</span>');
-    });
+    .catch(function() {});
   };
 
   // ── Render neofetch ──
@@ -421,8 +446,13 @@
     T.renderFeed(results);
   };
 
-  // ── COMMAND: cat /notifications ──
+  // ── COMMAND: notifications ──
   T.cmdNotifications = function() {
+    if (!T.isLoggedIn) {
+      T.addOutputLine('<span class="tp-err">notifications: ' + T._('Требуется вход.', 'Login required.') + '</span>');
+      T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
+      return;
+    }
     T.showLoading('Loading notifications...');
     fetch(window.API_NOTIFICATIONS_URL)
       .then(function(r) { return r.json(); })
@@ -432,17 +462,25 @@
           T.addOutputLine('<span class="tp-muted">No notifications.</span>');
           return;
         }
-        T.addOutputLine('<span class="tp-section">Notifications (' + data.total + ')</span>');
-        data.notifications.forEach(function(n) {
-          var actor = n.actor.username;
+        // Build items for program view (less)
+        var items = data.notifications.map(function(n) {
           var icon = n.type === 'like' ? '+' : n.type === 'comment' ? 'c' : '>';
           var msg = n.type === 'like' ? T._('лайкнул(а) ваш пост', 'liked your post') :
                     n.type === 'comment' ? T._('прокомментировал(а) ваш пост', 'commented on your post') :
                     T._('подписался(ась) на вас', 'followed you');
-          var cls = n.is_read ? 'tp-desc' : 'tp-ok';
-          T.addOutputLine('<span class="' + cls + '">' + icon + ' @' + T.escapeHtml(actor) + ' ' + T.escapeHtml(msg) + '</span>');
+          return {
+            id: n.id,
+            author: n.actor.username,
+            time: n.created_date,
+            text: icon + ' ' + msg,
+            is_read: n.is_read,
+            post_id: n.post_id
+          };
         });
-        T.addSysLine('<span class="tp-muted">Page ' + data.current_page + '/' + data.pages + '</span>');
+        T.enterLessMode(items, T._('Уведомления', 'Notifications') + ' (' + items.length + ')', function(item) {
+          T._exitLessMode();
+          if (item.post_id) T.cmdPostView(item.post_id);
+        });
       })
       .catch(function() {
         T.hideLoading();
@@ -450,12 +488,17 @@
       });
   };
 
-  // ── COMMAND: cd saved ──
+  // ── COMMAND: saved ──
   T.cmdSaved = function(args) {
+    if (!T.isLoggedIn) {
+      T.addOutputLine('<span class="tp-err">saved: ' + T._('Требуется вход.', 'Login required.') + '</span>');
+      T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
+      return;
+    }
     args = (args || '').trim().toLowerCase();
 
     var tailN = null;
-    var lessMode = /\b--less\b/.test(args);
+    var inlineMode = /\b--inline\b/.test(args);
     var tailMatch = args.match(/--tail\s+(\d+)/);
     if (tailMatch) tailN = parseInt(tailMatch[1], 10);
 
@@ -477,9 +520,9 @@
         // Tail
         if (tailN) posts = posts.slice(-tailN);
 
-        // Less mode
-        if (lessMode) {
-          T.enterLessMode(posts, 'saved (' + posts.length + ' posts)', function(item) {
+        // Default: program view (less)
+        if (!inlineMode && !tailN) {
+          T.enterLessMode(posts, T._('Сохранённое', 'Saved') + ' (' + posts.length + ')', function(item) {
             T._exitLessMode();
             T.cmdPostView(item.id);
           });
@@ -503,10 +546,11 @@
       });
   };
 
-  // ── COMMAND: cd create ──
+  // ── COMMAND: create ──
   T.cmdCreate = function() {
-    if (!T.csrfToken()) {
-      T.addOutputLine('<span class="tp-err">' + T._('Ошибка: требуется вход', 'Error: login required') + '</span>');
+    if (!T.isLoggedIn) {
+      T.addOutputLine('<span class="tp-err">create: ' + T._('Требуется вход.', 'Login required.') + '</span>');
+      T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
       return;
     }
     T.showNanoEditor('create', null, '', function(newText) {
@@ -529,13 +573,18 @@
   // ── COMMAND: followers [--of @user] [--less] ──
   T.cmdFollowers = function(args) {
     args = (args || '').trim();
-    var lessMode = /\b--less\b/.test(args);
+    var inlineMode = /\b--inline\b/.test(args);
     var ofMatch = args.match(/--of\s+@?(\w+)/);
-    var user = ofMatch ? ofMatch[1] : (T.username !== 'guest' ? T.username : null);
+    var user = ofMatch ? ofMatch[1] : (T.isLoggedIn ? T.username : null);
 
     if (!user) {
-      T.addOutputLine('<span class="tp-err">followers: ' + T._('пользователь не определён', 'could not resolve current user') + '</span>');
-      T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">followers --of @user</span></span>');
+      if (!T.isLoggedIn) {
+        T.addOutputLine('<span class="tp-err">followers: ' + T._('Требуется вход.', 'Login required.') + '</span>');
+        T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span>, or <span class="tp-cmd">followers --of @user</span></span>');
+      } else {
+        T.addOutputLine('<span class="tp-err">followers: ' + T._('пользователь не определён', 'could not resolve current user') + '</span>');
+        T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">followers --of @user</span></span>');
+      }
       return;
     }
     T.showLoading(T._('Загрузка подписчиков...', 'Loading followers...'));
@@ -553,9 +602,9 @@
           return;
         }
 
-        // Less mode
-        if (lessMode) {
-          T.enterLessMode(users, 'followers (' + user + ') (' + users.length + ')', function(item) {
+        // Default: program view (less)
+        if (!inlineMode) {
+          T.enterLessMode(users, T._('Подписчики', 'Followers') + ' (' + user + ')', function(item) {
             T._exitLessMode();
             T.cmdNeofetch(item.username);
           });
@@ -578,13 +627,18 @@
   // ── COMMAND: following [--of @user] [--less] ──
   T.cmdFollowing = function(args) {
     args = (args || '').trim();
-    var lessMode = /\b--less\b/.test(args);
+    var inlineMode = /\b--inline\b/.test(args);
     var ofMatch = args.match(/--of\s+@?(\w+)/);
-    var user = ofMatch ? ofMatch[1] : (T.username !== 'guest' ? T.username : null);
+    var user = ofMatch ? ofMatch[1] : (T.isLoggedIn ? T.username : null);
 
     if (!user) {
-      T.addOutputLine('<span class="tp-err">following: ' + T._('пользователь не определён', 'could not resolve current user') + '</span>');
-      T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">following --of @user</span></span>');
+      if (!T.isLoggedIn) {
+        T.addOutputLine('<span class="tp-err">following: ' + T._('Требуется вход.', 'Login required.') + '</span>');
+        T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span>, or <span class="tp-cmd">following --of @user</span></span>');
+      } else {
+        T.addOutputLine('<span class="tp-err">following: ' + T._('пользователь не определён', 'could not resolve current user') + '</span>');
+        T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">following --of @user</span></span>');
+      }
       return;
     }
     T.showLoading(T._('Загрузка подписок...', 'Loading following...'));
@@ -602,9 +656,9 @@
           return;
         }
 
-        // Less mode
-        if (lessMode) {
-          T.enterLessMode(users, 'following (' + user + ') (' + users.length + ')', function(item) {
+        // Default: program view (less)
+        if (!inlineMode) {
+          T.enterLessMode(users, T._('Подписки', 'Following') + ' (' + user + ')', function(item) {
             T._exitLessMode();
             T.cmdNeofetch(item.username);
           });
@@ -1037,7 +1091,7 @@
     var tailN = null;
     var pageN = null;
     var searchQ = null;
-    var lessMode = false;
+    var inlineMode = false;
 
     // Parse flags
     var tailMatch = args.match(/--tail\s+(\d+)/);
@@ -1049,7 +1103,7 @@
     var searchMatch = args.match(/--search\s+(.+?)(?:\s+--\w+)?$/);
     if (searchMatch) searchQ = searchMatch[1].trim();
 
-    if (/\b--less\b/.test(args)) lessMode = true;
+    if (/\b--inline\b/.test(args)) inlineMode = true;
 
     var list = T.feedData;
 
@@ -1079,9 +1133,10 @@
       list = list.slice(start, start + perPage);
     }
 
-    // Less mode
-    if (lessMode) {
-      T.enterLessMode(list, 'feed (' + list.length + ' posts)', function(item) {
+    // Default: program view (less) — except with --inline, --tail, --page, --search
+    var useProgramView = !inlineMode && !tailN && !pageN && !searchQ;
+    if (useProgramView) {
+      T.enterLessMode(list, T._('Лента', 'Feed') + ' (' + list.length + ')', function(item) {
         T._exitLessMode();
         T.cmdPostView(item.id);
       });

@@ -37,14 +37,20 @@
 
     // ..
     if (target === '..') {
+      var newCwd = '';
       if (T.cwd.indexOf('/') >= 0) {
         var parts = T.cwd.split('/');
         parts.pop();
-        T.cwd = parts.join('/');
-        T.updatePrompt();
-        return;
+        newCwd = parts.join('/');
       }
-      T.cwd = '';
+      // If leaving a chat conversation/list, exit program view
+      if (T.cwd.startsWith('chat')) {
+        T.stopChatPolling();
+        if (T._programStack && T._programStack.length > 0) {
+          T.exitProgramView();
+        }
+      }
+      T.cwd = newCwd;
       T.updatePrompt();
       return;
     }
@@ -65,11 +71,21 @@
       return;
     }
 
-    // chat/<id> or chat/<user>
+    // chat/<id> — open conversation
     var chatIdMatch = target.match(/^chat[\s/]+(\d+)$/i);
     if (chatIdMatch) {
+      T.stopChatPolling();
       T.cwd = 'chat/' + chatIdMatch[1];
       T.updatePrompt();
+      T.loadChatMessages(parseInt(chatIdMatch[1], 10));
+      return;
+    }
+
+    // chat — open chat list
+    if (target === 'chat') {
+      T.cwd = 'chat';
+      T.updatePrompt();
+      T.renderChatList();
       return;
     }
 
@@ -132,6 +148,9 @@
         });
       }
       T.addSysLine('<span class="tp-muted">' + sections.length + ' sections</span>');
+      if (!T.isLoggedIn) {
+        T.addOutputLine('<span class="tp-muted">  ' + T._('★ — без входа', '★ — works as guest') + ': feed, followers --of, neofetch, cat</span>');
+      }
       return;
     }
 
