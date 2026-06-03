@@ -27,7 +27,7 @@ def upgrade() -> None:
         sa.Column('p256dh_key', sa.String(length=256), nullable=False),
         sa.Column('auth_key', sa.String(length=64), nullable=False),
         sa.Column('created_date', sa.DateTime(), nullable=False),
-        sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+        sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id')
     )
 

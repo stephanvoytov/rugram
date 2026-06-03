@@ -626,23 +626,37 @@
   };
 
   // ── COMMAND: notifications ──
-  T.cmdNotifications = function() {
+  T.cmdNotifications = function(args) {
     if (!T.isLoggedIn) {
       T.addOutputLine('<span class="tp-err">notifications: ' + T._('Требуется вход.', 'Login required.') + '</span>');
       T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
       return;
     }
+    args = (args || '').trim().toLowerCase();
+    var tailN = null, inlineMode = false, lessMode = false, unreadOnly = false;
+    var tailMatch = args.match(/--tail\s+(\d+)/);
+    if (tailMatch) tailN = parseInt(tailMatch[1], 10);
+    if (/\b--inline\b/.test(args)) inlineMode = true;
+    if (/\b--less\b/.test(args))   lessMode = true;
+    if (/\b--unread\b/.test(args)) unreadOnly = true;
+
     T.showLoading('Loading notifications...');
     fetch(window.API_NOTIFICATIONS_URL)
       .then(function(r) { return r.json(); })
       .then(function(data) {
         T.hideLoading();
-        if (!data.notifications.length) {
-          T.addOutputLine('<span class="tp-muted">No notifications.</span>');
+        var raw = data.notifications || [];
+
+        // Filter unread
+        if (unreadOnly) raw = raw.filter(function(n) { return !n.is_read; });
+
+        if (!raw.length) {
+          T.addOutputLine('<span class="tp-muted">' + T._('Нет уведомлений.', 'No notifications.') + '</span>');
           return;
         }
-        // Build items for program view (less)
-        var items = data.notifications.map(function(n) {
+
+        // Build items
+        var items = raw.map(function(n) {
           var icon = n.type === 'like' ? '+' : n.type === 'comment' ? 'c' : '>';
           var msg = n.type === 'like' ? T._('лайкнул(а) ваш пост', 'liked your post') :
                     n.type === 'comment' ? T._('прокомментировал(а) ваш пост', 'commented on your post') :
@@ -656,14 +670,31 @@
             post_id: n.post_id
           };
         });
-        T.enterLessMode(items, T._('Уведомления', 'Notifications') + ' (' + items.length + ')', function(item) {
-          T._exitLessMode();
-          if (item.post_id) T.cmdPostView(item.post_id);
+
+        // Tail
+        if (tailN) items = items.slice(-tailN);
+
+        // Default: less mode
+        if (lessMode || (!inlineMode && !tailN)) {
+          var title = T._('Уведомления', 'Notifications');
+          if (unreadOnly) title += ' (' + T._('непрочитанные', 'unread') + ')';
+          T.enterLessMode(items, title + ' (' + items.length + ')', function(item) {
+            T._exitLessMode();
+            if (item.post_id) T.cmdPostView(item.post_id);
+          });
+          return;
+        }
+
+        // Inline output
+        items.forEach(function(n) {
+          var icon = n.is_read ? '<span class="tp-muted">●</span>' : '<span class="tp-ok">●</span>';
+          T.addOutputLine(icon + ' <span class="tp-post-author">@' + T.escapeHtml(n.author) + '</span> <span class="tp-muted">' + T.escapeHtml(n.text) + '</span>');
         });
+        T.addSysLine('<span class="tp-muted">' + items.length + ' ' + T._('уведомлений', 'notifications') + '</span>');
       })
       .catch(function() {
         T.hideLoading();
-        T.addOutputLine('<span class="tp-err">error: could not load notifications</span>');
+        T.addOutputLine('<span class="tp-err">error: ' + T._('не удалось загрузить уведомления', 'could not load notifications') + '</span>');
       });
   };
 
@@ -676,10 +707,13 @@
     }
     args = (args || '').trim().toLowerCase();
 
-    var tailN = null;
+    var tailN = null, searchQ = null;
     var inlineMode = /\b--inline\b/.test(args);
+    var lessMode   = /\b--less\b/.test(args);
     var tailMatch = args.match(/--tail\s+(\d+)/);
     if (tailMatch) tailN = parseInt(tailMatch[1], 10);
+    var searchMatch = args.match(/--search\s+([\s\S]*?)(?=\s+--\w|\s*$)/);
+    if (searchMatch) searchQ = searchMatch[1].trim();
 
     T.showLoading(T._('Загрузка сохранённого...', 'Loading saved posts...'));
     fetch('/api/saved', { credentials: 'same-origin' })
@@ -696,11 +730,24 @@
           return;
         }
 
+        // Search filter
+        if (searchQ) {
+          var q = searchQ.toLowerCase();
+          posts = posts.filter(function(p) {
+            return (p.text && p.text.toLowerCase().indexOf(q) >= 0) ||
+                   (p.author && p.author.toLowerCase().indexOf(q) >= 0);
+          });
+          if (!posts.length) {
+            T.addOutputLine('<span class="tp-muted">  ' + T._('Ничего не найдено.', 'No matches.') + '</span>');
+            return;
+          }
+        }
+
         // Tail
         if (tailN) posts = posts.slice(-tailN);
 
-        // Default: program view (less)
-        if (!inlineMode && !tailN) {
+        // Default: program view (less) — explicit --less or no filter flags
+        if (lessMode || (!inlineMode && !tailN && !searchQ)) {
           T.enterLessMode(posts, T._('Сохранённое', 'Saved') + ' (' + posts.length + ')', function(item) {
             T._exitLessMode();
             T.cmdPostView(item.id);
@@ -753,6 +800,7 @@
   T._listUsers = function(cfg, args) {
     args = (args || '').trim();
     var inlineMode = /\b--inline\b/.test(args);
+    var lessMode   = /\b--less\b/.test(args);
     var ofMatch = args.match(/--of\s+@?(\w+)/);
     var user = ofMatch ? ofMatch[1] : (T.isLoggedIn ? T.username : null);
 
@@ -781,8 +829,10 @@
           return;
         }
 
-        // Default: program view (less)
-        if (!inlineMode) {
+        // Explicit --less or default (inline trumps less)
+        // Explicit --less / --inline / default (less)
+        // Explicit --less / --inline / default (less)
+        if (lessMode || !inlineMode) {
           T.enterLessMode(users, cfg.lessTitle + ' (' + user + ')', function(item) {
             T._exitLessMode();
             T.cmdNeofetch(item.username);
@@ -1254,24 +1304,27 @@
       return;
     }
 
-    var tailN = null;
-    var pageN = null;
-    var searchQ = null;
-    var inlineMode = false;
+    var tailN = null, pageN = null, searchQ = null, inlineMode = false, byUser = null;
 
-    // Parse flags
-    var tailMatch = args.match(/--tail\s+(\d+)/);
+    // Parse flags (order-independent, search text ends at next --flag or end)
+    var tailMatch  = args.match(/--tail\s+(\d+)/);
+    var pageMatch  = args.match(/--page\s+(\d+)/);
+    var byMatch    = args.match(/--by\s+@?(\w+)/);
     if (tailMatch) tailN = parseInt(tailMatch[1], 10);
-
-    var pageMatch = args.match(/--page\s+(\d+)/);
     if (pageMatch) pageN = parseInt(pageMatch[1], 10);
-
-    var searchMatch = args.match(/--search\s+(.+?)(?:\s+--\w+)?$/);
-    if (searchMatch) searchQ = searchMatch[1].trim();
-
+    if (byMatch)   byUser = byMatch[1].toLowerCase();
     if (/\b--inline\b/.test(args)) inlineMode = true;
 
+    // --search: extract text between --search and next --flag (or end)
+    var searchMatch = args.match(/--search\s+([\s\S]*?)(?=\s+--\w|\s*$)/);
+    if (searchMatch) searchQ = searchMatch[1].trim();
+
     var list = T.feedData;
+
+    // Filter by author (--by @user)
+    if (byUser) {
+      list = list.filter(function(p) { return p.author && p.author.toLowerCase() === byUser; });
+    }
 
     // Search filter
     if (searchQ) {
@@ -1283,7 +1336,7 @@
     }
 
     if (!list.length) {
-      T.addOutputLine('<span class="tp-muted">feed: no matching posts</span>');
+      T.addOutputLine('<span class="tp-muted">feed: ' + T._('нет подходящих постов', 'no matching posts') + '</span>');
       return;
     }
 
@@ -1299,8 +1352,8 @@
       list = list.slice(start, start + perPage);
     }
 
-    // Default: program view (less) — except with --inline, --tail, --page, --search
-    var useProgramView = !inlineMode && !tailN && !pageN && !searchQ;
+    // Default: program view (less) — except with any filter flag
+    var useProgramView = !inlineMode && !tailN && !pageN && !searchQ && !byUser;
     if (useProgramView) {
       T.enterLessMode(list, T._('Лента', 'Feed') + ' (' + list.length + ')', function(item) {
         T._exitLessMode();
@@ -1321,7 +1374,7 @@
       return;
     }
 
-    // cat --img <id> — render image as ASCII art (специальный флаг, не путь)
+    // cat --img <id> — render image as ASCII art
     var imgMatch = args.match(/^--img\s+(\d+)$/i);
     if (imgMatch) {
       var postId = parseInt(imgMatch[1], 10);
@@ -1330,7 +1383,27 @@
         if (T.feedData[i].id === postId) { post = T.feedData[i]; break; }
       }
       if (!post || !post.image) {
-        T.addOutputLine('<span class="tp-err">cat --img: post #' + postId + ' has no image</span>');
+        // Feed data may not have the image URL yet — try fetching the post directly
+        T.showLoading(T._('Загрузка поста...', 'Loading post...'));
+        fetch('/api/v1/posts/' + postId, { credentials: 'same-origin' })
+          .then(function(r) { if (!r.ok) throw new Error(); return r.json(); })
+          .then(function(data) {
+            T.hideLoading();
+            var p = data.post || data;
+            if (!p.image) {
+              T.addOutputLine('<span class="tp-err">cat --img: post #' + postId + ' has no image</span>');
+              return;
+            }
+            T.imageToAscii(p.image, 60, function(ascii) {
+              T.addOutputLine('<span class="tp-section">' + T._('Пост #', 'Post #') + postId + ' ' + T._('— изображение', '— image') + '</span>');
+              T.addOutput(ascii);
+              if (p.text) T.addOutputLine('<span class="tp-desc">' + T.escapeHtml(p.text.substring(0, 200)) + '</span>');
+            });
+          })
+          .catch(function() {
+            T.hideLoading();
+            T.addOutputLine('<span class="tp-err">cat --img: post #' + postId + ' not found</span>');
+          });
         return;
       }
       T.showLoading(T._('Загрузка изображения...', 'Loading image...'));
@@ -1382,7 +1455,7 @@
 
     // less with no args defaults to current dir
     if (!args) {
-      if (T.cwd === 'feed' || !T.cwd) {
+      if (T.cwd === 'posts' || !T.cwd) {
         if (T.feedData.length) {
           T.enterLessMode(T.feedData, 'feed (' + T.feedData.length + ' posts)', function(item) {
             T._exitLessMode();
@@ -1405,7 +1478,28 @@
         T.cmdFollowing('--less');
         return;
       }
+      if (T.cwd === 'notifications') {
+        T.cmdNotifications('--less');
+        return;
+      }
       T.addOutputLine('<span class="tp-muted">less: nothing to page in ' + T.escapeHtml(T.cwd) + '</span>');
+      return;
+    }
+
+    // less with a numeric limit (less 20 = first 20 from current context)
+    var numMatch = target.match(/^(\d+)$/);
+    if (numMatch) {
+      var limit = parseInt(numMatch[1], 10);
+      var data = T.feedData || [];
+      var slice = data.slice(0, limit);
+      if (slice.length) {
+        T.enterLessMode(slice, 'feed (first ' + limit + ')', function(item) {
+          T._exitLessMode();
+          T.cmdPostView(item.id);
+        });
+      } else {
+        T.addOutputLine('<span class="tp-muted">less: empty</span>');
+      }
       return;
     }
 
@@ -1435,6 +1529,12 @@
     }
     if (target === 'following' || target === '/following') {
       T.cmdFollowing('--less');
+      return;
+    }
+
+    // less notifications
+    if (target === 'notifications' || target === '/notifications') {
+      T.cmdNotifications('--less');
       return;
     }
 

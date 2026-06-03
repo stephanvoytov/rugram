@@ -30,6 +30,7 @@ def upgrade() -> None:
         sa.Column('profile_image', sa.String(), nullable=True, server_default='default_profile_image.jpg'),
         sa.Column('description', sa.String(), nullable=True),
         sa.Column('last_seen', sa.DateTime(), nullable=True),
+        sa.Column('notifications_enabled', sa.Boolean(), nullable=False, server_default='1'),
         sa.PrimaryKeyConstraint('id'),
     )
     op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)
@@ -46,7 +47,7 @@ def upgrade() -> None:
         sa.Column('reposts_count', sa.Integer(), nullable=False, server_default='0'),
         sa.Column('is_deleted', sa.Boolean(), nullable=False, server_default='0'),
         sa.Column('author_id', sa.Integer(), nullable=False),
-        sa.ForeignKeyConstraint(['author_id'], ['users.id'], ),
+        sa.ForeignKeyConstraint(['author_id'], ['users.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id'),
     )
 
@@ -56,9 +57,10 @@ def upgrade() -> None:
         sa.Column('user_id', sa.Integer(), nullable=False),
         sa.Column('post_id', sa.Integer(), nullable=False),
         sa.Column('created_date', sa.DateTime(), nullable=False),
-        sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
-        sa.ForeignKeyConstraint(['post_id'], ['posts.id'], ),
+        sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['post_id'], ['posts.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id'),
+        sa.UniqueConstraint('user_id', 'post_id', name='uq_likes_user_post'),
     )
 
     # --- follows ---
@@ -67,9 +69,10 @@ def upgrade() -> None:
         sa.Column('follower_id', sa.Integer(), nullable=False),
         sa.Column('followed_id', sa.Integer(), nullable=False),
         sa.Column('created_date', sa.DateTime(), nullable=False),
-        sa.ForeignKeyConstraint(['follower_id'], ['users.id'], ),
-        sa.ForeignKeyConstraint(['followed_id'], ['users.id'], ),
+        sa.ForeignKeyConstraint(['follower_id'], ['users.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['followed_id'], ['users.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id'),
+        sa.UniqueConstraint('follower_id', 'followed_id', name='uq_follows_pair'),
     )
 
     # --- comments ---
@@ -79,8 +82,8 @@ def upgrade() -> None:
         sa.Column('post_id', sa.Integer(), nullable=False),
         sa.Column('text', sa.String(), nullable=False),
         sa.Column('created_date', sa.DateTime(), nullable=False),
-        sa.ForeignKeyConstraint(['author_id'], ['users.id'], ),
-        sa.ForeignKeyConstraint(['post_id'], ['posts.id'], ),
+        sa.ForeignKeyConstraint(['author_id'], ['users.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['post_id'], ['posts.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id'),
     )
 
@@ -91,11 +94,12 @@ def upgrade() -> None:
         sa.Column('actor_id', sa.Integer(), nullable=False),
         sa.Column('type', sa.String(), nullable=False),
         sa.Column('post_id', sa.Integer(), nullable=True),
+        sa.Column('text', sa.String(), nullable=True),
         sa.Column('is_read', sa.Boolean(), nullable=False, server_default='0'),
         sa.Column('created_date', sa.DateTime(), nullable=False),
-        sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
-        sa.ForeignKeyConstraint(['actor_id'], ['users.id'], ),
-        sa.ForeignKeyConstraint(['post_id'], ['posts.id'], ),
+        sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['actor_id'], ['users.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['post_id'], ['posts.id'], ondelete='SET NULL'),
         sa.PrimaryKeyConstraint('id'),
     )
 
@@ -113,9 +117,10 @@ def upgrade() -> None:
         sa.Column('user_id', sa.Integer(), nullable=False),
         sa.Column('last_read_at', sa.DateTime(), nullable=True),
         sa.Column('last_typing_at', sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(['chat_id'], ['chats.id'], ),
-        sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+        sa.ForeignKeyConstraint(['chat_id'], ['chats.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id'),
+        sa.UniqueConstraint('chat_id', 'user_id', name='uq_chat_participant'),
     )
 
     # --- reposts ---
@@ -124,9 +129,10 @@ def upgrade() -> None:
         sa.Column('user_id', sa.Integer(), nullable=False),
         sa.Column('post_id', sa.Integer(), nullable=False),
         sa.Column('created_date', sa.DateTime(), nullable=False),
-        sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
-        sa.ForeignKeyConstraint(['post_id'], ['posts.id'], ),
+        sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['post_id'], ['posts.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id'),
+        sa.UniqueConstraint('user_id', 'post_id', name='uq_reposts_user_post'),
     )
 
     # --- saved_posts ---
@@ -135,9 +141,10 @@ def upgrade() -> None:
         sa.Column('user_id', sa.Integer(), nullable=False),
         sa.Column('post_id', sa.Integer(), nullable=False),
         sa.Column('created_date', sa.DateTime(), nullable=False),
-        sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
-        sa.ForeignKeyConstraint(['post_id'], ['posts.id'], ),
+        sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['post_id'], ['posts.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id'),
+        sa.UniqueConstraint('user_id', 'post_id', name='uq_saved_posts_user_post'),
     )
 
     # --- messages ---
@@ -149,8 +156,8 @@ def upgrade() -> None:
         sa.Column('created_date', sa.DateTime(), nullable=False),
         sa.Column('is_read', sa.Boolean(), nullable=False, server_default='0'),
         sa.Column('read_at', sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(['chat_id'], ['chats.id'], ),
-        sa.ForeignKeyConstraint(['author_id'], ['users.id'], ),
+        sa.ForeignKeyConstraint(['chat_id'], ['chats.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['author_id'], ['users.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id'),
     )
 

@@ -14,7 +14,7 @@
         {{ form.hidden_tag() }}
 
         <div class="auth-field" style="margin-bottom:20px">
-            <span class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] username</span>
+            <label for="{{ form.username.id }}" class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] username</label>
             {{ form.username(class="field-input" + (" field-error" if form.username.errors else ""), placeholder="username", pattern="[a-z0-9_]+", title="Only Latin letters (a-z), digits (0-9), and underscore (_)", oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9_]/g,'')", style="padding:10px 14px;font-size:0.9rem;width:100%") }}
             {% for error in form.username.errors %}
             <div class="field-msg error">{{ error }}</div>
@@ -22,7 +22,7 @@
         </div>
 
         <div class="auth-field" style="margin-bottom:20px">
-            <span class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] email</span>
+            <label for="{{ form.email.id }}" class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] email</label>
             {{ form.email(class="field-input" + (" field-error" if form.email.errors else ""), placeholder="email@example.com", style="padding:10px 14px;font-size:0.9rem;width:100%") }}
             {% for error in form.email.errors %}
             <div class="field-msg error">{{ error }}</div>
@@ -30,7 +30,7 @@
         </div>
 
         <div class="auth-field" style="margin-bottom:20px">
-            <span class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] password</span>
+            <label for="{{ form.password.id }}" class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] password</label>
             {{ form.password(class="field-input" + (" field-error" if form.password.errors else ""), placeholder="••••••••", style="padding:10px 14px;font-size:0.9rem;width:100%") }}
             {% for error in form.password.errors %}
             <div class="field-msg error">{{ error }}</div>
@@ -38,7 +38,7 @@
         </div>
 
         <div class="auth-field" style="margin-bottom:20px">
-            <span class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] confirm password</span>
+            <label for="{{ form.password2.id }}" class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] confirm password</label>
             {{ form.password2(class="field-input" + (" field-error" if form.password2.errors else ""), placeholder="confirm password", style="padding:10px 14px;font-size:0.9rem;width:100%") }}
             {% for error in form.password2.errors %}
             <div class="field-msg error">{{ error }}</div>

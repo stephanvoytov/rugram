@@ -14,7 +14,7 @@
         {{ form.hidden_tag() }}
 
         <div class="auth-field" style="margin-bottom:20px">
-            <span class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] email or username</span>
+            <label for="{{ form.email_or_username.id }}" class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] email or username</label>
             {{ form.email_or_username(class="field-input" + (" field-error" if form.email_or_username.errors else ""), placeholder="email or username", style="padding:10px 14px;font-size:0.9rem;width:100%") }}
             {% for error in form.email_or_username.errors %}
             <div class="field-msg error">{{ error }}</div>
@@ -22,7 +22,7 @@
         </div>
 
         <div class="auth-field" style="margin-bottom:20px">
-            <span class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] password</span>
+            <label for="{{ form.password.id }}" class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] password</label>
             {{ form.password(class="field-input" + (" field-error" if form.password.errors else ""), placeholder="••••••••", style="padding:10px 14px;font-size:0.9rem;width:100%") }}
             {% for error in form.password.errors %}
             <div class="field-msg error">{{ error }}</div>
