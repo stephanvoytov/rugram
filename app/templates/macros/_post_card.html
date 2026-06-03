@@ -18,14 +18,12 @@
             <span class="post-stat">↻ {{ post.reposts_count }}</span>
         </span>
     </div>
-    <div class="post-body">
-        {% if post.image %}
+    <div class="post-body">{%- if post.image %}
         <img src="{{ url_for('static', filename='uploads/posts/thumb_' + post.image) }}"
              data-full-img="{{ url_for('static', filename='uploads/posts/' + post.image) }}"
              alt="Post image" class="post-img-clickable mb-2" loading="lazy">
-        {% endif %}
-        {{- post.text -}}
-    </div>
+        {%- endif %}
+{{- post.text -}}</div>
     <div class="post-actions">
         <button class="post-action like-btn {% if post.is_liked_by(current_user) %}liked{% endif %}" data-post-id="{{ post.id }}" data-liked="{{ 'true' if post.is_liked_by(current_user) else 'false' }}">
             [♥{% if post.likes_count > 0 %} {{ post.likes_count }}{% endif %} like]
