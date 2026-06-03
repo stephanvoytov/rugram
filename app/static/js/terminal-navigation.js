@@ -83,9 +83,10 @@
     // URL-routed sections (settings, edit_profile)
     var url = T.sectionUrls[target];
     if (url) {
-      sessionStorage.setItem('cd_nav', target);
-      localStorage.setItem('rugram_mode', 'tty');
-      window.location.href = url;
+      T.cwd = target;
+      T.updatePrompt();
+      T.addOutputLine('<span class="tp-desc">  ' + T.escapeHtml(target) + '/  — <span class="tp-cmd">gui</span> ' + T._('для перехода в настройки', 'to open settings in GUI') + '</span>');
+      T.addOutputLine('<span class="tp-muted">  # ' + T._('Настройки доступны в графическом интерфейсе', 'Settings are available in the GUI') + '</span>');
       return;
     }
 
@@ -200,7 +201,8 @@
     // ── /chat ──
     if (listFrom === 'chat' || listFrom === 'chats') {
       T.addOutputLine('<span class="tp-desc">chat/</span>');
-      T.addOutputLine('<span class="tp-muted">  use <span class="tp-cmd">cd chat</span> then <span class="tp-cmd">ls</span> to list conversations</span>');
+      T.addOutputLine('<span class="tp-muted">  # <span class="tp-cmd">chat</span> ' + T._('показать диалоги', 'to list conversations') + '</span>');
+      T.addOutputLine('<span class="tp-muted">  # <span class="tp-cmd">ls chat/&lt;id&gt;</span> ' + T._('показать переписку', 'to show a conversation') + '</span>');
       T.addSysLine('<span class="tp-muted">1 directory</span>');
       return;
     }

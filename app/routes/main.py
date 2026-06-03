@@ -245,6 +245,37 @@ def api_saved_posts() -> Response:
     })
 
 
+# API endpoint for feed (JSON, for terminal inline — independent from GUI DOM)
+@main_bp.route('/api/feed')
+def api_feed() -> Response:
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    pagination = Post.query.filter(Post.is_deleted == False)\
+        .options(joinedload(Post.author))\
+        .order_by(Post.id.desc())\
+        .paginate(page=page, per_page=per_page, error_out=False)
+    return jsonify({
+        'posts': [{
+            'id': p.id,
+            'text': p.text,
+            'image': p.image,
+            'author': p.author.username,
+            'author_id': p.author_id,
+            'author_image': p.author.profile_image,
+            'likes': p.likes_count,
+            'comments': p.comments_count,
+            'reposts': p.reposts_count,
+            'is_liked': p.is_liked_by(current_user) if current_user.is_authenticated else False,
+            'is_saved': p.is_saved_by(current_user) if current_user.is_authenticated else False,
+            'time': p.created_date.isoformat()
+        } for p in pagination.items],
+        'page': pagination.page,
+        'pages': pagination.pages,
+        'total': pagination.total,
+        'has_next': pagination.has_next
+    })
+
+
 # API endpoint for followers list (JSON, for terminal inline)
 @main_bp.route('/api/followers/<username>')
 @login_required
