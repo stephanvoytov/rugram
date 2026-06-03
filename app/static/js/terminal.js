@@ -17,6 +17,7 @@
   T.historyIdx = -1;
   T.username = 'guest';
   T.feedData = [];
+  T._fetchingFeed = false;
   T.bootShown = false;
   T.loadingEl = null;
   T.cwd = '';
@@ -117,6 +118,8 @@
       if (T.el.toggleBtn) { T.el.toggleBtn.classList.add('active'); T.el.toggleBtn.title = 'Switch to GUI'; }
       localStorage.setItem('rugram_mode', 'tty');
       sessionStorage.setItem('tty_session', '1');
+      // Refresh feed from API on re-entry
+      T.fetchFeedFromAPI();
       if (!T.el.output.querySelector('.term-post') && !T.el.output.querySelector('.term-boot')) {
         if (!T.bootShown) {
           T.showBootScreen();
@@ -143,7 +146,34 @@
     T.setMode(T.mode === 'gui' ? 'tty' : 'gui');
   };
 
-  // ── Cache feed posts from DOM ──
+  // ── Fetch feed posts from API (terminal-independent) ──
+  T.fetchFeedFromAPI = function(callback) {
+    fetch(window.API_FEED_URL + '?per_page=50', { credentials: 'same-origin' })
+      .then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function(data) {
+        T.feedData = (data.posts || []).map(function(p) {
+          return {
+            id: p.id,
+            author: p.author,
+            time: p.time,
+            text: p.text,
+            liked: p.is_liked,
+            likes: p.likes,
+            comments: p.comments,
+            image: p.image
+          };
+        });
+        if (callback) callback();
+      })
+      .catch(function() {
+        if (callback) callback();
+      });
+  };
+
+  // ── Cache feed posts from DOM (GUI fallback — only when switching to GUI) ──
   T.cacheFeedFromDOM = function() {
     var cards = document.querySelectorAll('.post-card');
     if (!cards.length) return;
@@ -425,6 +455,9 @@
     // help
     if (cmd.toLowerCase() === 'help') { T.cmdHelp(); return; }
 
+    // chat — list conversations
+    if (cmd.toLowerCase() === 'chat') { T.renderChatList(); return; }
+
     // gui
     if (cmd.toLowerCase() === 'gui' || cmd.toLowerCase() === 'exit') { T.setMode('gui'); return; }
 
@@ -574,7 +607,7 @@
     if (unread > 0) {
       T.addOutputLine('You have <span class="tp-ok">' + unread + ' unread notification' + (unread > 1 ? 's' : '') + '</span>');
     }
-    T.addOutputLine('<span class="tp-desc">' + (T.feedData.length || '0') + ' posts cached in feed</span>');
+    T.addOutputLine('<span class="tp-desc">' + (T.feedData.length || '0') + T._(' постов в ленте', ' posts in feed') + '</span>');
     T.addOutputLine('');
 
     T.addOutputLine('<span class="tp-muted"># <span class="tp-cmd">help</span> — all commands  |  <span class="tp-cmd">feed</span> — browse feed  |  <span class="tp-cmd">saved</span> — saved posts  |  <span class="tp-cmd">chat</span> — messages</span>');
@@ -595,14 +628,8 @@
     T.addOutputLine('<span class="tp-section">-- /feed -- (' + list.length + ' posts)</span>');
 
     if (!list.length) {
-      if (window.location.pathname !== '/' && window.location.pathname !== '/index') {
-        T.addSysLine('<span class="tp-muted">No feed cache — navigating to homepage...</span>');
-        sessionStorage.setItem('cd_nav', 'feed');
-        localStorage.setItem('rugram_mode', 'tty');
-        window.location.href = window.HOME_URL;
-        return;
-      }
       T.addOutputLine('<span class="tp-muted">  feed: empty</span>');
+      T.addOutputLine('<span class="tp-desc">  # <span class="tp-cmd">create</span> to write a new post</span>');
       return;
     }
 
@@ -1118,7 +1145,7 @@
       })
       .catch(function() {});
 
-    T.cacheFeedFromDOM();
+    T.fetchFeedFromAPI();
 
     var cdNav = sessionStorage.getItem('cd_nav');
     if (cdNav) {

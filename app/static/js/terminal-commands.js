@@ -22,7 +22,7 @@
       T.cwd = 'feed';
       T.updatePrompt();
       T.addSysLine('<span class="tp-ok">' + T._('Вошли как @', 'Logged in as @') + T.escapeHtml(T.username) + '</span>');
-      T.cacheFeedFromDOM();
+      T.fetchFeedFromAPI();
     })
     .catch(function(err) {
       T.hideLoading();
@@ -49,7 +49,7 @@
       T.username = data.user.username;
       T.cwd = 'feed';
       T.updatePrompt();
-      T.cacheFeedFromDOM();
+      T.fetchFeedFromAPI();
       T.addSysLine('<span class="tp-ok">' + T._('Зарегистрированы и вошли как @', 'Registered and logged in as @') + T.escapeHtml(T.username) + '</span>');
     })
     .catch(function(err) {
@@ -71,6 +71,7 @@
       T.hideLoading();
       T.username = 'guest';
       T.cwd = '';
+      T.feedData = [];
       T.updatePrompt();
       T.addSysLine('<span class="tp-ok">' + T._('Вышли из системы', 'Logged out') + '</span>');
     })
@@ -394,6 +395,20 @@
 
   // ── COMMAND: grep ──
   T.cmdGrep = function(query) {
+    if (!T.feedData.length) {
+      if (!T._fetchingFeed) {
+        T._fetchingFeed = true;
+        T.showLoading('Fetching feed...');
+        T.fetchFeedFromAPI(function() {
+          T.hideLoading();
+          T._fetchingFeed = false;
+          T.cmdGrep(query);
+        });
+        return;
+      }
+      T.addOutputLine('<span class="tp-muted">grep: feed is empty</span>');
+      return;
+    }
     var q = query.toLowerCase();
     var results = T.feedData.filter(function(p) {
       return p.text.toLowerCase().includes(q) || p.author.toLowerCase().includes(q);
@@ -878,6 +893,16 @@
     if (m) n = parseInt(m[1], 10);
 
     if (!T.feedData.length) {
+      if (!T._fetchingFeed) {
+        T._fetchingFeed = true;
+        T.showLoading('Fetching feed...');
+        T.fetchFeedFromAPI(function() {
+          T.hideLoading();
+          T._fetchingFeed = false;
+          T.cmdHead(args);
+        });
+        return;
+      }
       T.addOutputLine('<span class="tp-muted">  feed: empty</span>');
       return;
     }
@@ -893,6 +918,16 @@
     if (m) n = parseInt(m[1], 10);
 
     if (!T.feedData.length) {
+      if (!T._fetchingFeed) {
+        T._fetchingFeed = true;
+        T.showLoading('Fetching feed...');
+        T.fetchFeedFromAPI(function() {
+          T.hideLoading();
+          T._fetchingFeed = false;
+          T.cmdTail(args);
+        });
+        return;
+      }
       T.addOutputLine('<span class="tp-muted">  feed: empty</span>');
       return;
     }
@@ -990,6 +1025,24 @@
   T.cmdFeed = function(args) {
     args = (args || '').trim().toLowerCase();
 
+    // Auto-fetch feed from API if cache is empty (terminal independence)
+    if (!T.feedData.length && !T._fetchingFeed) {
+      T._fetchingFeed = true;
+      T.showLoading(T._('Загрузка ленты...', 'Fetching feed...'));
+      T.fetchFeedFromAPI(function() {
+        T.hideLoading();
+        T._fetchingFeed = false;
+        if (T.feedData.length) {
+          T.cmdFeed(args); // retry with populated data
+        } else {
+          T.clearOutput();
+          T.addOutputLine('<span class="tp-muted">feed: ' + T._('постов нет', 'no posts yet') + '</span>');
+          T.addOutputLine('<span class="tp-desc">  # <span class="tp-cmd">create</span> ' + T._('написать пост', 'to write a post') + '</span>');
+        }
+      });
+      return;
+    }
+
     var tailN = null;
     var pageN = null;
     var searchQ = null;
@@ -1019,15 +1072,6 @@
     }
 
     if (!list.length) {
-      if (!T.feedData.length) {
-        if (window.location.pathname !== '/' && window.location.pathname !== '/index') {
-          T.addSysLine('<span class="tp-muted">No feed cache — navigating to homepage...</span>');
-          sessionStorage.setItem('cd_nav', 'feed');
-          localStorage.setItem('rugram_mode', 'tty');
-          window.location.href = window.HOME_URL;
-          return;
-        }
-      }
       T.addOutputLine('<span class="tp-muted">feed: no matching posts</span>');
       return;
     }
