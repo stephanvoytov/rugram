@@ -12,12 +12,10 @@
 
   // ── Render chat list ──
   T.renderChatList = function() {
-    T.clearOutput();
     T.addSysLine('Fetching conversations...');
     fetch(window.API_CHAT_LIST_URL, { credentials: 'same-origin' })
       .then(function(r) { return r.json(); })
       .then(function(data) {
-        T.clearOutput();
         T.addOutputLine('<span class="tp-section">Conversations</span>');
         if (!data.chats || !data.chats.length) {
           T.addOutputLine('<span class="tp-muted">  no conversations</span>');
@@ -36,7 +34,6 @@
         T.addSysLine(data.chats.length + ' conversations');
       })
       .catch(function() {
-        T.clearOutput();
         T.addOutputLine('<span class="tp-err">error: could not load conversations</span>');
         T.addOutputLine('<span class="tp-desc">  # try <span class="tp-cmd">cd feed</span> first to load data</span>');
       });
@@ -45,12 +42,10 @@
   // ── Load chat messages ──
   T.loadChatMessages = function(chatId) {
     T.stopChatPolling();
-    T.clearOutput();
     T.addSysLine('Loading chat...');
     fetch('/chat/' + chatId + '/messages?limit=50', { credentials: 'same-origin' })
       .then(function(r) { return r.json(); })
       .then(function(data) {
-        T.clearOutput();
         T.currentChatUser = data.other_user?.username || 'unknown';
         T.addOutputLine('<span class="tp-section">Chat with @' + T.escapeHtml(T.currentChatUser) + '</span>');
         T.addOutputLine('<span class="tp-desc">  # <span class="tp-cmd">say &lt;text&gt;</span> to send  ·  <span class="tp-cmd">cd ..</span> to go back</span>');
@@ -90,7 +85,6 @@
         }, 3000);
       })
       .catch(function() {
-        T.clearOutput();
         T.addOutputLine('<span class="tp-err">chat: could not load messages</span>');
       });
   };
