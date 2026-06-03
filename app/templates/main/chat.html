@@ -90,10 +90,6 @@ let typingTimeout = null;
 let otherUsername = '';
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Fix: constrain page to viewport so chat list & messages scroll internally
-    document.body.style.height = window.innerHeight + 'px';
-    document.body.style.overflow = 'hidden';
-
     currentUser = {{ current_user.id|tojson if current_user.is_authenticated else 'null' }};
     if (!currentUser) { window.location.href = '{{ url_for("auth.login") }}'; return; }
     loadChatList();

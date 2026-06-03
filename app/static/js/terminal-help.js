@@ -29,22 +29,26 @@
   // ── Man pages ──
   T.manPages = {
     ls: [
-      'LS(1)                       User Commands                       LS(1)',
+      'LS(1)                         User Commands                        LS(1)',
       '',
       'NAME',
       '    ls — list directory contents',
       '',
       'SYNOPSIS',
-      '    ls [-l] [section]',
+      '    ls [-l] [dir]',
       '',
       'DESCRIPTION',
-      '    List contents of current section.',
-      '    -l  detailed format with metadata',
+      '    List files in the current directory. Shows posts',
+      '    as files (post_42.txt) in /feed and /profile.',
+      '    Use -l for detailed view with permissions and sizes.',
+      '',
+      '    In home (~), shows all available directories.',
       '',
       'EXAMPLES',
-      '    ls          list sections / posts',
-      '    ls -l       detailed view',
-      '    ls feed     list posts in feed',
+      '    ls            list files in current dir',
+      '    ls -l         detailed list',
+      '    ls feed       list posts in /feed',
+      '    ls -l feed    detailed post list',
     ],
     echo: [
       'ECHO(1)                      User Commands                      ECHO(1)',
@@ -254,28 +258,39 @@
       'CD(1)                        User Commands                        CD(1)',
       '',
       'NAME',
-      '    cd — change current section',
+      '    cd — change current directory (does NOT show content)',
       '',
       'SYNOPSIS',
-      '    cd [section | @user | .. | post N]',
+      '    cd [section | @user | .. | post/N]',
       '',
       'DESCRIPTION',
-      '    Navigate between sections and profiles.',
+      '    cd only changes $PWD. Use the corresponding',
+      '    program command to view content: feed, saved,',
+      '    followers, following, cat, less.',
       '',
-      'SECTIONS',
-      '    feed            post feed',
-      '    notifications   notifications',
-      '    profile         my profile',
-      '    settings        settings page',
+      'DIRECTORIES',
+      '    feed            posts feed',
       '    saved           saved posts',
-      '    chat            messages',
-      '    create          new post',
       '    followers       followers list',
       '    following       following list',
+      '    notifications   notifications',
+      '    profile         my profile',
+      '    chat            messages',
+      '    create          new post (use nano to edit)',
+      '    post/N          single post',
       '    @user           user profile',
-      '    post N          single post',
-      '    ..              go home',
-      '    ~  /  home      go home',
+      '',
+      'EXAMPLES',
+      '    cd feed         go to /feed',
+      '    feed            show all posts (program)',
+      '    feed --tail 10  show last 10 posts',
+      '    feed --search cat  search posts',
+      '    feed --less     browse interactively',
+      '    ls              list files in current dir',
+      '    cat 42          show post #42',
+      '    less            page current dir',
+      '    cd ..           go up',
+      '    cd              go home',
     ],
     follow: [
       'FOLLOW(1)                    User Commands                    FOLLOW(1)',
@@ -406,31 +421,33 @@
     ]);
     T.addOutputLine('');
 
-    printCategory(T._('Навигация', 'Navigation'), [
-      ['ls', '[-l] [section]', T._('Файлы в текущей директории', 'List files in current directory')],
-      ['cd', '<section>', T._('Перейти в раздел (feed, profile, chat, @user…)', 'Navigate to a section (feed, profile, chat, @user…)')],
-      ['cd', 'saved', T._('Сохранённые посты', 'Saved posts')],
-      ['cd', 'create', T._('Создать новый пост (nano)', 'Create a new post (nano)')],
-      ['cd', 'post <id>', T._('Просмотр одного поста', 'View a single post')],
-      ['cd', 'followers/following', T._('Подписчики и подписки', 'Followers and following')],
-      ['cd ..', '', T._('На уровень выше', 'Go up one directory')],
+    printCategory(T._('Навигация (файловая система)', 'Navigation (filesystem)'), [
+      ['ls', '[-l] [dir]', T._('Файлы в текущей директории', 'List files in current directory')],
+      ['cd', '<section>', T._('Перейти в раздел (feed, saved, profile…)', 'Change directory (feed, saved, profile…)')],
+      ['cd', '..', T._('На уровень выше', 'Go up one directory')],
       ['pwd', '', T._('Показать текущую директорию', 'Show current directory')],
     ]);
     T.addOutputLine('');
 
-    printCategory(T._('Чат', 'Chat'), [
-      ['cd chat', '', T._('Список чатов', 'Show chat list')],
-      ['cd chat', '<id> / @<user>', T._('Открыть или начать чат', 'Open or start a chat')],
-      ['say', '<text>', T._('Отправить сообщение в открытом чате', 'Send a message in current chat')],
-      ['start', '@<user>', T._('Начать чат с пользователем', 'Start a chat with a user')],
-    ]);
-    T.addOutputLine('');
-
-    printCategory(T._('Лента', 'Feed'), [
-      ['feed', '', T._('Показать ленту постов', 'Show the post feed')],
+    printCategory(T._('Программы', 'Programs'), [
+      ['feed', '[--tail N] [--page N] [--search text] [--less]', T._('Показать ленту постов', 'Show the post feed')],
+      ['saved', '[--tail N] [--less]', T._('Сохранённые посты', 'Show saved posts')],
+      ['followers', '[--of @user] [--less]', T._('Подписчики', 'Show followers')],
+      ['following', '[--of @user] [--less]', T._('Подписки', 'Show following')],
+      ['notifications', '', T._('Уведомления', 'Show notifications')],
+      ['less', '[section]', T._('Интерактивный пейджер (j/k, /, Enter, q)', 'Interactive pager (j/k, /, Enter, q)')],
+      ['cat', '<id> | post_<id>', T._('Показать содержимое поста', 'View a post by ID')],
+      ['create', '', T._('Новый пост (открывает nano)', 'Create a new post (opens nano)')],
       ['grep', '"<text>"', T._('Поиск по ленте', 'Search posts in feed')],
       ['head', '[-n N]', T._('Первые N постов', 'Show first N posts')],
       ['tail', '[-n N]', T._('Последние N постов', 'Show last N posts')],
+    ]);
+    T.addOutputLine('');
+
+    printCategory(T._('Чат', 'Chat'), [
+      ['cd chat', '', T._('Перейти в /chat', 'Go to /chat')],
+      ['say', '<text>', T._('Отправить сообщение', 'Send a message in current chat')],
+      ['start', '@<user>', T._('Начать чат с пользователем', 'Start a chat with a user')],
     ]);
     T.addOutputLine('');
 

@@ -30,7 +30,7 @@
           var time = chat.last_message_time ? T.relTime(chat.last_message_time) : '';
           var unread = chat.unread_count > 0 ? ' <span class="tp-ok">[' + chat.unread_count + ']</span>' : '';
           var online = chat.other_user.is_online ? '<span class="tp-ok">●</span>' : '<span class="tp-muted">○</span>';
-          T.addOutputLine('  <span class="tp-cmd">' + chat.id + '</span>  ' + online + ' @' + chat.other_user.username + unread);
+          T.addOutputLine('  <span class="tp-cmd">' + chat.id + '</span>  ' + online + ' @' + T.escapeHtml(chat.other_user.username) + unread);
           if (preview) T.addOutputLine('      <span class="tp-muted">' + preview + '</span>  <span class="tp-muted">' + time + '</span>');
         });
         T.addSysLine(data.chats.length + ' conversations');
@@ -52,7 +52,7 @@
       .then(function(data) {
         T.clearOutput();
         T.currentChatUser = data.other_user?.username || 'unknown';
-        T.addOutputLine('<span class="tp-section">Chat with @' + T.currentChatUser + '</span>');
+        T.addOutputLine('<span class="tp-section">Chat with @' + T.escapeHtml(T.currentChatUser) + '</span>');
         T.addOutputLine('<span class="tp-desc">  # <span class="tp-cmd">say &lt;text&gt;</span> to send  ·  <span class="tp-cmd">cd ..</span> to go back</span>');
 
         var msgs = data.messages || [];
@@ -62,7 +62,8 @@
           msgs.forEach(function(msg) {
             var isOwn = msg.author_id === T.currentUserId;
             var time = msg.created_date ? T.relTime(msg.created_date) : '';
-            var author = isOwn ? 'me' : '@' + T.currentChatUser;
+            var chatUser = T.escapeHtml(T.currentChatUser);
+            var author = isOwn ? 'me' : '@' + chatUser;
             var cls = isOwn ? 'tp-ok' : 'tp-cmd';
             T.addOutputLine(' <span class="' + cls + '">' + T.escapeHtml(msg.text) + '</span>  <span class="tp-muted">' + author + ' ' + time + '</span>');
           });
@@ -78,7 +79,8 @@
               newMsgs.forEach(function(msg) {
                 var isOwn = msg.author_id === T.currentUserId;
                 var time = msg.created_date ? T.relTime(msg.created_date) : '';
-                var author = isOwn ? 'me' : '@' + (T.currentChatUser || '?');
+                var chatUser = T.escapeHtml(T.currentChatUser || '?');
+                var author = isOwn ? 'me' : '@' + chatUser;
                 var cls = isOwn ? 'tp-ok' : 'tp-cmd';
                 T.addOutputLine(' <span class="' + cls + '">' + T.escapeHtml(msg.text) + '</span>  <span class="tp-muted">' + author + ' ' + time + '</span>');
               });
@@ -131,7 +133,7 @@
       T.addOutputLine('<span class="tp-err">start: username required. Use <span class="tp-cmd">start @user</span></span>');
       return;
     }
-    T.addSysLine('Looking up @' + username + '...');
+    T.addSysLine('Looking up @' + T.escapeHtml(username) + '...');
     var token = T.csrfToken();
     fetch('/chat/start/' + encodeURIComponent(username), {
       method: 'POST',
@@ -149,7 +151,7 @@
           T.updatePrompt();
           T.loadChatMessages(data.chat_id);
         } else {
-          T.addOutputLine('<span class="tp-ok">Chat #' + data.chat_id + ' with @' + username + '</span>');
+          T.addOutputLine('<span class="tp-ok">Chat #' + data.chat_id + ' with @' + T.escapeHtml(username) + '</span>');
         }
       } else {
         T.addOutputLine('<span class="tp-err">start: could not create chat</span>');
