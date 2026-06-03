@@ -38,7 +38,7 @@ The GUI is built on **Bootstrap 5.3** (grid, alerts, dark mode, dropdowns, icons
 
 ---
 
-## Commands
+## Commands (not exhaustive — full list via `help` in the terminal)
 
 | Command | What it does |
 |---------|-------------|
@@ -70,8 +70,8 @@ The GUI is built on **Bootstrap 5.3** (grid, alerts, dark mode, dropdowns, icons
 ## Features
 
 **Bilingual (EN + RU)** — English by default, Russian via `?lang=ru` on any URL.  
-Everything switches: UI, terminal, `help`/`man`, flash messages, forms, empty states.  
-Or switch on the fly: `export LANG=ru_RU`.
+Flash messages, empty states, forms, help pages, and terminal descriptions are translated — but commands stay in English and some interface elements are intentionally kept in English to preserve the terminal atmosphere.  
+Switch on the fly inside the terminal: `export LANG=ru_RU`.
 
 **Encrypted messenger** — real-time polling, online status, typing indicator, date separators, read receipts. All messages encrypted at rest (Fernet, key derived from `SECRET_KEY`).
 
