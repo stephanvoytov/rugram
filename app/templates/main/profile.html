@@ -1,4 +1,16 @@
 {% extends "base.html" %}
+{% set profile_desc = user.description|striptags|truncate(200) if user.description else 'Profile of @' + user.username + ' on Rugram' %}
+{% set avatar_url = url_for('static', filename='uploads/profile_images/' + user.profile_image, _external=True) if user.profile_image else url_for('static', filename='default-profile.png', _external=True) %}
+{% block meta_description %}@{{ user.username }} — {{ profile_desc }}{% endblock %}
+{% block og_title %}@{{ user.username }} — Rugram{% endblock %}
+{% block og_description %}{{ profile_desc }}{% endblock %}
+{% block og_image %}{{ avatar_url }}{% endblock %}
+{% block og_url %}{{ request.url_root }}profile/{{ user.username }}{% endblock %}
+{% block canonical_url %}{{ request.url_root }}profile/{{ user.username }}{% endblock %}
+{% block hreflang_en %}{{ request.url_root }}profile/{{ user.username }}?lang=en{% endblock %}
+{% block hreflang_ru %}{{ request.url_root }}profile/{{ user.username }}?lang=ru{% endblock %}
+{% block hreflang_xdefault %}{{ request.url_root }}profile/{{ user.username }}{% endblock %}
+
 {% block content %}
 <h1 class="sr-only">{{ user.username }}</h1>
 <div class="profile-page">

@@ -816,6 +816,82 @@ def settings() -> Response:
     return render_template('main/settings.html', form=form)
 
 
+@main_bp.route('/robots.txt')
+def robots_txt() -> Response:
+    """Serve robots.txt for SEO."""
+    lines = [
+        'User-agent: *',
+        'Disallow: /api/',
+        'Disallow: /chat',
+        'Disallow: /login',
+        'Disallow: /register',
+        'Disallow: /settings',
+        'Disallow: /edit_profile',
+        'Disallow: /notifications',
+        'Disallow: /saved',
+        '',
+        f'Sitemap: {request.url_root}sitemap.xml',
+    ]
+    return Response('\n'.join(lines), mimetype='text/plain')
+
+
+@main_bp.route('/sitemap.xml')
+def sitemap_xml() -> Response:
+    """Generate dynamic sitemap.xml with posts and profiles."""
+    from xml.etree.ElementTree import Element, SubElement, tostring
+    from xml.dom import minidom
+
+    base_url = request.url_root.rstrip('/')
+
+    urlset = Element('urlset')
+    urlset.set('xmlns', 'http://www.sitemaps.org/schemas/sitemap/0.9')
+
+    def add_url(loc, lastmod=None, priority='0.5', changefreq='weekly'):
+        url_el = SubElement(urlset, 'url')
+        loc_el = SubElement(url_el, 'loc')
+        loc_el.text = loc
+        if lastmod:
+            lm_el = SubElement(url_el, 'lastmod')
+            lm_el.text = lastmod.strftime('%Y-%m-%d') if hasattr(lastmod, 'strftime') else str(lastmod)[:10]
+        pr_el = SubElement(url_el, 'priority')
+        pr_el.text = priority
+        cf_el = SubElement(url_el, 'changefreq')
+        cf_el.text = changefreq
+
+    # Main pages
+    add_url(f'{base_url}/', priority='1.0', changefreq='daily')
+
+    # Public profiles (users with at least one non-deleted post)
+    users_with_posts = (
+        db.session.query(User)
+        .join(Post, Post.author_id == User.id)
+        .filter(Post.is_deleted == False)
+        .distinct()
+        .all()
+    )
+    for user in users_with_posts:
+        last_post = (
+            Post.query
+            .filter(Post.author_id == user.id, Post.is_deleted == False)
+            .order_by(Post.created_date.desc())
+            .first()
+        )
+        lastmod = last_post.created_date if last_post else None
+        add_url(f'{base_url}/profile/{user.username}', lastmod=lastmod, priority='0.8', changefreq='weekly')
+
+    # All non-deleted posts
+    posts = Post.query.filter(Post.is_deleted == False).order_by(Post.created_date.desc()).all()
+    for post in posts:
+        add_url(f'{base_url}/post/{post.id}', lastmod=post.created_date, priority='0.9', changefreq='monthly')
+
+    # Pretty-print XML
+    rough_string = tostring(urlset, encoding='unicode')
+    dom = minidom.parseString(rough_string.encode('utf-8'))
+    pretty_xml = dom.toprettyxml(indent='  ', encoding='utf-8')
+
+    return Response(pretty_xml, mimetype='application/xml')
+
+
 @main_bp.route('/tty/help')
 def tty_help() -> Response:
     """Show the TTY terminal reference page."""
