@@ -29,15 +29,7 @@
           T.addOutputLine('<span class="tp-desc">  # <span class="tp-cmd">start @user</span> ' + T._('начать диалог', 'to start a chat') + '</span>');
           T.addOutputLine('');
           T.addOutputLine('<span class="tp-muted"># ' + T._('q — выйти', 'q — quit') + '</span>');
-          // Wait for key to exit
-          var keyHandler = function(e) {
-            if (e.key === 'q' || e.key === 'Q' || e.key === 'Escape') {
-              document.removeEventListener('keydown', keyHandler);
-              T.exitProgramView();
-              e.preventDefault();
-            }
-          };
-          setTimeout(function() { document.addEventListener('keydown', keyHandler); }, 100);
+          T.onceKey('q', function(){T.exitProgramView()});
           return;
         }
         // Build items for less-like program view
@@ -64,14 +56,7 @@
         T.addOutputLine('<span class="tp-err">' + T._('Ошибка загрузки диалогов.', 'Error loading conversations.') + '</span>');
         T.addOutputLine('');
         T.addOutputLine('<span class="tp-muted"># q — ' + T._('выйти', 'quit') + '</span>');
-        var keyHandler = function(e) {
-          if (e.key === 'q' || e.key === 'Q' || e.key === 'Escape') {
-            document.removeEventListener('keydown', keyHandler);
-            T.exitProgramView();
-            e.preventDefault();
-          }
-        };
-        setTimeout(function() { document.addEventListener('keydown', keyHandler); }, 100);
+        T.onceKey('q', function(){T.exitProgramView()});
       });
   };
 
@@ -128,30 +113,17 @@
         }, 3000);
 
         // Key handler to exit chat view
-        T._chatKeyHandler = function(e) {
-          if (e.key === 'q' || e.key === 'Q' || e.key === 'Escape') {
-            T.stopChatPolling();
-            document.removeEventListener('keydown', T._chatKeyHandler);
-            delete T._chatKeyHandler;
-            T.exitProgramView();
-            e.preventDefault();
-          }
-        };
-        setTimeout(function() { document.addEventListener('keydown', T._chatKeyHandler); }, 100);
+        T.onceKey('q', function(){
+          T.stopChatPolling();
+          T.exitProgramView();
+        });
       })
       .catch(function() {
         T.clearOutput();
         T.addOutputLine('<span class="tp-err">' + T._('Ошибка загрузки чата.', 'Chat: could not load messages.') + '</span>');
         T.addOutputLine('');
         T.addOutputLine('<span class="tp-muted"># q — ' + T._('выйти', 'quit') + '</span>');
-        var keyHandler = function(e) {
-          if (e.key === 'q' || e.key === 'Q' || e.key === 'Escape') {
-            document.removeEventListener('keydown', keyHandler);
-            T.exitProgramView();
-            e.preventDefault();
-          }
-        };
-        setTimeout(function() { document.addEventListener('keydown', keyHandler); }, 100);
+        T.onceKey('q', function(){T.exitProgramView()});
       });
   };
 
@@ -231,5 +203,17 @@
       T.addOutputLine('<span class="tp-err">start: user not found or request failed</span>');
     });
   };
+
+  // ── Registry ──
+  // chat = list conversations, chat <id> = open conversation
+  T.register('chat', { handler: function(args) {
+    var m = (args || '').trim().match(/^(\d+)$/);
+    if (m) { T.cwd = 'chat/' + m[1]; T.updatePrompt(); T.loadChatMessages(parseInt(m[1],10)); }
+    else { T.renderChatList(); }
+  }, auth: true, category: 'chat', match: 'prefix' });
+  T.register('say',  { handler: T.cmdSay, auth: true, category: 'chat', match: 'prefix' });
+  T.register('start',{ handler: function(u){T.startChatWithUser(u||'',true)}, auth: true, category: 'chat',
+    match: 'regex', regex: /^start\s+@?(\w+)$/i,
+    parse: function(m){return[m[1]]} });
 
 })(window.TERMINAL);

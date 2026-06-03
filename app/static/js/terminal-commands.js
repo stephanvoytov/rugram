@@ -1263,4 +1263,59 @@
     T.addOutputLine('<span class="tp-err">less: ' + T.escapeHtml(target) + ': No such section</span>');
   };
 
+  // ── Registry (auth=true = dispatch auto-checks T.isLoggedIn) ──
+  T.register('login',    { handler: T.cmdLogin, auth: false, category: 'auth',
+    match: 'regex', regex: /^login\s+(\S+)\s+(.+)$/i,
+    parse: function(m){return[m[1],m[2]]} });
+  T.register('register', { handler: T.cmdRegister, auth: false, category: 'auth',
+    match: 'regex', regex: /^register\s+(\S+)\s+(\S+)\s+(.+)$/i,
+    parse: function(m){return[m[1],m[2],m[3]]} });
+  T.register('logout',   { handler: T.cmdLogout, auth: false, category: 'auth' });
+  T.register('like',     { handler: T.cmdLike, auth: true, category: 'posts',
+    match: 'regex', regex: /^like\s+(\d+)$/i,
+    parse: function(m){return[parseInt(m[1],10)]} });
+  T.register('comment',  { handler: T.cmdComment, auth: true, category: 'posts',
+    match: 'regex', regex: /^comment\s+(\d+)\s+(.+)$/i,
+    parse: function(m){var t=m[2];if(t.startsWith('"')&&t.endsWith('"'))t=t.slice(1,-1);return[parseInt(m[1],10),t]} });
+  T.register('follow',   { handler: T.cmdFollow, auth: true, category: 'posts',
+    match: 'regex', regex: /^(follow|unfollow)\s+@?(\w+)$/i,
+    parse: function(m){return[m[1].toLowerCase(),m[2]]} });
+  T.register('bookmark', { handler: T.cmdBookmark, auth: true, category: 'posts',
+    match: 'regex', regex: /^bookmark\s+(\d+)$/i,
+    parse: function(m){return[parseInt(m[1],10)]} });
+  T.register('neofetch', { handler: T.cmdNeofetch, auth: false, category: 'info',
+    match: 'regex', regex: /^neofetch\s+@?(\w+)$/i,
+    parse: function(m){return[m[1]]} });
+  T.register('whoami',   { handler: T.cmdWhoami, auth: false, category: 'info' });
+  T.register('feed',     { handler: T.cmdFeed, auth: false, category: 'programs', match: 'prefix' });
+  T.register('saved',    { handler: T.cmdSaved, auth: true, category: 'programs', match: 'prefix' });
+  T.register('followers',{ handler: T.cmdFollowers, auth: false, category: 'social', match: 'prefix' });
+  T.register('following',{ handler: T.cmdFollowing, auth: false, category: 'social', match: 'prefix' });
+  T.register('notifications',{ handler: T.cmdNotifications, auth: true, category: 'programs' });
+  T.register('create',   { handler: T.cmdCreate, auth: true, category: 'posts', match: 'prefix' });
+  T.register('cat',      { handler: T.cmdCat, auth: false, category: 'programs', match: 'prefix' });
+  T.register('less',     { handler: T.cmdLess, auth: false, category: 'programs', match: 'prefix' });
+  T.register('echo',     { handler: T.cmdEcho, auth: false, category: 'system', match: 'prefix' });
+  T.register('date',     { handler: T.cmdDate, auth: false, category: 'system',
+    match: 'regex', regex: /^date(\s+-[uU][tT][cC]|\s+-[uU])?$/i,
+    parse: function(m){return[!!m[1]]} });
+  T.register('history',  { handler: T.cmdHistory, auth: false, category: 'system',
+    match: 'regex', regex: /^history(\s+-[cC]|\s+--clear)?$/i,
+    parse: function(m){return[!!m[1]]} });
+  T.register('uptime',   { handler: T.cmdUptime, auth: false, category: 'system' });
+  T.register('man',      { handler: T.cmdMan, auth: false, category: 'help', match: 'prefix' });
+  T.register('export',   { handler: T.cmdExport, auth: false, category: 'system', match: 'prefix' });
+  T.register('fortune',  { handler: T.cmdFortune, auth: false, category: 'system' });
+  T.register('ping',     { handler: T.cmdPing, auth: false, category: 'system', match: 'prefix' });
+  T.register('watch',    { handler: T.cmdWatch, auth: false, category: 'system', match: 'prefix' });
+  T.register('head',     { handler: T.cmdHead, auth: false, category: 'system', match: 'prefix' });
+  T.register('tail',     { handler: T.cmdTail, auth: false, category: 'system', match: 'prefix' });
+  T.register('top',      { handler: T.cmdTop, auth: false, category: 'system' });
+  T.register('grep',     { handler: T.cmdGrep, auth: false, category: 'programs',
+    match: 'regex', regex: /^grep\s+"(.+?)"$/i,
+    parse: function(m){return[m[1]]} });
+  T.register('clear',    { handler: function(){T.clearOutput()}, auth: false, category: 'system' });
+  T.register('help',     { handler: T.cmdHelp, auth: false, category: 'help' });
+  T.register('pwd',      { handler: T.cmdPwd, auth: false, category: 'system' });
+
 })(window.TERMINAL);
