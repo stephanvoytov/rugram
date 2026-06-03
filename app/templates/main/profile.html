@@ -39,7 +39,7 @@
                 </div>
                 <div class="stat-row">
                     <span class="stat-key">posts</span>
-                    <span class="stat-val">{{ user.posts|selectattr('is_deleted', 'none')|list|length }}</span>
+                    <span class="stat-val">{{ user.posts|rejectattr('is_deleted')|list|length }}</span>
                 </div>
                 <div class="stat-row">
                     <span class="stat-key">followers</span>
@@ -77,7 +77,7 @@
         <!-- Posts column -->
         <div class="profile-posts">
             <div class="profile-posts-header" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0 8px;border-bottom:1px solid var(--border);margin-bottom:12px">
-                <span style="font-size:0.85rem"><b>[user posts]</b> <span style="color:var(--subtle);font-weight:400">— {{ user.posts|selectattr('is_deleted', 'none')|list|length }} posts</span></span>
+                <span style="font-size:0.85rem"><b>[user posts]</b> <span style="color:var(--subtle);font-weight:400">— {{ user.posts|rejectattr('is_deleted')|list|length }} posts</span></span>
             </div>
 
 {% import 'macros/_post_card.html' as macros %}

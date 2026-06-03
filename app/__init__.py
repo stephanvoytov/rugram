@@ -1,10 +1,10 @@
 import os
 import time
-import hashlib
 
 from flask import Flask, request, jsonify, redirect, url_for, session, render_template
 from flask_login import LoginManager
 from flask_restful import Api
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app.models import User
 from app.filters import filters_bp
@@ -39,6 +39,9 @@ def create_app():
     api.add_resource(post_resources.PostListResource, '/api/v1/posts')
     api.add_resource(post_resources.PostResource, '/api/v1/posts/<int:post_id>')
     app.config.from_object(Config)
+
+    # Trust X-Forwarded-Proto/X-For from reverse proxy (Caddy)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
 
     csrf.init_app(app)
 
