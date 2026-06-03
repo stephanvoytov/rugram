@@ -659,6 +659,13 @@ code, .inline-code {
 .tp-less-footer { padding: 4px 0; border-top: 1px solid var(--border); margin-top: 4px; font-size: 0.78rem; }
 .tp-less-search { padding: 6px 0; border-top: 1px solid var(--border); margin-top: 4px; font-size: 0.85rem; }
 
+/* ── Feed-mode posts in less pager ── */
+.tp-feed-text { white-space: pre-wrap; word-break: break-word; color: var(--fg); padding: 2px 0 2px 12px; }
+.tp-feed-text-wrap { border-left: 2px solid var(--border); margin: 2px 0; }
+.tp-feed-actions { padding: 2px 0; font-size: 0.82rem; display: flex; gap: 8px; }
+.tp-feed-spacer { height: 2px; }
+.tp-ascii-img { font-size: 0.4rem; line-height: 1.1; margin: 2px 0 2px 12px; }
+
 /* neofetch */
 .tp-neofetch { padding: 8px 0; }
 .tp-neofetch-row {

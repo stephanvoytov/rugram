@@ -701,7 +701,8 @@
         output: T.el.output.innerHTML,
         scrollTop: T.el.output.scrollTop
       });
-      if (T.el.bar) T.el.bar.style.display = 'none';
+      if (T.el.bar) { T.el.bar.style.display = 'none'; }
+      if (T.el.terminal) { T.el.terminal.style.bottom = '0'; }
     }
     T._programDepth++;
     T.clearOutput();
@@ -716,7 +717,8 @@
         T.el.output.innerHTML = saved.output;
         T.el.output.scrollTop = saved.scrollTop;
       }
-      if (T.el.bar) T.el.bar.style.display = 'block';
+      if (T.el.bar) { T.el.bar.style.display = 'block'; }
+      if (T.el.terminal) { T.el.terminal.style.bottom = '49px'; }
     }
     T.updatePrompt();
     if (T.el.input) setTimeout(function() { T.el.input.focus(); }, 50);
@@ -737,18 +739,28 @@
   T._lessSearchHandler = null;
 
   // ── INTERACTIVE PAGER (less) ──
-  T.enterLessMode = function(items, title, onEnter) {
+  T.enterLessMode = function(items, title, onEnter, type) {
     T._lessActive = true;
     T._lessItems = items;
     T._lessTitle = title || 'feed';
+    T._lessType = type || 'generic';
     T._lessPos = 0;
     T._lessSearchQuery = '';
     T._lessSearchResults = [];
     T._lessFilteredItems = items;
     T._lessOnEnter = onEnter || null;
 
-    // Calculate items per page
-    T._lessPerPage = Math.max(10, Math.floor((T.el.output.clientHeight || 400) / 20));
+    // Clear ASCII art caches on new feed entry
+    if (T._lessType === 'feed') {
+      items.forEach(function(it) {
+        if (it._asciiArt !== undefined) delete it._asciiArt;
+        if (it._asciiConverting !== undefined) delete it._asciiConverting;
+      });
+    }
+
+    // Calculate items per page — feed items are taller
+    var lineH = T._lessType === 'feed' ? 80 : 20;
+    T._lessPerPage = Math.max(3, Math.floor((T.el.output.clientHeight || 400) / lineH));
 
     T.enterProgramView();
     T._renderLess();
@@ -876,8 +888,56 @@
         return;
       }
 
-      // r — refresh current view
-      if (e.key === 'r') {
+      // ── Feed-mode specific keys ──
+      if (T._lessType === 'feed') {
+        var current = T._lessFilteredItems[T._lessPos];
+
+        // l — like/unlike
+        if (e.key === 'l' && current && current.id) {
+          T._feedToggleLike(current);
+          e.preventDefault();
+          return;
+        }
+
+        // s — save/unsave
+        if (e.key === 's' && current && current.id) {
+          T._feedToggleSave(current);
+          e.preventDefault();
+          return;
+        }
+
+        // r — repost
+        if (e.key === 'r' && !e.shiftKey && !e.ctrlKey && current && current.id) {
+          T._feedToggleRepost(current);
+          e.preventDefault();
+          return;
+        }
+
+        // R / Shift+r — refresh feed from API
+        if ((e.key === 'R' || (e.key === 'r' && e.shiftKey)) && !e.ctrlKey) {
+          T._feedRefresh();
+          e.preventDefault();
+          return;
+        }
+
+        // c — open comments
+        if (e.key === 'c' && current && current.id) {
+          T._exitLessMode();
+          T.cmdPostView(current.id);
+          e.preventDefault();
+          return;
+        }
+
+        // f — filter by current post's author
+        if (e.key === 'f' && current && current.author) {
+          T._feedFilterByAuthor(current.author);
+          e.preventDefault();
+          return;
+        }
+      }
+
+      // r — refresh current view (generic)
+      if (e.key === 'r' && !e.ctrlKey && T._lessType !== 'feed') {
         T._renderLess();
         e.preventDefault();
         return;
@@ -960,18 +1020,30 @@
     T.addOutput('<div class="tp-less-header"><span class="tp-section">-- ' + T.escapeHtml(T._lessTitle) + ' (' + total + ' items) ' + searchInfo + ' --</span><span class="tp-muted" style="float:right">' + (pageStart + 1) + '-' + visibleEnd + '  ' + pct + '%</span></div>');
 
     // Items
-    for (var i = visibleStart; i < visibleEnd; i++) {
-      var item = items[i];
-      var isCurrent = (i === pageStart);
-      var prefix = isCurrent ? '<span class="tp-less-cursor">></span> ' : '  ';
-      var line = T._lessRenderItem(item, i);
-      T.addOutput('<div class="tp-line' + (isCurrent ? ' tp-less-current' : '') + '">' + prefix + line + '</div>');
+    if (T._lessType === 'feed') {
+      for (var i = visibleStart; i < visibleEnd; i++) {
+        T._renderFeedItem(items[i], i, i === pageStart);
+      }
+    } else {
+      for (var i = visibleStart; i < visibleEnd; i++) {
+        var item = items[i];
+        var isCurrent = (i === pageStart);
+        var prefix = isCurrent ? '<span class="tp-less-cursor">></span> ' : '  ';
+        var line = T._lessRenderItem(item, i);
+        T.addOutput('<div class="tp-line' + (isCurrent ? ' tp-less-current' : '') + '">' + prefix + line + '</div>');
+      }
     }
 
     // Footer
-    var footer = '# less  —  j/k/⇅ scroll  Enter view  /search  n/N next  gg/G top/bottom  q quit';
-    if (T._lessSearchQuery) {
-      footer = '/ ' + T._lessSearchQuery + '  —  n next  N prev  Enter open  q quit';
+    var footer;
+    if (T._lessType === 'feed') {
+      footer = T._lessSearchQuery
+        ? '/ ' + T._lessSearchQuery + '  —  n next  N prev  Enter open  q quit'
+        : '# feed  —  l:like  s:save  r:repost  c:comments  o:open  f:filter-by-author  R:refresh  j/k/⇅ scroll  /search  q quit';
+    } else {
+      footer = T._lessSearchQuery
+        ? '/ ' + T._lessSearchQuery + '  —  n next  N prev  Enter open  q quit'
+        : '# less  —  j/k/⇅ scroll  Enter view  /search  n/N next  gg/G top/bottom  q quit';
     }
     T.addOutput('<div class="tp-less-footer"><span class="tp-muted">' + footer + '</span></div>');
   };
@@ -1077,6 +1149,163 @@
       buf += '<span class="tp-muted">(no content)</span>';
     }
     return buf;
+  };
+
+  // ── Feed-mode multi-line post renderer ──
+  T._renderFeedItem = function(item, idx, isCurrent) {
+    var cls = 'tp-line' + (isCurrent ? ' tp-less-current' : '');
+    var prefix = isCurrent ? '<span class="tp-less-cursor">></span>' : '';
+    var esc = T.escapeHtml;
+
+    // Header: #id @author time
+    var timeDisplay = item.time && item.time.indexOf('T') > 0 ? T.relTime(item.time) : (item.time || '');
+    var header = prefix + ' <span class="tp-post-id">#' + item.id + '</span>'
+      + ' <span class="tp-post-author">@' + esc(item.author) + '</span>'
+      + ' <span class="tp-post-time">' + esc(timeDisplay) + '</span>';
+
+    // Text — full, not truncated
+    var textBlock = item.text
+      ? '<div class="tp-feed-text">' + esc(item.text) + '</div>'
+      : '';
+
+    // Image → ASCII art (async, cached)
+    var asciiBlock = '';
+    if (item.image) {
+      if (item._asciiArt) {
+        asciiBlock = item._asciiArt;
+      } else {
+        if (!item._asciiConverting) {
+          item._asciiConverting = true;
+          T.imageToAscii(item.image, 40, function(ascii) {
+            item._asciiArt = ascii;
+            item._asciiConverting = false;
+            T._renderLess();
+          });
+        }
+        asciiBlock = '<div class="tp-feed-img"><span class="tp-muted">[img...</span></div>';
+      }
+    }
+
+    // Action bar: likes, comments, reposts, saved status
+    var liked = item.is_liked ? '<span class="tp-ok">●</span>' : '<span class="tp-muted">○</span>';
+    var savedMark = item.is_saved ? ' <span class="tp-ok">✦</span>' : '';
+    var imgMark = item.image ? ' <span class="tp-muted">📷</span>' : '';
+    var actions = '<div class="tp-feed-actions">'
+      + liked + ' <span class="tp-muted">' + (item.likes || 0) + '</span>'
+      + '  <span class="tp-muted">💬</span> <span class="tp-muted">' + (item.comments || 0) + '</span>'
+      + '  <span class="tp-muted">🔁</span> <span class="tp-muted">' + (item.reposts || 0) + '</span>'
+      + imgMark + savedMark
+      + '</div>';
+
+    T.addOutput('<div class="' + cls + '">' + header + '</div>');
+    if (textBlock) T.addOutput('<div class="tp-line tp-feed-text-wrap">' + textBlock + '</div>');
+    if (asciiBlock) T.addOutput('<div class="tp-line">' + asciiBlock + '</div>');
+    T.addOutput('<div class="tp-line">' + actions + '</div>');
+    T.addOutput('<div class="tp-line tp-feed-spacer">&nbsp;</div>');
+  };
+
+  // ── Feed: toggle like ──
+  T._feedToggleLike = function(item) {
+    if (!item || !item.id) return;
+    var url = window.LIKE_URL.replace('/0/', '/' + item.id + '/');
+    fetch(url, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': T.csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin'
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.status === 'ok' || data.liked !== undefined) {
+        item.is_liked = data.liked !== undefined ? data.liked : !item.is_liked;
+        item.likes = data.likes_count !== undefined ? data.likes_count : (item.likes || 0) + (item.is_liked ? 1 : -1);
+        T._renderLess();
+        T.toast(item.is_liked ? '❤ liked' : '💔 unliked', 'ok');
+      }
+    })
+    .catch(function() { T.toast('like failed', 'err'); });
+  };
+
+  // ── Feed: toggle save ──
+  T._feedToggleSave = function(item) {
+    if (!item || !item.id) return;
+    var url = window.SAVE_URL.replace('/0/', '/' + item.id + '/');
+    fetch(url, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': T.csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin'
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.status === 'ok' || data.saved !== undefined) {
+        item.is_saved = data.saved !== undefined ? data.saved : !item.is_saved;
+        T._renderLess();
+        T.toast(item.is_saved ? '✦ saved' : 'unsaved', 'ok');
+      }
+    })
+    .catch(function() { T.toast('save failed', 'err'); });
+  };
+
+  // ── Feed: toggle repost ──
+  T._feedToggleRepost = function(item) {
+    if (!item || !item.id) return;
+    var url = window.REPOST_URL.replace('/0/', '/' + item.id + '/');
+    fetch(url, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': T.csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin'
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.status === 'ok' || data.reposted !== undefined) {
+        item.is_reposted = data.reposted !== undefined ? data.reposted : !item.is_reposted;
+        item.reposts = data.reposts_count !== undefined ? data.reposts_count : (item.reposts || 0) + (item.is_reposted ? 1 : -1);
+        T._renderLess();
+        T.toast(item.is_reposted ? '🔁 reposted' : 'repost removed', 'ok');
+      }
+    })
+    .catch(function() { T.toast('repost failed', 'err'); });
+  };
+
+  // ── Feed: refresh from API ──
+  T._feedRefresh = function() {
+    T.showLoading(T._('Обновление ленты...', 'Refreshing feed...'));
+    T.fetchFeedFromAPI(function() {
+      T.hideLoading();
+      if (T._lessActive) {
+        T._lessFilteredItems = T.feedData.slice();
+        T._lessItems = T.feedData.slice();
+        T._lessPos = 0;
+        // Clear ASCII caches
+        T._lessFilteredItems.forEach(function(it) {
+          delete it._asciiArt;
+          delete it._asciiConverting;
+        });
+        T._renderLess();
+      }
+      T.toast('feed refreshed (' + T.feedData.length + ' posts)', 'ok');
+    });
+  };
+
+  // ── Feed: filter by author ──
+  T._feedFilterByAuthor = function(author) {
+    if (!author) return;
+    var q = author.toLowerCase();
+    var filtered = T._lessItems.filter(function(p) {
+      return p.author && p.author.toLowerCase() === q;
+    });
+    if (!filtered.length) {
+      T.toast('no posts from @' + author, 'err');
+      return;
+    }
+    T._lessFilteredItems = filtered;
+    T._lessPos = 0;
+    // Clear ASCII for re-render
+    filtered.forEach(function(it) {
+      delete it._asciiArt;
+      delete it._asciiConverting;
+    });
+    T.toast('filter: @' + author + ' (' + filtered.length + ' posts)', 'ok');
+    T._renderLess();
   };
 
   // ── Image to ASCII ──

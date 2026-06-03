@@ -1358,7 +1358,7 @@
       T.enterLessMode(list, T._('Лента', 'Feed') + ' (' + list.length + ')', function(item) {
         T._exitLessMode();
         T.cmdPostView(item.id);
-      });
+      }, 'feed');
       return;
     }
 
@@ -1460,7 +1460,7 @@
           T.enterLessMode(T.feedData, 'feed (' + T.feedData.length + ' posts)', function(item) {
             T._exitLessMode();
             T.cmdPostView(item.id);
-          });
+          }, 'feed');
         } else {
           T.addOutputLine('<span class="tp-muted">feed: empty</span>');
         }
@@ -1496,7 +1496,7 @@
         T.enterLessMode(slice, 'feed (first ' + limit + ')', function(item) {
           T._exitLessMode();
           T.cmdPostView(item.id);
-        });
+        }, 'feed');
       } else {
         T.addOutputLine('<span class="tp-muted">less: empty</span>');
       }
@@ -1509,7 +1509,7 @@
         T.enterLessMode(T.feedData, 'feed (' + T.feedData.length + ' posts)', function(item) {
           T._exitLessMode();
           T.cmdPostView(item.id);
-        });
+        }, 'feed');
       } else {
         T.addOutputLine('<span class="tp-err">feed: empty</span>');
       }
