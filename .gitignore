@@ -408,4 +408,6 @@ terminal-*.png
 AUDIT.md
 AUDIT2.md
 CONCEPT.md
+AGENTS.md
+app/static/images/screenshot.png
 *.log
