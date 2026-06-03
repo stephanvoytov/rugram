@@ -333,9 +333,16 @@ function createMessageElement(message) {
     div.dataset.messageId = message.id;
     div.dataset.messageDate = message.created_date;
     const time = formatTime(message.created_date);
+    const readIcon = isOwn ? (message.is_read
+        ? '<span style="color:var(--accent);font-size:0.6rem;margin-left:3px">✓✓</span>'
+        : '<span style="color:var(--subtle);font-size:0.6rem;margin-left:3px">✓</span>')
+        : '';
     div.innerHTML = '<div class="msg-bubble ' + (isOwn ? 'own' : 'other') + '">'
         + '<span>' + escapeHtml(message.text) + '</span>'
+        + '<div style="display:flex;align-items:center;gap:2px;justify-content:flex-end">'
         + '<small style="opacity:0.6;font-size:0.65rem;white-space:nowrap">' + time + '</small>'
+        + readIcon
+        + '</div>'
         + '</div>';
     return div;
 }
