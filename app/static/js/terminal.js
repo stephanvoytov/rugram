@@ -24,6 +24,41 @@
   T.cwd = '';
   T.prevCmd = '';
 
+  // ── Command Registry (system metadata) ──
+  T.registry = {};
+  T._regOrder = 0;
+
+  T.register = function(name, meta) {
+    meta._order = T._regOrder++;
+    // Auto-generate match regex
+    if (meta.match === 'exact' && !meta.regex) {
+      meta.regex = new RegExp('^' + name + '$', 'i');
+    } else if (meta.match === 'prefix' && !meta.regex) {
+      meta.regex = new RegExp('^' + name + '\\b', 'i');
+    } else if (meta.match === 'regex' && !meta.regex) {
+      meta.regex = new RegExp(name, 'i');
+    }
+    // Default: exact match with no args
+    if (!meta.match) meta.match = 'exact';
+    if (!meta.auth) meta.auth = false;
+    T.registry[name] = meta;
+  };
+
+  T.unauthError = function(cmdName) {
+    T.addOutputLine('<span class="tp-err">' + cmdName + ': ' + T._('Требуется вход.', 'Login required.') + '</span>');
+    T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
+  };
+
+  T.onceKey = function(key, callback) {
+    var handler = function(e) {
+      if (e.key === key || (key === 'q' && (e.key === 'Q' || e.key === 'Escape'))) {
+        document.removeEventListener('keydown', handler);
+        e.preventDefault();
+        callback();
+      }
+    };
+    setTimeout(function() { document.addEventListener('keydown', handler); }, 100);
+  };
   // ── DOM refs (set on init) ──
   T.el = {};
 
@@ -263,220 +298,64 @@
   };
 
   T._dispatchCommand = function(cmd) {
-    // --help flag
+    // --help flag (generic — works for any command)
     if (/\s--help$|^--help$/.test(cmd)) {
       var hlpName = cmd.replace(/\s*--help$/, '').trim().split(' ')[0];
       T.showCmdHelp(hlpName || 'help');
       return;
     }
 
-    var m;
+    // Special commands that DON'T use the registry
+    // (non-standard dispatch, command history, mode switch, cd)
 
-    // login <username> <password>
-    if (/^login/i.test(cmd)) {
-      m = cmd.match(/^login\s+(\S+)\s+(.+)$/i);
-      if (m) { T.cmdLogin(m[1], m[2]); return; }
-      T.addOutputLine('<span class="tp-err">Usage: login &lt;username&gt; &lt;password&gt;</span>');
-      return;
-    }
-
-    // register <username> <email> <password>
-    if (/^register/i.test(cmd)) {
-      m = cmd.match(/^register\s+(\S+)\s+(\S+)\s+(.+)$/i);
-      if (m) { T.cmdRegister(m[1], m[2], m[3]); return; }
-      T.addOutputLine('<span class="tp-err">Usage: register &lt;username&gt; &lt;email&gt; &lt;password&gt;</span>');
-      return;
-    }
-
-    // logout
-    if (cmd.toLowerCase() === 'logout') { T.cmdLogout(); return; }
-
-    // like <id>
-    m = cmd.match(/^like\s+(\d+)$/i);
-    if (m) { T.cmdLike(parseInt(m[1], 10)); return; }
-
-    // comment <id> "text" or comment <id> text
-    m = cmd.match(/^comment\s+(\d+)\s+"(.+?)"$/i) || cmd.match(/^comment\s+(\d+)\s+(.+)$/i);
-    if (m) { T.cmdComment(parseInt(m[1], 10), m[2]); return; }
-
-    // follow/unfollow @user
-    m = cmd.match(/^(follow|unfollow)\s+@?(\w+)$/i);
-    if (m) { T.cmdFollow(m[1].toLowerCase(), m[2]); return; }
-
-    // bookmark <id>
-    m = cmd.match(/^bookmark\s+(\d+)$/i);
-    if (m) { T.cmdBookmark(parseInt(m[1], 10)); return; }
-
-    // neofetch @user
-    m = cmd.match(/^neofetch\s+@?(\w+)$/i);
-    if (m) { T.cmdNeofetch(m[1]); return; }
-
-    // whoami
-    if (cmd.toLowerCase() === 'whoami') { T.cmdWhoami(); return; }
-
-    // ── Programs (work from any directory) ──
-    // feed [--tail N] [--page N] [--search text] [--less]
-    if (/^feed\b/i.test(cmd)) {
-      T.cmdFeed(cmd.substring(4).trim());
-      return;
-    }
-
-    // saved [--tail N] [--less]
-    if (/^saved\b/i.test(cmd)) {
-      T.cmdSaved(cmd.substring(5).trim());
-      return;
-    }
-
-    // followers [--of @user] [--less]
-    if (/^followers\b/i.test(cmd)) {
-      T.cmdFollowers(cmd.substring(9).trim());
-      return;
-    }
-
-    // following [--of @user] [--less]
-    if (/^following\b/i.test(cmd)) {
-      T.cmdFollowing(cmd.substring(9).trim());
-      return;
-    }
-
-    // notifications
-    if (cmd.toLowerCase() === 'notifications' || cmd.toLowerCase() === 'cat /notifications') {
-      T.cmdNotifications();
-      return;
-    }
-
-    // create — new post (opens nano)
-    if (/^create\b/i.test(cmd)) {
-      T.cmdCreate();
-      return;
-    }
-
-    // cat <id> or cat post_<id> or cat <file>
-    if (/^cat\b/i.test(cmd)) {
-      T.cmdCat(cmd.substring(3).trim());
-      return;
-    }
-
-    // less [dir] — interactive pager
-    if (/^less\b/i.test(cmd)) {
-      T.cmdLess(cmd.substring(4).trim());
-      return;
-    }
-
-    // ls [-l] [section]
-    if (cmd.toLowerCase() === 'ls' || /^ls\b/.test(cmd)) {
-      var lsArgs = cmd.substring(2).trim();
-      T.cmdLs(lsArgs);
-      return;
-    }
-
-    // echo
-    if (/^echo\b/i.test(cmd)) {
-      T.cmdEcho(cmd.substring(4).trim());
-      return;
-    }
-
-    // date
-    if (cmd.toLowerCase() === 'date') { T.cmdDate(false); return; }
-    if (cmd.toLowerCase() === 'date -u' || cmd.toLowerCase() === 'date -utc') { T.cmdDate(true); return; }
-
-    // history [-c]
-    if (cmd.toLowerCase() === 'history') { T.cmdHistory(false); return; }
-    if (cmd.toLowerCase() === 'history -c' || cmd.toLowerCase() === 'history --clear') { T.cmdHistory(true); return; }
-
-    // uptime
-    if (cmd.toLowerCase() === 'uptime') { T.cmdUptime(); return; }
-
-    // man [-k] [command]
-    if (cmd.toLowerCase() === 'man' || /^man\b/.test(cmd)) {
-      T.cmdMan(cmd.substring(3).trim());
-      return;
-    }
-
-    // export [VAR[=value]]
-    if (cmd.toLowerCase() === 'export' || /^export\b/.test(cmd)) {
-      T.cmdExport(cmd.substring(6).trim());
-      return;
-    }
-
-    // fortune
-    if (cmd.toLowerCase() === 'fortune') { T.cmdFortune(); return; }
-
-    // ping [@user]
-    if (/^ping\b/i.test(cmd)) {
-      T.cmdPing(cmd.substring(4).trim());
-      return;
-    }
-
-    // watch [-n N] <command> | watch stop
-    if (/^watch\b/i.test(cmd)) {
-      T.cmdWatch(cmd.substring(5).trim());
-      return;
-    }
-
-    // head [-n N]
-    if (cmd.toLowerCase() === 'head' || /^head\s+-/.test(cmd)) {
-      T.cmdHead(cmd.substring(4).trim());
-      return;
-    }
-
-    // tail [-n N]
-    if (cmd.toLowerCase() === 'tail' || /^tail\s+-/.test(cmd)) {
-      T.cmdTail(cmd.substring(4).trim());
-      return;
-    }
-
-    // top
-    if (cmd.toLowerCase() === 'top') { T.cmdTop(); return; }
-
-    // nano post <id> | nano profile | nano (opens draft in /create)
-    if (/^nano\b/i.test(cmd)) {
-      T.cmdNano(cmd.substring(4).trim());
-      return;
-    }
-
-    // say <text>
-    if (/^say\s+/i.test(cmd)) {
-      T.cmdSay(cmd.substring(3).trim());
-      return;
-    }
-
-    // start @user
-    if (/^start\b/i.test(cmd)) {
-      T.startChatWithUser(cmd.substring(5).trim().replace(/^@/, ''), true);
-      return;
-    }
-
-    // grep "text"
-    m = cmd.match(/^grep\s+"(.+?)"$/i);
-    if (m) { T.cmdGrep(m[1]); return; }
-
-    // clear
-    if (cmd.toLowerCase() === 'clear') { T.clearOutput(); return; }
-
-    // help
-    if (cmd.toLowerCase() === 'help') { T.cmdHelp(); return; }
-
-    // chat — list conversations
-    if (cmd.toLowerCase() === 'chat') { T.renderChatList(); return; }
-
-    // gui
-    if (cmd.toLowerCase() === 'gui' || cmd.toLowerCase() === 'exit') { T.setMode('gui'); return; }
-
-    // cd <section> — now ONLY changes $PWD
+    // cd <section>
     if (cmd.toLowerCase().startsWith('cd ') || cmd.toLowerCase() === 'cd') {
       var cdTarget = cmd.trim().length > 2 ? cmd.slice(cmd.indexOf(' ') + 1).trim() : '';
       T.processCd(cdTarget);
       return;
     }
 
-    // pwd
-    if (cmd.toLowerCase() === 'pwd') { T.cmdPwd(); return; }
+    // gui / exit
+    if (cmd.toLowerCase() === 'gui' || cmd.toLowerCase() === 'exit') {
+      T.setMode('gui');
+      return;
+    }
 
-    // sudo !!
+    // sudo !! — repeat previous command
     if (cmd.toLowerCase() === 'sudo !!') {
       if (T.prevCmd) { T._dispatchCommand(T.prevCmd); return; }
       T.addOutputLine('<span class="tp-err">sudo: no previous command</span>');
+      return;
+    }
+
+    // ── Registry dispatch ──
+    // Iterate in registration order (entries registered first = matched first)
+    var names = Object.keys(T.registry);
+    for (var i = 0; i < names.length; i++) {
+      var entry = T.registry[names[i]];
+      var m = cmd.match(entry.regex);
+      if (!m) continue;
+
+      // Auth middleware
+      if (entry.auth && !T.isLoggedIn) {
+        T.unauthError(names[i]);
+        return;
+      }
+
+      if (entry.match === 'regex' && entry.parse) {
+        // Regex with captured args + parser
+        entry.handler.apply(null, entry.parse(m));
+      } else if (entry.match === 'prefix') {
+        // Prefix match — pass rest of string after command name
+        entry.handler(cmd.substring(names[i].length).trim());
+      } else {
+        // Exact match — no args or simple args
+        if (m[1] !== undefined && entry.parse) {
+          entry.handler.apply(null, entry.parse(m));
+        } else {
+          entry.handler();
+        }
+      }
       return;
     }
 

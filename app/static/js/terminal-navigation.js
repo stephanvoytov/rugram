@@ -71,21 +71,19 @@
       return;
     }
 
-    // chat/<id> — open conversation
+    // chat/<id> — just change cwd (use `chat <id>` to open)
     var chatIdMatch = target.match(/^chat[\s/]+(\d+)$/i);
     if (chatIdMatch) {
       T.stopChatPolling();
       T.cwd = 'chat/' + chatIdMatch[1];
       T.updatePrompt();
-      T.loadChatMessages(parseInt(chatIdMatch[1], 10));
       return;
     }
 
-    // chat — open chat list
+    // chat — just change cwd (use `chat` command to open)
     if (target === 'chat') {
       T.cwd = 'chat';
       T.updatePrompt();
-      T.renderChatList();
       return;
     }
 
@@ -221,7 +219,7 @@
     if (listFrom === 'chat' || listFrom === 'chats') {
       T.addOutputLine('<span class="tp-desc">chat/</span>');
       T.addOutputLine('<span class="tp-muted">  # <span class="tp-cmd">chat</span> ' + T._('показать диалоги', 'to list conversations') + '</span>');
-      T.addOutputLine('<span class="tp-muted">  # <span class="tp-cmd">ls chat/&lt;id&gt;</span> ' + T._('показать переписку', 'to show a conversation') + '</span>');
+      T.addOutputLine('<span class="tp-muted">  # <span class="tp-cmd">chat &lt;id&gt;</span> ' + T._('открыть диалог', 'to open a conversation') + '</span>');
       T.addSysLine('<span class="tp-muted">1 directory</span>');
       return;
     }
@@ -266,10 +264,12 @@
       return;
     }
 
-    // ── /chat/<id> ──
+    // ── /chat/<id> — show hint, don't open automatically ──
     var chatSubMatch = listFrom.match(/^chat\/(\d+)$/);
     if (chatSubMatch) {
-      T.loadChatMessages(parseInt(chatSubMatch[1], 10));
+      T.addOutputLine('<span class="tp-desc">chat/' + chatSubMatch[1] + '/</span>');
+      T.addOutputLine('<span class="tp-muted">  use <span class="tp-cmd">chat ' + chatSubMatch[1] + '</span> ' + T._('чтобы открыть', 'to open conversation') + '</span>');
+      T.addSysLine('<span class="tp-muted">1 conversation</span>');
       return;
     }
 
@@ -283,5 +283,8 @@
 
     T.addOutputLine('<span class="tp-err">ls: ' + T.escapeHtml(listFrom) + ': No such directory</span>');
   };
+
+  // ── Registry ──
+  T.register('ls', { handler: T.cmdLs, auth: false, category: 'navigation', match: 'prefix' });
 
 })(window.TERMINAL);

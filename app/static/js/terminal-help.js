@@ -445,7 +445,7 @@
     T.addOutputLine('');
 
     printCategory(T._('Чат', 'Chat'), [
-      ['cd chat', '', T._('Перейти в /chat', 'Go to /chat')],
+      ['chat', '[<id>]', T._('Список диалогов / открыть диалог', 'List conversations / open conversation')],
       ['say', '<text>', T._('Отправить сообщение', 'Send a message in current chat')],
       ['start', '@<user>', T._('Начать чат с пользователем', 'Start a chat with a user')],
     ]);

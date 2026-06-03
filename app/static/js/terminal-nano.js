@@ -273,4 +273,7 @@
     });
   };
 
+  // ── Registry ──
+  T.register('nano', { handler: T.cmdNano, auth: false, category: 'posts', match: 'prefix' });
+
 })(window.TERMINAL);
