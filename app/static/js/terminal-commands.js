@@ -636,9 +636,9 @@
     var tailN = null, inlineMode = false, lessMode = false, unreadOnly = false;
     var tailMatch = args.match(/--tail\s+(\d+)/);
     if (tailMatch) tailN = parseInt(tailMatch[1], 10);
-    if (/\b--inline\b/.test(args)) inlineMode = true;
-    if (/\b--less\b/.test(args))   lessMode = true;
-    if (/\b--unread\b/.test(args)) unreadOnly = true;
+    if (/--inline\b/.test(args)) inlineMode = true;
+    if (/--less\b/.test(args))   lessMode = true;
+    if (/--unread\b/.test(args)) unreadOnly = true;
 
     T.showLoading('Loading notifications...');
     fetch(window.API_NOTIFICATIONS_URL)
@@ -708,8 +708,8 @@
     args = (args || '').trim().toLowerCase();
 
     var tailN = null, searchQ = null;
-    var inlineMode = /\b--inline\b/.test(args);
-    var lessMode   = /\b--less\b/.test(args);
+    var inlineMode = /--inline\b/.test(args);
+    var lessMode   = /--less\b/.test(args);
     var tailMatch = args.match(/--tail\s+(\d+)/);
     if (tailMatch) tailN = parseInt(tailMatch[1], 10);
     var searchMatch = args.match(/--search\s+([\s\S]*?)(?=\s+--\w|\s*$)/);
@@ -799,8 +799,8 @@
   // ── Shared user listing helper (used by followers / following) ──
   T._listUsers = function(cfg, args) {
     args = (args || '').trim();
-    var inlineMode = /\b--inline\b/.test(args);
-    var lessMode   = /\b--less\b/.test(args);
+    var inlineMode = /--inline\b/.test(args);
+    var lessMode   = /--less\b/.test(args);
     var ofMatch = args.match(/--of\s+@?(\w+)/);
     var user = ofMatch ? ofMatch[1] : (T.isLoggedIn ? T.username : null);
 
@@ -1313,7 +1313,7 @@
     if (tailMatch) tailN = parseInt(tailMatch[1], 10);
     if (pageMatch) pageN = parseInt(pageMatch[1], 10);
     if (byMatch)   byUser = byMatch[1].toLowerCase();
-    if (/\b--inline\b/.test(args)) inlineMode = true;
+    if (/--inline\b/.test(args)) inlineMode = true;
 
     // --search: extract text between --search and next --flag (or end)
     var searchMatch = args.match(/--search\s+([\s\S]*?)(?=\s+--\w|\s*$)/);
@@ -1570,7 +1570,7 @@
   T.register('saved',    { handler: T.cmdSaved, auth: true, category: 'programs', match: 'prefix' });
   T.register('followers',{ handler: T.cmdFollowers, auth: false, category: 'social', match: 'prefix' });
   T.register('following',{ handler: T.cmdFollowing, auth: false, category: 'social', match: 'prefix' });
-  T.register('notifications',{ handler: T.cmdNotifications, auth: true, category: 'programs' });
+  T.register('notifications',{ handler: T.cmdNotifications, auth: true, category: 'programs', match: 'prefix' });
   T.register('create',   { handler: T.cmdCreate, auth: true, category: 'posts', match: 'prefix' });
   T.register('cat',      { handler: T.cmdCat, auth: false, category: 'programs', match: 'prefix' });
   T.register('less',     { handler: T.cmdLess, auth: false, category: 'programs', match: 'prefix' });
