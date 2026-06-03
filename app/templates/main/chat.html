@@ -110,6 +110,16 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => clearInterval(waitAndOpen), 15000);
     }
 
+    // Restore last selected chat after reload
+    const savedChatId = localStorage.getItem('rugram_chat_id');
+    if (savedChatId) {
+        const waitForRestore = setInterval(() => {
+            const item = document.querySelector(`[data-chat-id="${savedChatId}"]`);
+            if (item) { clearInterval(waitForRestore); item.click(); }
+        }, 200);
+        setTimeout(() => clearInterval(waitForRestore), 10000);
+    }
+
     setupTypingSignal();
     document.getElementById('messageForm').addEventListener('submit', sendMessage);
     document.getElementById('messagesContainer').addEventListener('scroll', function() {
@@ -173,6 +183,7 @@ function createChatItem(chat) {
 async function selectChat(chatId, otherUser) {
     currentChatId = chatId;
     otherUsername = otherUser.username;
+    localStorage.setItem('rugram_chat_id', chatId);
     document.querySelectorAll('.chat-item').forEach(item => item.classList.remove('active'));
     const activeEl = document.querySelector('[data-chat-id="' + chatId + '"]');
     if (activeEl) activeEl.classList.add('active');
