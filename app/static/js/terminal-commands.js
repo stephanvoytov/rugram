@@ -313,18 +313,29 @@
     T.addOutputLine('<span class="tp-err">alias: invalid syntax. Usage: alias name="command"</span>');
   };
 
-  // ── COMMAND: rm — delete posts, comments, and tmp files (VFS-powered) ──
+  // ── COMMAND: rm — с корзиной, -f флагом (VFS-powered) ──
   T.cmdRm = function(args) {
-    if (!T.isLoggedIn) {
-      T.addOutputLine('<span class="tp-err">rm: ' + T._('Требуется вход.', 'Login required.') + '</span>');
-      T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
-      return;
-    }
     args = (args || '').trim();
+    var force = false;
 
-    // rm comment <id> — не path-based, оставляем как есть
+    // Parse -f flag
+    if (args.indexOf('-f ') === 0 || args === '-f') {
+      force = true;
+      args = args.replace(/^-f\s*/, '').trim();
+      if (!args) {
+        T.addOutputLine('<span class="tp-err">Usage: rm [-f] &lt;path&gt; | rm comment &lt;id&gt;</span>');
+        return;
+      }
+    }
+
+    // rm comment <id> — не path-based
     var commentMatch = args.match(/^comment\s+(\d+)$/i);
     if (commentMatch) {
+      if (!T.isLoggedIn) {
+        T.addOutputLine('<span class="tp-err">rm: ' + T._('Требуется вход.', 'Login required.') + '</span>');
+        T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
+        return;
+      }
       var commentId = parseInt(commentMatch[1], 10);
       T.showLoading(T._('Удаление комментария...', 'Deleting comment...'));
       var token = T.csrfToken();
@@ -349,42 +360,82 @@
       return;
     }
 
-    // ── Голый номер — fallback с лоадером (для backward compat) ──
-    var idMatch = args.match(/^(\d+)$/i);
-    if (idMatch) {
-      var postId = parseInt(idMatch[1], 10);
-      T.showLoading(T._('Удаление поста...', 'Deleting post...'));
-      var token = T.csrfToken();
-      fetch('/delete/' + postId, {
-        method: 'DELETE',
-        headers: { 'X-CSRFToken': token ? token.content : '', 'X-Requested-With': 'XMLHttpRequest' },
-        credentials: 'same-origin'
-      })
-      .then(function(r) {
-        if (!r.ok) { throw new Error('HTTP ' + r.status); }
-        return r.json();
-      })
-      .then(function() {
-        T.hideLoading();
-        T.feedData = T.feedData.filter(function(p) { return p.id !== postId; });
-        T.addSysLine('<span class="tp-ok">' + T._('Пост #', 'Post #') + postId + ' ' + T._('удалён', 'deleted') + '</span>');
-        T.toast(T._('Пост удалён', 'Post deleted'), 'ok');
-      })
-      .catch(function() {
-        T.hideLoading();
-        T.addOutputLine('<span class="tp-err">rm: ' + T._('ошибка удаления поста #', 'could not delete post #') + postId + ' ' + T._('(можно удалять только свои посты)', '(you can only delete your own posts)') + '</span>');
-      });
-      return;
-    }
-
-    // ── VFS resolution: rm feed/42.txt, rm tmp/draft.txt ──
+    // ── VFS resolution ──
     var node = T.vfs.resolve(args);
     if (node && !node.error && typeof node.remove === 'function') {
-      node.remove(T.addOutputLine);
+      if (force) {
+        // -f: удалить навсегда, минуя корзину
+        node.remove(T.addOutputLine, true);
+      } else {
+        node.remove(T.addOutputLine, false);
+      }
       return;
     }
 
-    T.addOutputLine('<span class="tp-err">rm: ' + T._('использование: rm &lt;id&gt; | rm comment &lt;id&gt; | rm &lt;path&gt;', 'usage: rm &lt;id&gt; | rm comment &lt;id&gt; | rm &lt;path&gt;') + '</span>');
+    // ── Fallback: голый номер (из контекста posts) ──
+    var idMatch = args.match(/^(\d+)$/i);
+    if (idMatch && T.cwd === 'posts') {
+      if (!T.isLoggedIn) {
+        T.addOutputLine('<span class="tp-err">rm: ' + T._('Требуется вход.', 'Login required.') + '</span>');
+        return;
+      }
+      // Ищем пост в feedData
+      var postId = parseInt(idMatch[1], 10);
+      var post = null;
+      for (var i = 0; i < T.feedData.length; i++) {
+        if (T.feedData[i].id === postId) { post = T.feedData[i]; break; }
+      }
+      if (!post) {
+        T.addOutputLine('<span class="tp-err">rm: ' + T._('пост #', 'post #') + postId + ' ' + T._('не найден', 'not found') + '</span>');
+        return;
+      }
+      var isOwn = T.username && post.author && post.author.toLowerCase() === T.username.toLowerCase();
+      if (!isOwn) {
+        T.addOutputLine('<span class="tp-err">rm: ' + T._('нельзя удалять чужие посты', 'cannot delete other users\' posts') + '</span>');
+        return;
+      }
+      if (force) {
+        T.showLoading(T._('Удаление навсегда...', 'Deleting permanently...'));
+        var token = T.csrfToken();
+        fetch('/delete/' + postId, {
+          method: 'DELETE',
+          headers: { 'X-CSRFToken': token ? token.content : '', 'X-Requested-With': 'XMLHttpRequest' },
+          credentials: 'same-origin'
+        }).then(function(r) {
+          if (!r.ok) throw new Error();
+          T.hideLoading();
+          T.feedData = T.feedData.filter(function(p) { return p.id !== postId; });
+          T.addSysLine('<span class="tp-ok">' + T._('Пост #', 'Post #') + postId + ' ' + T._('удалён навсегда', 'permanently deleted') + '</span>');
+          T.toast(T._('Пост удалён', 'Post deleted'), 'ok');
+        }).catch(function() {
+          T.hideLoading();
+          T.addOutputLine('<span class="tp-err">rm: ' + T._('ошибка удаления поста #', 'could not delete post #') + postId + '</span>');
+        });
+      } else {
+        // В корзину
+        T._movePostToTrash(post);
+        T.feedData = T.feedData.filter(function(p) { return p.id !== postId; });
+        T.addSysLine('<span class="tp-ok">' + T._('Пост #', 'Post #') + postId + ' ' + T._('перемещён в корзину', 'moved to trash') + '</span>');
+        T.addOutputLine('<span class="tp-muted">  # <span class="tp-cmd">rm -f ' + postId + '</span> ' + T._('для безвозвратного удаления', 'to delete permanently') + '</span>');
+      }
+      return;
+    }
+
+    T.addOutputLine('<span class="tp-err">rm: ' + T._('использование: rm [-f] &lt;id&gt; | rm comment &lt;id&gt; | rm &lt;path&gt;', 'usage: rm [-f] &lt;id&gt; | rm comment &lt;id&gt; | rm &lt;path&gt;') + '</span>');
+  };
+
+  // ── Trash helper (shared between VFS and fallback) ──
+  T._movePostToTrash = function(post) {
+    try {
+      var trash = JSON.parse(localStorage.getItem('rugram_trash')) || [];
+      trash.push({
+        id: post.id, author: post.author, text: post.text, time: post.time,
+        likes: post.likes, image: post.image,
+        original_path: 'posts/' + post.id + '.post',
+        deleted_at: new Date().toISOString(),
+      });
+      localStorage.setItem('rugram_trash', JSON.stringify(trash));
+    } catch(e) {}
   };
 
   // ── COMMAND: source — load and run scripts ──
@@ -1391,9 +1442,9 @@
       }
     }
 
-    // ── Fallback: голый номер в feed/saved ──
+    // ── Fallback: голый номер в posts/saved ──
     var bareNumMatch = args.match(/^(\d+)$/);
-    if (bareNumMatch && (T.cwd === 'feed' || T.cwd === 'saved')) {
+    if (bareNumMatch && (T.cwd === 'posts' || T.cwd === 'saved')) {
       T.cmdPostView(parseInt(bareNumMatch[1], 10));
       return;
     }

@@ -17,7 +17,7 @@
     var node = T.vfs.resolve(args);
     if (!node || node.error) {
       T.addOutputLine('<span class="tp-err">nano: ' + T.escapeHtml(args) + ': No such file</span>');
-      T.addOutputLine('<span class="tp-desc">  # ' + T._('файлы: description.txt (profile), &lt;id&gt;.txt (feed), tmp/&lt;file&gt;', 'files: description.txt (profile), &lt;id&gt;.txt (feed), tmp/&lt;file&gt;') + '</span>');
+      T.addOutputLine('<span class="tp-desc">  # ' + T._('файлы: posts/&lt;id&gt;.post, profile/info, drafts/&lt;file&gt;', 'files: posts/&lt;id&gt;.post, profile/info, drafts/&lt;file&gt;') + '</span>');
       return;
     }
 
@@ -32,15 +32,18 @@
       return;
     }
 
+    // ❌ Permission denied: узел без edit (чужой пост, readonly-файл)
+    if (!node.edit && node.id !== undefined) {
+      T.addOutputLine('<span class="tp-err">nano: ' + T._('Нет прав на редактирование', 'Permission denied') + '</span>');
+      T.addOutputLine('<span class="tp-desc">  # ' + T._('Можно редактировать только свои посты', 'You can only edit your own posts') + '</span>');
+      return;
+    }
+
     // Определяем тип редактора и начальный текст
     var editorType = 'file';
     var editorId = null;
     var initialText = '';
     var apiSaveFn = null;
-
-    if (node.remove && typeof node.remove === 'function') {
-      // Пост — можно редактировать (edit handler в VFS)
-    }
 
     // ── Определяем save-функцию по контексту ──
     if (node.id !== undefined && node.text !== undefined) {
@@ -60,7 +63,7 @@
           body: 'text=' + encodeURIComponent(newText)
         });
       };
-    } else if (args === 'description.txt' || args === 'profile/description.txt') {
+    } else if (args === 'info' || args === 'profile/info') {
       // Профиль (bio)
       editorType = 'profile';
       initialText = '';
