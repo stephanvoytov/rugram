@@ -35,7 +35,7 @@ def index() -> Response:
         )
 
     if search_query:
-        search_filter = Post.text.like(f'%{search_query}%')
+        search_filter = Post.text.ilike(f'%{search_query}%')
         pagination = base_query.filter(search_filter) \
             .order_by(Post.created_date.desc()) \
             .paginate(page=page, per_page=per_page)
