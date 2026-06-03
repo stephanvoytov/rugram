@@ -22,22 +22,18 @@ RU: dict[str, str] = {
     'Password changed':      'Пароль изменён',
     'Notifications enabled': 'Уведомления включены',
     'Notifications disabled':'Уведомления отключены',
-    'Post published':        'Пост опубликован',
     'Post published!':       'Пост опубликован',
-    'Post updated':          'Пост обновлён',
     'Post updated!':         'Пост обновлён',
     'Post deleted':          'Пост удалён',
     'Comment added':         'Комментарий добавлен',
     'Comment edited':        'Комментарий изменён',
     'Comment deleted':       'Комментарий удалён',
     'Settings saved':        'Настройки сохранены',
-    'Profile updated':       'Профиль обновлён',
     'Profile updated!':      'Профиль обновлён',
     'Account deleted':       'Аккаунт удалён',
     'Message sent':          'Сообщение отправлено',
     'Reported':              'Пожаловались',
     'Saved':                 'Сохранено',
-    'No followers yet':      'Пока нет подписчиков',
     'Not following anyone yet': 'Пока ни на кого не подписан',
     'Unsaved':               'Удалено из сохранённого',
 
@@ -126,10 +122,6 @@ RU: dict[str, str] = {
         'cd, ls, grep, echo, man, history, export и другие — каждая команда работает максимально близко к реальному Unix-терминалу.',
     'This mode is for those who prefer the keyboard: arrow key history, --help on every command.':
         'Режим для тех, кто привык к клавиатуре: история стрелками, --help на каждой команде.',
-    'All commands are in English — type':
-        'Все команды на английском — введите',
-    'in the terminal to get started.':
-        'в терминале чтобы начать.',
     'Open TTY':
         'Открыть TTY',
     'Keyboard Shortcuts':
