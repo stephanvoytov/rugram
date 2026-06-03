@@ -122,6 +122,7 @@
         <a href="{{ url_for('main.chat') }}" class="status-item {% if request.endpoint == 'main.chat' %}active{% endif %}">✉ chat</a>
         {% endif %}
         <a href="{{ url_for('main.tty_help') }}" class="status-item" title="TTY commands">[?]</a>
+        <a href="{{ url_for('main.about') }}" class="status-item" title="About Rugram">[about]</a>
     </div>
     <div class="status-right">
         <button class="term-toggle-btn" id="termToggle" title="Toggle terminal mode">[>_ TTY]</button>
