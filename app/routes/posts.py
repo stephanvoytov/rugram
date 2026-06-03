@@ -92,7 +92,6 @@ def get_post(post_id: int) -> Response:
 
 
 @posts_bp.route('/post/<int:post_id>/like', methods=['POST'])
-@csrf.exempt
 @login_required
 def like_post(post_id: int) -> Response:
     if not request.is_json:
@@ -150,7 +149,6 @@ def like_post(post_id: int) -> Response:
 
 
 @posts_bp.route('/post/<int:post_id>/repost', methods=['POST'])
-@csrf.exempt
 @login_required
 def toggle_repost(post_id: int) -> Response:
     post = Post.query.filter(Post.id == post_id, Post.is_deleted == False).first()
@@ -199,7 +197,6 @@ def toggle_repost(post_id: int) -> Response:
 
 
 @posts_bp.route('/post/<int:post_id>/save', methods=['POST'])
-@csrf.exempt
 @login_required
 def toggle_save(post_id: int) -> Response:
     post = Post.query.filter(Post.id == post_id, Post.is_deleted == False).first()
@@ -223,7 +220,6 @@ def toggle_save(post_id: int) -> Response:
 
 
 @posts_bp.route('/post/<int:post_id>/comment', methods=['POST'])
-@csrf.exempt
 @login_required
 def add_comment(post_id: int) -> Response:
     post = Post.query.filter(Post.id == post_id, Post.is_deleted == False).first()
@@ -292,7 +288,6 @@ def add_comment(post_id: int) -> Response:
 
 
 @posts_bp.route('/comment/<int:comment_id>', methods=['DELETE'])
-@csrf.exempt
 @login_required
 def delete_comment(comment_id: int) -> Response:
     comment = Comment.query.get_or_404(comment_id)
@@ -306,7 +301,6 @@ def delete_comment(comment_id: int) -> Response:
 
 
 @posts_bp.route('/comment/<int:comment_id>/edit', methods=['POST'])
-@csrf.exempt
 @login_required
 def edit_comment(comment_id: int) -> Response:
     comment = Comment.query.get_or_404(comment_id)
@@ -332,7 +326,6 @@ def edit_comment(comment_id: int) -> Response:
 
 
 @posts_bp.route('/delete/<int:post_id>', methods=['DELETE'])
-@csrf.exempt
 @login_required
 def delete_post(post_id: int) -> Response:
     post = Post.query.get_or_404(post_id)
