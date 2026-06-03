@@ -13,7 +13,10 @@
             <div class="profile-identity">
                 <span class="profile-name">@{{ user.username }}</span>
                 {% if user.description %}
-                <span class="profile-desc">{{ user.description }}</span>
+                <div class="profile-desc-box">
+                    <span class="profile-desc-prompt">&gt;</span>
+                    <span class="profile-desc">{{ user.description }}</span>
+                </div>
                 {% endif %}
             </div>
 
@@ -84,10 +87,6 @@
     </div>
 </div>
 
-<div style="display:flex;gap:8px;justify-content:center;margin-top:16px">
-    <a href="{{ url_for('main.followers_page', username=user.username) }}" class="btn-term" style="padding:6px 14px">[followers {{ user.followers_count }}]</a>
-    <a href="{{ url_for('main.following_page', username=user.username) }}" class="btn-term" style="padding:6px 14px">[following {{ user.following_count }}]</a>
-</div>
 
 <script>
 function deletePost(postId) {
