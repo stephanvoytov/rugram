@@ -701,6 +701,7 @@
         output: T.el.output.innerHTML,
         scrollTop: T.el.output.scrollTop
       });
+      if (T.el.bar) T.el.bar.style.display = 'none';
     }
     T._programDepth++;
     T.clearOutput();
@@ -715,6 +716,7 @@
         T.el.output.innerHTML = saved.output;
         T.el.output.scrollTop = saved.scrollTop;
       }
+      if (T.el.bar) T.el.bar.style.display = 'block';
     }
     T.updatePrompt();
     if (T.el.input) setTimeout(function() { T.el.input.focus(); }, 50);
