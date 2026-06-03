@@ -898,6 +898,12 @@ def tty_help() -> Response:
     return render_template('main/tty_help.html')
 
 
+@main_bp.route('/tty/vfs')
+def tty_vfs() -> Response:
+    """Show the TTY virtual filesystem structure."""
+    return render_template('main/vfs.html')
+
+
 @main_bp.route('/about')
 def about() -> Response:
     """Show the About page with project info."""
