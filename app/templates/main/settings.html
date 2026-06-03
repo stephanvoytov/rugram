@@ -14,7 +14,7 @@
         {{ form.hidden_tag() }}
 
         <div class="auth-field" style="margin-bottom:20px">
-            <span class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] username</span>
+            <label for="{{ form.new_username.id }}" class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] username</label>
             <input type="text" class="field-input" id="{{ form.new_username.id }}" name="{{ form.new_username.name }}"
                    placeholder="new username" value="{{ current_user.username }}" autocomplete="off"
                    style="padding:10px 14px;font-size:0.9rem;width:100%"
@@ -25,7 +25,7 @@
         </div>
 
         <div class="auth-field" style="margin-bottom:20px">
-            <span class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] email</span>
+            <label for="{{ form.new_email.id }}" class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] email</label>
             <input type="email" class="field-input" id="{{ form.new_email.id }}" name="{{ form.new_email.name }}"
                    placeholder="new email" autocomplete="new-email"
                    style="padding:10px 14px;font-size:0.9rem;width:100%">
@@ -34,7 +34,7 @@
         </div>
 
         <div class="auth-field" style="margin-bottom:20px;padding-top:16px;border-top:1px solid var(--border)">
-            <span class="field-label" style="font-size:0.9rem;margin-bottom:8px;display:block">[*] change password</span>
+            <label class="field-label" style="font-size:0.9rem;margin-bottom:8px;display:block">[*] change password</label>
             <div style="display:flex;flex-wrap:wrap;gap:6px">
                 {{ form.current_password(class="field-input", placeholder="current password", autocomplete="current-password", style="padding:10px 14px;font-size:0.9rem;flex:1;min-width:160px") }}
                 {{ form.new_password(class="field-input", placeholder="new password", autocomplete="new-password", style="padding:10px 14px;font-size:0.9rem;flex:1;min-width:160px") }}

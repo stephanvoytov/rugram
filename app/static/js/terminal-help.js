@@ -593,7 +593,12 @@
     T.addOutputLine('  <span class="tp-cmd">cat &lt;файл&gt;</span>      <span class="tp-desc">— ' + T._('просмотр содержимого', 'view file contents') + '</span>');
     T.addOutputLine('  <span class="tp-cmd">nano &lt;файл&gt;</span>     <span class="tp-desc">— ' + T._('редактирование', 'edit files') + '</span>');
     T.addOutputLine('  <span class="tp-cmd">rm [-f] &lt;id&gt;</span>    <span class="tp-desc">— ' + T._('удаление поста (в корзину / навсегда)', 'remove post (trash / permanent)') + '</span>');
-    T.addOutputLine('  <span class="tp-cmd">feed [--tail N]</span>    <span class="tp-desc">— ' + T._('лента постов', 'post feed') + '</span>');
+    T.addOutputLine('  <span class="tp-cmd">feed [--tail N] [--page N] [--search Q] [--by @user]</span>  <span class="tp-desc">— ' + T._('лента постов', 'post feed') + '</span>');
+    T.addOutputLine('  <span class="tp-cmd">saved [--tail N] [--search Q]</span>  <span class="tp-desc">— ' + T._('сохранённые посты', 'saved posts') + '</span>');
+    T.addOutputLine('  <span class="tp-cmd">notifications [--unread] [--tail N]</span>  <span class="tp-desc">— ' + T._('уведомления', 'notifications') + '</span>');
+    T.addOutputLine('  <span class="tp-cmd">followers [--of @user]</span>  <span class="tp-desc">— ' + T._('подписчики', 'followers') + '</span>');
+    T.addOutputLine('  <span class="tp-cmd">following [--of @user]</span>  <span class="tp-desc">— ' + T._('подписки', 'following') + '</span>');
+    T.addOutputLine('  <span class="tp-cmd">less [section] [N]</span>    <span class="tp-desc">— ' + T._('программный просмотр', 'program view (pager)') + '</span>');
     T.addOutputLine('');
     T.addOutputLine('<span class="tp-muted"># ' + T._('Используйте export LANG=en_US для английского языка.', 'Use export LANG=en_US for English interface.') + '</span>');
     T.addOutputLine('<span class="tp-muted"># ' + T._('/ — фокус ввода, ? — help, ↑↓ — история, Esc — blur', '/ — focus input, ? — help, ↑↓ — history, Esc — blur') + '</span>');
