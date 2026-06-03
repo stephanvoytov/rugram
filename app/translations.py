@@ -216,6 +216,11 @@ RU: dict[str, str] = {
     'Edit a post or profile (N.txt or description.txt)': 'Редактировать пост или профиль (N.txt или description.txt)',
     'Send a message in the current chat': 'Отправить сообщение в текущем чате',
     'Start a chat with a user': 'Начать чат с пользователем',
+
+    # ── Audit fixes ──
+    'Error updating profile':  'Ошибка при обновлении профиля',
+    'Error updating post':     'Ошибка при обновлении поста',
+    'Error updating settings': 'Ошибка при обновлении настроек',
 }
 
 

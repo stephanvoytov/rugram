@@ -7,7 +7,7 @@ from flask_login import login_user, login_required, logout_user, current_user
 from app.translations import _
 from app.forms import LoginForm, RegistrationForm
 from app.models import User
-from extensions import db
+from extensions import db, csrf
 from app.routes.helpers import logger
 
 auth_bp = Blueprint('auth', __name__, template_folder='../templates')
@@ -41,6 +41,7 @@ def logout() -> Response:
 
 # -- JSON API для терминала --
 @auth_bp.route('/auth/api/login', methods=['POST'])
+@csrf.exempt
 def api_login() -> Response:
     data = request.get_json(force=True, silent=True)
     if not data:
@@ -68,6 +69,7 @@ def api_login() -> Response:
 
 
 @auth_bp.route('/auth/api/register', methods=['POST'])
+@csrf.exempt
 def api_register() -> Response:
     data = request.get_json(force=True, silent=True)
     if not data:
@@ -110,6 +112,7 @@ def api_register() -> Response:
 
 
 @auth_bp.route('/auth/api/logout', methods=['POST'])
+@csrf.exempt
 def api_logout() -> Response:
     logout_user()
     return jsonify({'ok': True, 'message': 'Вышли из системы'})

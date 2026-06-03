@@ -5,7 +5,6 @@ from flask import render_template, flash, redirect, url_for, Blueprint, request,
 from flask_login import login_required, current_user, logout_user
 from sqlalchemy.orm import joinedload
 
-from config import Config
 from app.translations import _
 from app.forms import ProfileForm, SettingsForm
 from app.models import User, Post, Like, Comment, Follow, Notification, PushSubscription, Chat, ChatParticipant, Message, SavedPost, Repost, utcnow
@@ -96,7 +95,7 @@ def edit_profile() -> Response:
 
         except Exception as e:
             db.session.rollback()
-            flash(f'Ошибка при обновлении профиля: {str(e)}', 'danger')
+            flash(_('Error updating profile'), 'danger')
 
     elif request.method == 'GET':
         form.description.data = current_user.description
@@ -812,7 +811,7 @@ def settings() -> Response:
 
         except Exception:
             db.session.rollback()
-            flash('Ошибка при обновлении настроек', 'danger')
+            flash(_('Error updating settings'), 'danger')
 
     return render_template('main/settings.html', form=form)
 

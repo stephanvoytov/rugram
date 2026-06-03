@@ -11,7 +11,7 @@ from app.translations import _
 from app.forms import PostForm
 from app.models import User, Post, Like, Comment, Follow, Notification, SavedPost, Repost, utcnow
 from app.push import send_notification_push
-from extensions import db
+from extensions import db, csrf
 from app.routes.helpers import logger, process_post_image, _create_notification_and_push
 
 posts_bp = Blueprint('posts', __name__, template_folder='../templates')
@@ -78,7 +78,7 @@ def edit_post(post_id: int) -> Response:
 
         except Exception as e:
             db.session.rollback()
-            flash(f'Ошибка при обновлении поста: {str(e)}', 'danger')
+            flash(_('Error updating post'), 'danger')
 
     return render_template('posts/create_post.html', form=form, post=post, header='Редактировать публикацию')
 
@@ -92,12 +92,15 @@ def get_post(post_id: int) -> Response:
 
 
 @posts_bp.route('/post/<int:post_id>/like', methods=['POST'])
+@csrf.exempt
 @login_required
 def like_post(post_id: int) -> Response:
     if not request.is_json:
         return jsonify({'error': 'Request must be JSON'}), 400
 
-    post = Post.query.get_or_404(post_id)
+    post = Post.query.filter(Post.id == post_id, Post.is_deleted == False).first()
+    if not post:
+        return jsonify({'error': 'Post not found'}), 404
     existing_like = Like.query.filter_by(
         user_id=current_user.id,
         post_id=post_id
@@ -139,9 +142,12 @@ def like_post(post_id: int) -> Response:
 
 
 @posts_bp.route('/post/<int:post_id>/repost', methods=['POST'])
+@csrf.exempt
 @login_required
 def toggle_repost(post_id: int) -> Response:
-    post = Post.query.get_or_404(post_id)
+    post = Post.query.filter(Post.id == post_id, Post.is_deleted == False).first()
+    if not post:
+        return jsonify({'error': 'Post not found'}), 404
     existing = Repost.query.filter_by(
         user_id=current_user.id,
         post_id=post_id
@@ -178,9 +184,12 @@ def toggle_repost(post_id: int) -> Response:
 
 
 @posts_bp.route('/post/<int:post_id>/save', methods=['POST'])
+@csrf.exempt
 @login_required
 def toggle_save(post_id: int) -> Response:
-    post = Post.query.get_or_404(post_id)
+    post = Post.query.filter(Post.id == post_id, Post.is_deleted == False).first()
+    if not post:
+        return jsonify({'error': 'Post not found'}), 404
     existing = SavedPost.query.filter_by(
         user_id=current_user.id,
         post_id=post_id
@@ -199,9 +208,12 @@ def toggle_save(post_id: int) -> Response:
 
 
 @posts_bp.route('/post/<int:post_id>/comment', methods=['POST'])
+@csrf.exempt
 @login_required
 def add_comment(post_id: int) -> Response:
-    post = Post.query.get_or_404(post_id)
+    post = Post.query.filter(Post.id == post_id, Post.is_deleted == False).first()
+    if not post:
+        return jsonify({'error': 'Post not found'}), 404
 
     # Проверяем, это AJAX-запрос или обычная форма
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -263,6 +275,7 @@ def add_comment(post_id: int) -> Response:
 
 
 @posts_bp.route('/comment/<int:comment_id>', methods=['DELETE'])
+@csrf.exempt
 @login_required
 def delete_comment(comment_id: int) -> Response:
     comment = Comment.query.get_or_404(comment_id)
@@ -276,6 +289,7 @@ def delete_comment(comment_id: int) -> Response:
 
 
 @posts_bp.route('/comment/<int:comment_id>/edit', methods=['POST'])
+@csrf.exempt
 @login_required
 def edit_comment(comment_id: int) -> Response:
     comment = Comment.query.get_or_404(comment_id)
@@ -301,6 +315,7 @@ def edit_comment(comment_id: int) -> Response:
 
 
 @posts_bp.route('/delete/<int:post_id>', methods=['DELETE'])
+@csrf.exempt
 @login_required
 def delete_post(post_id: int) -> Response:
     post = Post.query.get_or_404(post_id)
