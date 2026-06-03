@@ -94,14 +94,15 @@
         if (document.getElementById(id)) return;
 
         const html = `
-            <div id="${id}" class="toast show align-items-center border-0 mb-2" role="alert" style="min-width:300px" data-bs-autohide="false">
-                <div class="d-flex">
-                    <div class="toast-body">
-                        <strong>🔔 Включить уведомления?</strong><br>
-                        <small>Получайте уведомления даже когда сайт не открыт</small>
-                        <div class="mt-2 d-flex gap-2">
-                            <button class="btn btn-sm btn-primary" id="notifAllowBtn">Разрешить</button>
-                            <button class="btn btn-sm btn-outline-secondary" id="notifLaterBtn">Позже</button>
+            <div id="${id}" style="background:var(--bg);border:1px solid var(--overlay);padding:8px 12px;margin-bottom:6px;font-family:var(--font);max-width:360px;box-shadow:0 2px 8px rgba(0,0,0,0.3);">
+                <div style="display:flex;gap:8px;align-items:flex-start">
+                    <span style="color:var(--green);font-weight:700;flex-shrink:0">[!]</span>
+                    <div>
+                        <div style="color:var(--text);font-size:0.82rem;margin-bottom:2px"><strong>enable push notifications?</strong></div>
+                        <div style="color:var(--subtle);font-size:0.72rem;margin-bottom:8px">get notified when someone interacts with you</div>
+                        <div style="display:flex;gap:6px">
+                            <button class="btn-term primary" id="notifAllowBtn" style="padding:2px 10px;font-size:0.72rem">[yes]</button>
+                            <button class="btn-term secondary" id="notifLaterBtn" style="padding:2px 10px;font-size:0.72rem">[later]</button>
                         </div>
                     </div>
                 </div>
@@ -114,10 +115,10 @@
                 if (permission === 'granted') {
                     localStorage.setItem(PERMISSION_KEY, 'granted');
                     enablePush();
-                    showToast('✅ Уведомления включены', 'Теперь вы будете получать уведомления даже когда сайт не открыт', 'success');
+                    showToast('[*] notifications enabled', 'you will now receive push notifications', 'success');
                 } else {
                     localStorage.setItem(PERMISSION_KEY, 'denied');
-                    showToast('❌ Уведомления отключены', 'Изменить можно в настройках браузера', 'danger');
+                    showToast('[!] notifications denied', 'change in browser settings to re-enable', 'danger');
                 }
             } catch (e) { console.error(e); }
             const banner = document.getElementById(id);
