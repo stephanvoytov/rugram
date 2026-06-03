@@ -4,17 +4,8 @@
 
 {% block styles %}
 <style>
-/* Chat: page doesn't scroll — only chat list & messages scroll internally */
-body.d-flex.flex-column.min-vh-100 {
-    height: 100vh !important;
-    overflow: hidden !important;
-}
-
 /* Full-width chat: override Bootstrap container */
-#mainContainer.container { max-width: 100% !important; padding: 0 !important; flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
-main.flex-grow-1 { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
-/* Chat columns need min-height: 0 to shrink below content */
-.chat-list-col, .chat-detail-col { min-height: 0; }
+#mainContainer.container { max-width: 100% !important; padding: 0 !important; display: flex; flex-direction: column; flex: 1; min-height: 0; }
 /* Keep flash messages padded */
 #mainContainer .alert { margin: 12px 16px !important; }
 </style>
@@ -99,6 +90,10 @@ let typingTimeout = null;
 let otherUsername = '';
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Fix: constrain page to viewport so chat list & messages scroll internally
+    document.body.style.height = window.innerHeight + 'px';
+    document.body.style.overflow = 'hidden';
+
     currentUser = {{ current_user.id|tojson if current_user.is_authenticated else 'null' }};
     if (!currentUser) { window.location.href = '{{ url_for("auth.login") }}'; return; }
     loadChatList();
