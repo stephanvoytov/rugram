@@ -1,219 +1,161 @@
-# Rugram — terminal-native social network
+# Rugram — social network inside a terminal
 
 <div align="center">
 
 [![Flask](https://img.shields.io/badge/Flask-000000?logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://python.org)
+[![Bootstrap 5.3](https://img.shields.io/badge/Bootstrap-5.3-712CF9?logo=bootstrap&logoColor=white)](https://getbootstrap.com)
 [![Stars](https://img.shields.io/github/stars/stephanvoytov/rugram)](https://github.com/stephanvoytov/rugram/stargazers)
 [![Site](https://img.shields.io/badge/demo-rugram.mooo.com-89b4fa)](https://rugram.mooo.com)
 
-**A social network you drive from a terminal.**  
-Full GUI included for the keyboard-shy.
+**Терминал, в котором живёт социальная сеть.**  
+**A social network that lives inside a terminal.**
 
-**[rugram.mooo.com](https://rugram.mooo.com) — live demo instance**
+**[rugram.mooo.com](https://rugram.mooo.com) — live / живой**
 
 </div>
 
-```bash
-# Like a post
-like 42
-# DM a friend
-cd chat @alice
-say hey!
-# Search posts
-grep "flask"
-# View profile
-neofetch @alice
-# Edit bio
-nano description.txt
-```
+---
 
-A single page that holds Bootstrap cards and `bash: command not found`,  
-likes with pop animation and `man ls`, push notifications and `uptime`.
+### 🇷🇺 Rugram — это соцсеть, в которой можно сделать всё, не отрываясь от клавиатуры.
+
+Поставить лайк — `like 42`. Написать в личку — `cd chat @bob` → `say привет!`.  
+Найти пост по тегу — `grep "python"`. Посмотреть профиль — `neofetch @alice`.  
+Отредактировать шапку — `nano description.txt`.
+
+Это **не игрушечная консоль**. Это полноценный эмулятор терминала в браузере:  
+с `--help`, автодополнением по Tab, историей стрелками, `man`, `cat`, `head`, `tail`,  
+`watch -n 5 feed`, `export LANG=ru_RU`, `fortune`, `uptime`, `ping`.
+
+Каждая страница GUI отображается на путь в файловой системе:  
+`cd /feed` → лента, `cd /chat/@alice` → диалог, `cd /settings` → настройки.
+
+Всё задублировано GUI на Bootstrap 5.3 — для тех, кто не дружит с клавиатурой.  
+Тёмная тема, анимации, lightbox, infinite scroll — обычный веб, просто под капотом `bash`.
 
 ---
 
-## Quick start
+### 🇬🇧 Rugram is a social network you drive from a terminal.
 
-```bash
-git clone https://github.com/stephanvoytov/rugram.git
-cd rugram
-python -c "import secrets; print(f'SECRET_KEY={secrets.token_hex(32)}')" > .env
-docker compose up -d --build
-```
+Like a post — `like 42`. DM someone — `cd chat @bob` → `say hey!`.  
+Search posts — `grep "python"`. View a profile — `neofetch @alice`.  
+Edit your bio — `nano description.txt`.
 
-→ **http://localhost:8000** — hit `[>_ TTY]` and start typing.
+This is **not a toy console**. It's a full terminal emulator running in the browser:  
+`--help` on every command, Tab autocomplete, arrow-key history, `man`, `cat`, `head`, `tail`,  
+`watch -n 5 feed`, `export LANG=ru_RU`, `fortune`, `uptime`, `ping`.
 
-| Env variable | Required | Default | Description |
-|---|---|---|---|
-| `SECRET_KEY` | ✅ | — | Session signing + message encryption |
-| `VAPID_PUBLIC_KEY` | ❌ | Built-in | Web Push public key |
-| `VAPID_PRIVATE_KEY` | ❌ | Built-in | Web Push private key |
+Every GUI page maps to a filesystem path:  
+`cd /feed` → the feed, `cd /chat/@alice` → your DMs, `cd /settings` → preferences.
+
+A full Bootstrap 5.3 UI mirrors everything — for the keyboard-shy.  
+Dark theme, animations, lightbox, infinite scroll — regular web, but with `bash` underneath.
 
 ---
 
-## Features
+## Terminal — как это работает / how it works
 
-### Terminal (TTY)
-A full terminal emulator in the browser — the project's signature.
+```
+┌──────────────────────────────────────────────────────┐
+│  user@rugram ~ $ neofetch @stepan                    │
+│                                                      │
+│  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿  ┌────────────────────────┐  │
+│  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿  │  user:    stepan       │  │
+│  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿  │  name:    Stepan       │  │
+│  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿  │  posts:   42           │  │
+│  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿  │  likes:   128          │  │
+│  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿  │  since:   May 2025     │  │
+│  ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿  └────────────────────────┘  │
+│                                                      │
+│  user@rugram ~ $ _                                    │
+└──────────────────────────────────────────────────────┘
+```
 
-| Command | What it does |
-|---|---|
-| `help`, `man <cmd>` | List all commands / per-command docs |
-| `cd`, `ls`, `cat`, `grep` | Navigate and search like Unix |
-| `like`, `follow`, `comment` | Social actions from the prompt |
-| `neofetch @user` | User profile with ASCII art from avatar |
-| `nano <file>` | Edit posts and profile inside the terminal |
-| `say`, `cd chat @user` | Messaging via the command line |
-| `watch -n 5 feed` | Auto-refresh feed |
-| `export LANG=ru_RU` | Switch language on the fly |
-| `fortune`, `ping`, `uptime`, `date` | Unix classics |
+### Команды / Commands
 
-Every GUI page maps to a `cd` path (`/feed`, `/chat`, `/notifications`, …).  
-The terminal has boot animations (Matrix Rain), `--help` on every command, arrow-key history, and autocomplete.
+| Команда | Что делает | Command | What it does |
+|---------|-----------|---------|-------------|
+| `help` | список всех команд | `help` | list all commands |
+| `man <cmd>` | документация команды | `man <cmd>` | per-command docs |
+| `like <id>` | лайкнуть пост | `like <id>` | like a post |
+| `follow @user` | подписаться | `follow @user` | follow a user |
+| `comment <id> текст` | написать комментарий | `comment <id> text` | leave a comment |
+| `cd chat @user` | открыть диалог | `cd chat @user` | open a DM |
+| `say <text>` | отправить сообщение | `say <text>` | send a message |
+| `grep <query>` | поиск постов | `grep <query>` | search posts |
+| `neofetch @user` | профиль + ASCII-арт | `neofetch @user` | profile + ASCII art |
+| `nano <file>` | редактор постов / профиля | `nano <file>` | edit posts / profile |
+| `watch -n 5 feed` | автообновление ленты | `watch -n 5 feed` | auto-refresh feed |
+| `export LANG=ru_RU` | переключить язык | `export LANG=ru_RU` | switch language |
+| `ping @user` | проверить онлайн | `ping @user` | check if online |
+| `uptime` | сколько живёт сервер | `uptime` | server uptime |
+| `fortune` | цитата программиста | `fortune` | programmer quote |
+| `cd /` .. `ls` .. `cat` .. | навигация как в Unix | `cd /` .. `ls` .. `cat` .. | Unix-style navigation |
 
-### Bilingual (EN + RU)
-- English by default, Russian via `?lang=ru` on any URL
-- Terminal, `help`, `man`, flash messages, forms, empty states — all translated
-- TTY picks up the language from the GUI automatically
+Горячие клавиши: **Tab** — автодополнение, **↑↓** — история, **Ctrl+L** — очистить экран,  
+**Ctrl+C** — прервать, **Ctrl+D** — выход. При загрузке — Matrix Rain с шансом 30%.
 
-### Messenger with encryption
-- Real-time polling, online status, typing indicator
-- Date separators ("Today", "Yesterday", "May 15")
-- Read receipts
-- **All messages encrypted at rest** (Fernet, key derived from `SECRET_KEY`)
+Hotkeys: **Tab** autocomplete, **↑↓** history, **Ctrl+L** clear,  
+**Ctrl+C** interrupt, **Ctrl+D** exit. Boot animation: Matrix Rain (30% chance).
 
-### Push notifications
-- Service Worker + Web Push API (VAPID)
-- Arrive when the site is closed
-- New messages, likes, comments, follows
-- Expired subscriptions cleaned up automatically
+---
 
-### Also
-- Infinite feed with "All / Subscriptions" filter
-- Like animation (pop + ripple via Web Animations API)
-- Comments with inline form and auto-expand textarea
-- Bookmarks (saved posts grid)
-- Reposts
-- Dark theme (respects `prefers-color-scheme`)
-- Lightbox for images
-- Avatar upload with 500×500 crop
+## Возможности / Features
+
+### 🌐 Два языка / Bilingual (EN + RU)
+Английский по умолчанию, русский — `?lang=ru` на любом URL.  
+Переключается всё: интерфейс, терминал, `help`/`man`, флеш-сообщения, пустые состояния, формы.  
+Терминал подхватывает язык из GUI, можно сменить и на лету: `export LANG=ru_RU`.
+
+English by default, Russian via `?lang=ru` on any URL.  
+Everything switches: UI, terminal, `help`/`man`, flash messages, empty states, forms.  
+The terminal picks up the language from the GUI — or switch on the fly: `export LANG=ru_RU`.
+
+### 💬 Мессенджер с шифрованием / Encrypted messenger
+Real-time polling, онлайн-статус, индикатор «печатает…», даты-разделители («Сегодня», «Вчера»),  
+read receipts. **Все сообщения зашифрованы в базе** (Fernet, ключ от `SECRET_KEY`).
+
+Real-time polling, online status, typing indicator, date separators, read receipts.  
+**All messages encrypted at rest** (Fernet, key derived from `SECRET_KEY`).
+
+### 🔔 Push-уведомления / Push notifications
+Приходят, когда сайт закрыт — через Service Worker + Web Push API (VAPID).  
+Новые сообщения, лайки, комментарии, подписки.
+
+Arrive when the site is closed — via Service Worker + Web Push API.  
+New messages, likes, comments, follows.
+
+### 🎨 Интерфейс / GUI
+Построен на **Bootstrap 5.3** — адаптивная сетка, карточки, модалки, тёмная тема  
+(учитывает `prefers-color-scheme`), тэбы, формы, Bootstrap Icons.
+
+Built on **Bootstrap 5.3** — responsive grid, cards, modals, dark theme  
+(respects `prefers-color-scheme`), tabs, forms, Bootstrap Icons.
+
+- Бесконечная лента с фильтром «Все / Подписки» / Infinite feed
+- Лайки с pop + ripple анимацией / Like animations (Web Animations API)
+- Комментарии с auto-expand textarea / Inline comments
+- Закладки в сетке / Bookmarks grid
+- Репосты / Reposts
+- Lightbox для изображений / Image lightbox
+- Загрузка аватаров с кропом 500×500 / Avatar upload with crop
 - REST API (`/api/v1/posts`)
-- Mobile-first responsive layout
-- SEO: sitemap, OG/Twitter cards, canonical URLs, hreflang
-- Docker Compose + Caddy/Nginx reverse proxy
 
 ---
 
-## Stack
+## Стек / Stack
 
-**Backend** Python 3.12, Flask, SQLAlchemy, Flask-Login, Flask-WTF, WTForms, SQLite  
-**Security** cryptography (Fernet), pywebpush (VAPID)  
-**Frontend** Jinja2, Bootstrap 5.3, Vanilla JS, CSS Custom Properties  
-**Infra** Docker, Alembic, Gunicorn
-
-## Optimizations
-
-- **Images** — 1200px full / 400px thumbnail, JPEG q85, lazy loading
-- **Caching** — CSS/JS versioned by mtime (`?v=timestamp`), `defer`
-- **Architecture** — routes in a package (`app/routes/`), JS split by concern, CSS variables
-
----
-
-## Project structure
-
-```
-app/
-├── __init__.py          # create_app() factory
-├── models.py            # SQLAlchemy models
-├── routes/              # Blueprint package
-│   ├── auth.py          # /auth/*
-│   ├── posts.py         # /posts/* (like, comment, repost, save)
-│   ├── main.py          # /, /settings, /chat, /about …
-│   └── helpers.py       # Shared utilities
-├── forms.py             # WTForms
-├── crypto.py            # Fernet message encryption
-├── translations.py      # EN/RU bilingual engine
-├── resources/           # REST API (/api/v1/posts)
-├── static/
-│   ├── css/style.css
-│   └── js/
-│       ├── main.js      # GUI logic
-│       └── terminal.js  # TTY emulator
-├── templates/
-│   ├── base.html
-│   ├── macros/
-│   ├── auth/            # login, register
-│   ├── main/            # feed, profile, settings, chat, about …
-│   └── posts/           # post page, create
-└── uploads/             # Avatars + post images
-```
-
-## Local development
-
-```bash
-git clone https://github.com/stephanvoytov/rugram.git
-cd rugram
-python -m venv venv
-
-# Windows:
-venv\Scripts\activate
-# Linux/macOS:
-source venv/bin/activate
-
-pip install -r requirements.txt
-python -c "import secrets; print(f'SECRET_KEY={secrets.token_hex(32)}')" > .env
-alembic upgrade head
-python run.py
-```
-
-Open **http://localhost:5000**
-
-### Database migrations
-
-```bash
-alembic revision --autogenerate -m "description"
-alembic upgrade head
-alembic downgrade -1
-```
-
-Migrations run automatically on container start (via `start.sh`).
-
-### Volumes (Docker)
-
-| Container path | Purpose |
-|---|---|
-| `/app/instance` | SQLite database |
-| `/app/app/static/uploads` | Uploaded images |
-
-### Production deploy
-
-```bash
-git pull
-docker compose up -d --build
-```
-
-Reverse proxy (Caddy/Nginx) on port `8000`.  
-Logs: `docker compose logs -f`
-
----
-
-## Push notifications
-
-Requires HTTPS (Caddy provides Let's Encrypt on production).
-
-1. On first click, the browser asks for notification permission
-2. Service Worker (`sw.js`) registers
-3. Push subscription keys are stored on the server
-
-Push fires on: new chat message, like, comment, follow.  
-If the browser is closed, push won't arrive (Web Push API limitation).  
-If the tab is inactive, the OS shows the notification.
+| Слой | Технологии |
+|------|-----------|
+| **Backend** | Python 3.12, Flask, SQLAlchemy, Flask-Login, Flask-WTF, SQLite |
+| **Frontend** | Jinja2, **Bootstrap 5.3**, Vanilla JS, CSS Custom Properties |
+| **Security** | cryptography (Fernet), pywebpush (VAPID) |
+| **Infra** | Alembic, Gunicorn |
 
 ---
 
 <div align="center">
 
-[MIT License](LICENSE) · [github.com/stephanvoytov/rugram](https://github.com/stephanvoytov/rugram)
+[MIT](LICENSE) · [github.com/stephanvoytov/rugram](https://github.com/stephanvoytov/rugram)
 
 </div>
