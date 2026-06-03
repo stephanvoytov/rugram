@@ -87,7 +87,7 @@ def create_app():
     @app.after_request
     def add_security_headers(resp):
         resp.headers['X-Content-Type-Options'] = 'nosniff'
-        resp.headers['X-Frame-Options'] = 'DENY'
+        resp.headers['X-Frame-Options'] = 'SAMEORIGIN'
         resp.headers['Referrer-Policy'] = 'same-origin'
         resp.headers['Content-Security-Policy'] = (
             "default-src 'self'; "
