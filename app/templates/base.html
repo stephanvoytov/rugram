@@ -193,7 +193,13 @@
 <!-- Footer -->
 <footer class="footer">
     <span class="brand">[*] rugram</span>
-    <span><a href="{{ url_for('main.index') }}">[feed]</a> · <a href="{{ url_for('auth.login') }}">[login]</a> · <a href="https://rugram.mooo.com" target="_blank">[site]</a> · <span>&copy; 2026</span></span>
+    <span>
+        <a href="{{ url_for('main.index') }}">[feed]</a> ·
+        <a href="{{ url_for('auth.login') }}">[login]</a> ·
+        <a href="{{ url_for('main.about') }}">[about]</a> ·
+        <a href="https://github.com/stephanvoytov/rugram" target="_blank" rel="noopener">[github]</a> ·
+        <span>&copy; 2026</span>
+    </span>
 </footer>
 
 <!-- Lightbox -->
