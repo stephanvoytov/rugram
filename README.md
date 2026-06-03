@@ -1,201 +1,155 @@
-# Rugram — терминал-нативная социальная сеть
-[![Flask](https://img.shields.io/badge/Flask-000000?logo=flask&logoColor=white)](https://flask.palletsprojects.com/) [![Stars](https://img.shields.io/github/stars/stephanvoytov/rugram)](https://github.com/stephanvoytov/rugram/stargazers) [![Site](https://img.shields.io/badge/site-rugram.mooo.com-89b4fa?logo=internetexplorer)](https://rugram.mooo.com)
+# Rugram — terminal-native social network
 
-> **Социальная сеть, которой управляют через терминал.**  
-> **👉 [rugram.mooo.com](https://rugram.mooo.com) — живой демо-инстанс**
+<div align="center">
 
-> Поставить лайк → `like 42`. Написать в чат → `say привет!`.  
-> Найти пост → `grep "python"`. Посмотреть профиль → `neofetch @user`.  
-> Обычный GUI тоже есть — для тех, кто не дружит с клавиатурой.
+[![Flask](https://img.shields.io/badge/Flask-000000?logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
+[![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://python.org)
+[![Stars](https://img.shields.io/github/stars/stephanvoytov/rugram)](https://github.com/stephanvoytov/rugram/stargazers)
+[![Site](https://img.shields.io/badge/demo-rugram.mooo.com-89b4fa)](https://rugram.mooo.com)
 
----
+**A social network you drive from a terminal.**  
+Full GUI included for the keyboard-shy.
 
-## Чем это отличается от всего остального
+**[rugram.mooo.com](https://rugram.mooo.com) — live demo instance**
 
-Большинство соцсетей — это бесконечные ленты, кнопки и попапы.  
-Rugram спроектирован **для разработчиков**: здесь всё дублируется терминалом.
+</div>
 
 ```bash
-# Войти
-login alice secret123
-
-# Поставить лайк
+# Like a post
 like 42
-
-# Посмотреть профиль
-neofetch @alice
-
-# Написать в личку
-cd chat @bob
-say привет!
-
-# Поискать посты про Flask
+# DM a friend
+cd chat @alice
+say hey!
+# Search posts
 grep "flask"
-
-# Отредактировать свой профиль
+# View profile
+neofetch @alice
+# Edit bio
 nano description.txt
-
-# Посмотреть кто онлайн
-ping @alice
 ```
 
-**На одной странице уживаются:** Bootstrap-карточки и `bash: command not found`,  
-лайки с pop-анимацией и `man ls`, infinite scroll и `watch -n 5 feed`,  
-push-уведомления и `uptime`.
+A single page that holds Bootstrap cards and `bash: command not found`,  
+likes with pop animation and `man ls`, push notifications and `uptime`.
 
 ---
 
-## Ключевые возможности
-
-### 🖥️ TTY-терминал (сигнатура проекта)
-| Фича | Зачем |
-|------|-------|
-| Полноценный эмулятор терминала в браузере | `help` — все команды, `man` — документация |
-| Unix-команды для соцсети | `cd`, `ls`, `grep`, `head`, `tail`, `cat`, `echo`, `date`, `history`, `uptime`, `export`, `watch`, `top` |
-| `nano`-редактор | Редактирование постов и профиля прямо из терминала |
-| `neofetch` | Профиль юзера с ASCII-артом из аватарки |
-| `ping @user` | Проверка существования пользователя |
-| `fortune` | Цитаты программистов |
-| `export LANG=ru_RU` | Переключение языка на лету |
-| Boot-анимация | Matrix Rain с вероятностью 30% |
-| Маппинг на реальные URL | `cd` переходит на страницы как в файловой системе |
-
-### 🌐 Билингвальный UI (EN + RU)
-- **Английский (по умолчанию) + Русский** — `?lang=ru` в любом URL
-- **Всё переключается**: интерфейс, терминал (`help`, `man`), флеш-сообщения, формы, пустые состояния
-- TTY автоматически подхватывает язык из GUI
-
-### 💬 Мессенджер с шифрованием
-- Личные сообщения с polling в реальном времени
-- Онлайн-статус и индикатор «печатает...»
-- Дата-разделители («Сегодня», «Вчера», «15 мая»)
-- Read receipts (отметки прочитано)
-- **Все сообщения зашифрованы в БД** (Fernet, ключ от `SECRET_KEY`)
-
-### 🔔 Push-уведомления
-- Приходят когда сайт закрыт (Service Worker + Push API / VAPID)
-- Push на новые сообщения, лайки, комментарии, подписки
-- Авто-удаление просроченных подписок
-
-### 📱 Всё остальное
-- Бесконечная лента с фильтром «Все / Подписки»
-- Лайки с pop + ripple анимацией (JS Web Animations API)
-- Комментарии с inline-формой и auto-expand textarea
-- Закладки (сохранённые посты) с сеткой
-- Репосты
-- Тёмная тема (учитывает системные настройки)
-- Lightbox для изображений
-- REST API (`/api/v1/posts`)
-- Адаптивный дизайн (mobile-first)
-- Docker Compose / reverse proxy (Caddy/Nginx) в production
-
-## Технологии
-
-**Backend:** Python 3.12, Flask, SQLAlchemy, Flask-Login, Flask-WTF, WTForms, SQLite  
-**Security:** cryptography (Fernet), pywebpush (VAPID)  
-**Frontend:** Jinja2, Bootstrap 5.3, Bootstrap Icons, Vanilla JS, CSS Custom Properties  
-**Infra:** Docker, Alembic, Gunicorn
-
-## Оптимизация
-
-- **Изображения** — ресайз 1200px / превью 400px, JPEG q85, lazy loading  
-- **Кеширование** — версионирование CSS/JS (`?v=timestamp`), `defer`  
-- **Архитектура** — роуты разбиты на пакет (`app/routes/`), JS на модули, CSS на CSS-переменные
-
-## Быстрый старт (Docker)
+## Quick start
 
 ```bash
-# 1. Клонировать
 git clone https://github.com/stephanvoytov/rugram.git
 cd rugram
-
-# 2. Сгенерировать секретный ключ
 python -c "import secrets; print(f'SECRET_KEY={secrets.token_hex(32)}')" > .env
-
-# 3. Запустить
 docker compose up -d --build
 ```
 
-После сборки: **http://localhost:8000** → жми `[>_ TTY]` и пробуй команды.
+→ **http://localhost:8000** — hit `[>_ TTY]` and start typing.
 
-> В production поставьте reverse proxy (Caddy/Nginx) на порт `8000`.
+| Env variable | Required | Default | Description |
+|---|---|---|---|
+| `SECRET_KEY` | ✅ | — | Session signing + message encryption |
+| `VAPID_PUBLIC_KEY` | ❌ | Built-in | Web Push public key |
+| `VAPID_PRIVATE_KEY` | ❌ | Built-in | Web Push private key |
 
-### Переменные окружения (.env)
+---
 
-| Переменная | Обязательно | По умолчанию | Описание |
-|------------|-------------|-------------|----------|
-| `SECRET_KEY` | ✅ | — | Ключ для подписи сессий и шифрования сообщений |
-| `VAPID_PUBLIC_KEY` | ❌ | Встроенный | Публичный ключ для Web Push (можно сгенерировать) |
-| `VAPID_PRIVATE_KEY` | ❌ | Встроенный | Приватный ключ для Web Push (можно сгенерировать) |
+## Features
 
-### Volumes
+### Terminal (TTY)
+A full terminal emulator in the browser — the project's signature.
 
-| Путь в контейнере | Назначение |
-|-------------------|------------|
-| `/app/instance` | SQLite база данных |
-| `/app/app/static/uploads` | Загруженные изображения (аватарки, посты) |
+| Command | What it does |
+|---|---|
+| `help`, `man <cmd>` | List all commands / per-command docs |
+| `cd`, `ls`, `cat`, `grep` | Navigate and search like Unix |
+| `like`, `follow`, `comment` | Social actions from the prompt |
+| `neofetch @user` | User profile with ASCII art from avatar |
+| `nano <file>` | Edit posts and profile inside the terminal |
+| `say`, `cd chat @user` | Messaging via the command line |
+| `watch -n 5 feed` | Auto-refresh feed |
+| `export LANG=ru_RU` | Switch language on the fly |
+| `fortune`, `ping`, `uptime`, `date` | Unix classics |
 
-### Миграции БД (Alembic)
+Every GUI page maps to a `cd` path (`/feed`, `/chat`, `/notifications`, …).  
+The terminal has boot animations (Matrix Rain), `--help` on every command, arrow-key history, and autocomplete.
 
-При изменении моделей БД:
+### Bilingual (EN + RU)
+- English by default, Russian via `?lang=ru` on any URL
+- Terminal, `help`, `man`, flash messages, forms, empty states — all translated
+- TTY picks up the language from the GUI automatically
 
-```bash
-# Создать новую миграцию
-alembic revision --autogenerate -m "описание изменений"
+### Messenger with encryption
+- Real-time polling, online status, typing indicator
+- Date separators ("Today", "Yesterday", "May 15")
+- Read receipts
+- **All messages encrypted at rest** (Fernet, key derived from `SECRET_KEY`)
 
-# Накатить
-alembic upgrade head
+### Push notifications
+- Service Worker + Web Push API (VAPID)
+- Arrive when the site is closed
+- New messages, likes, comments, follows
+- Expired subscriptions cleaned up automatically
 
-# Откатить на одну
-alembic downgrade -1
-```
+### Also
+- Infinite feed with "All / Subscriptions" filter
+- Like animation (pop + ripple via Web Animations API)
+- Comments with inline form and auto-expand textarea
+- Bookmarks (saved posts grid)
+- Reposts
+- Dark theme (respects `prefers-color-scheme`)
+- Lightbox for images
+- Avatar upload with 500×500 crop
+- REST API (`/api/v1/posts`)
+- Mobile-first responsive layout
+- SEO: sitemap, OG/Twitter cards, canonical URLs, hreflang
+- Docker Compose + Caddy/Nginx reverse proxy
 
-Миграции накатываются автоматически при старте контейнера (через `start.sh`).
+---
 
-### Обновление
+## Stack
 
-```bash
-git pull
-docker compose up -d --build
-```
+**Backend** Python 3.12, Flask, SQLAlchemy, Flask-Login, Flask-WTF, WTForms, SQLite  
+**Security** cryptography (Fernet), pywebpush (VAPID)  
+**Frontend** Jinja2, Bootstrap 5.3, Vanilla JS, CSS Custom Properties  
+**Infra** Docker, Alembic, Gunicorn
 
-### Логи
+## Optimizations
 
-```bash
-docker compose logs -f
-```
+- **Images** — 1200px full / 400px thumbnail, JPEG q85, lazy loading
+- **Caching** — CSS/JS versioned by mtime (`?v=timestamp`), `defer`
+- **Architecture** — routes in a package (`app/routes/`), JS split by concern, CSS variables
 
-## Структура проекта
+---
+
+## Project structure
 
 ```
 app/
-├── __init__.py         # create_app() фабрика
-├── models.py           # SQLAlchemy модели
-├── routes/             # Маршруты (пакет вместо одного routes.py)
-│   ├── __init__.py     # re-export трёх blueprint'ов
-│   ├── auth.py         # /auth/*
-│   ├── posts.py        # /posts/*
-│   ├── main.py         # /, /settings, /chat, /tty/help …
-│   └── helpers.py      # _require_chat_participant(), _create_notification_and_push()
-├── forms.py            # WTForms
-├── crypto.py           # Fernet-шифрование сообщений
-├── translations.py     # Билингвальный движок (EN/RU)
-├── resources/          # REST API (/api/v1/posts)
+├── __init__.py          # create_app() factory
+├── models.py            # SQLAlchemy models
+├── routes/              # Blueprint package
+│   ├── auth.py          # /auth/*
+│   ├── posts.py         # /posts/* (like, comment, repost, save)
+│   ├── main.py          # /, /settings, /chat, /about …
+│   └── helpers.py       # Shared utilities
+├── forms.py             # WTForms
+├── crypto.py            # Fernet message encryption
+├── translations.py      # EN/RU bilingual engine
+├── resources/           # REST API (/api/v1/posts)
 ├── static/
 │   ├── css/style.css
 │   └── js/
-│       ├── main.js     # GUI-логика, делегат лайков/сохранений
-│       └── terminal.js # TTY-терминал (полноценный эмулятор)
+│       ├── main.js      # GUI logic
+│       └── terminal.js  # TTY emulator
 ├── templates/
 │   ├── base.html
-│   ├── macros/         # Jinja2-макросы
-│   ├── auth/           # login, register
-│   ├── main/           # index, profile, settings, chat, tty_help …
-│   └── posts/          # create_post, post
-└── uploads/            # Аватарки и изображения постов
+│   ├── macros/
+│   ├── auth/            # login, register
+│   ├── main/            # feed, profile, settings, chat, about …
+│   └── posts/           # post page, create
+└── uploads/             # Avatars + post images
 ```
 
-## Локальная разработка
+## Local development
 
 ```bash
 git clone https://github.com/stephanvoytov/rugram.git
@@ -204,7 +158,7 @@ python -m venv venv
 
 # Windows:
 venv\Scripts\activate
-# Linux/Mac:
+# Linux/macOS:
 source venv/bin/activate
 
 pip install -r requirements.txt
@@ -213,20 +167,53 @@ alembic upgrade head
 python run.py
 ```
 
-Откройте `http://localhost:5000`
+Open **http://localhost:5000**
 
-## Push-уведомления
+### Database migrations
 
-Для работы push-уведомлений требуется HTTPS (на production — через Caddy/Let's Encrypt).
+```bash
+alembic revision --autogenerate -m "description"
+alembic upgrade head
+alembic downgrade -1
+```
 
-При первом клике по странице браузер запросит разрешение на уведомления. После подтверждения:
-1. Регистрируется Service Worker (`sw.js`)
-2. Создаётся подписка на Push API
-3. Ключи подписки сохраняются на сервере
+Migrations run automatically on container start (via `start.sh`).
 
-Push приходит при:
-- Новом сообщении в чате (отображается имя отправителя и текст)
-- Лайке, комментарии или подписке
+### Volumes (Docker)
 
-Если браузер закрыт — push не придёт (техническое ограничение Web Push API).
-Если браузер открыт, но вкладка с Rugram не активна — уведомление отобразится системой.
+| Container path | Purpose |
+|---|---|
+| `/app/instance` | SQLite database |
+| `/app/app/static/uploads` | Uploaded images |
+
+### Production deploy
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+Reverse proxy (Caddy/Nginx) on port `8000`.  
+Logs: `docker compose logs -f`
+
+---
+
+## Push notifications
+
+Requires HTTPS (Caddy provides Let's Encrypt on production).
+
+1. On first click, the browser asks for notification permission
+2. Service Worker (`sw.js`) registers
+3. Push subscription keys are stored on the server
+
+Push fires on: new chat message, like, comment, follow.  
+If the browser is closed, push won't arrive (Web Push API limitation).  
+If the tab is inactive, the OS shows the notification.
+
+---
+
+<div align="center">
+
+[MIT License](LICENSE) · [github.com/stephanvoytov/rugram](https://github.com/stephanvoytov/rugram)
+
+</div>
