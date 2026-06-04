@@ -978,7 +978,7 @@ async function test_source_rm(dom) {
 
 async function test_source_not_found(dom) {
   runCommand(dom, 'source nonexistent');
-  hasOutput(dom, 'script not found', 'source unknown shows error');
+  hasOutput(dom, 'No such file or directory', 'source unknown shows error');
 }
 
 // ──────────────────────────────────
@@ -1323,7 +1323,7 @@ async function test_start_no_args(dom) {
 
 async function test_export_bad_syntax(dom) {
   runCommand(dom, 'export bad');
-  hasOutput(dom, 'invalid syntax', 'export bad syntax shows error');
+  hasOutput(dom, 'not a valid identifier', 'export bad syntax shows error');
 }
 
 async function test_export_bad_theme(dom) {
@@ -1333,12 +1333,12 @@ async function test_export_bad_theme(dom) {
 
 async function test_alias_bad_syntax(dom) {
   runCommand(dom, 'alias / bad');
-  hasOutput(dom, 'invalid syntax', 'alias bad syntax shows error');
+  hasOutput(dom, 'not a valid identifier', 'alias bad syntax shows error');
 }
 
 async function test_source_save_empty_name(dom) {
   runCommand(dom, 'source --save');
-  hasOutput(dom, 'script not found', 'source --save no name shows error');
+  hasOutput(dom, 'No such file or directory', 'source --save no name shows error');
 }
 
 async function test_program_view(dom) {
@@ -1937,13 +1937,13 @@ async function test_cd_comprehensive(dom) {
   // C2. cd nonexistent section → error
   T.clearOutput();
   runCommand(dom, 'cd nonexistent_dir');
-  hasOutput(dom, 'No such directory', 'C2: cd nonexistent_dir');
+  hasOutput(dom, 'No such file or directory', 'C2: cd nonexistent_dir');
   check(T.cwd === 'profile', 'C2b: cwd unchanged after cd nonexistent');
 
   // C3. cd ../nonexistent → error
   T.clearOutput();
   runCommand(dom, 'cd ../nonexistent_dir');
-  hasOutput(dom, 'No such directory', 'C3: cd ../nonexistent from profile');
+  hasOutput(dom, 'No such file or directory', 'C3: cd ../nonexistent from profile');
   check(T.cwd === 'profile', 'C3b: cwd unchanged');
 
   // ══════════════════════════════════════════

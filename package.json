@@ -20,5 +20,8 @@
   "bugs": {
     "url": "https://github.com/stephanvoytov/rugram/issues"
   },
-  "homepage": "https://github.com/stephanvoytov/rugram#readme"
+  "homepage": "https://github.com/stephanvoytov/rugram#readme",
+  "dependencies": {
+    "jsdom": "^29.1.1"
+  }
 }

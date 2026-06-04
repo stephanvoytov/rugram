@@ -45,7 +45,7 @@
     // ── VFS validation ──
     var node = T.vfs.resolve(target);
     if (!node || node.error) {
-      T.addOutputLine('<span class="tp-err">bash: cd: ' + T.escapeHtml(target) + ': No such directory</span>');
+      T.addOutputLine('<span class="tp-err">bash: cd: ' + T.escapeHtml(target) + ': No such file or directory</span>');
       T.addOutputLine('<span class="tp-desc"># Sections: posts, saved, drafts, trash, profile, users, chat, notifications, followers, following</span>');
       return;
     }
@@ -77,7 +77,7 @@
 
     var node = T.vfs.resolve(target);
     if (!node || node.error) {
-      T.addOutputLine('<span class="tp-err">ls: ' + T.escapeHtml(target) + ': No such directory</span>');
+      T.addOutputLine('<span class="tp-err">ls: ' + T.escapeHtml(target) + ': No such file or directory</span>');
       T.addOutputLine('<span class="tp-desc"># <span class="tp-cmd">cd</span> to a section, or <span class="tp-cmd">ls &lt;section&gt;</span></span>');
       return;
     }
