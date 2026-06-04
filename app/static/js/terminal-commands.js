@@ -917,33 +917,40 @@
   T.cmdPing = function(target) {
     target = (target || '').replace(/^@/, '').trim();
     var PACKETS = 4;
-    var seq = 0;
+    var seq = 1;
     var rtts = [];
     var received = 0;
+    var startTime = Date.now();
+
+    function printStats(host) {
+      var elapsed = Date.now() - startTime;
+      T.addOutputLine('--- ' + host + ' ping statistics ---');
+      var loss = Math.round((PACKETS - received) / PACKETS * 100);
+      T.addOutputLine(PACKETS + ' packets transmitted, ' + received + ' received, ' + loss + '% packet loss, time ' + elapsed + 'ms');
+      if (rtts.length) {
+        var min = Math.min.apply(null, rtts);
+        var max = Math.max.apply(null, rtts);
+        var avg = rtts.reduce(function(a,b) { return a+b; }, 0) / rtts.length;
+        var vari = rtts.reduce(function(a,b) { return a + (b-avg)*(b-avg); }, 0) / rtts.length;
+        var mdev = Math.sqrt(vari);
+        T.addOutputLine('rtt min/avg/max/mdev = ' +
+          min.toFixed(3) + '/' + avg.toFixed(3) + '/' + max.toFixed(3) + '/' + mdev.toFixed(3) + ' ms');
+      }
+    }
+
+    function sendReply(host, ip, ttl, ms) {
+      rtts.push(ms);
+      received++;
+      T.addOutputLine('64 bytes from ' + host + ' (' + ip + '): icmp_seq=' + seq + ' ttl=' + ttl + ' time=' + ms.toFixed(1) + ' ms');
+      seq++;
+    }
 
     if (!target) {
-      T.addOutputLine('PING 127.0.0.1 (127.0.0.1): 56 data bytes');
+      T.addOutputLine('PING 127.0.0.1 (127.0.0.1) 56(84) bytes of data.');
       function sendLocal() {
-        if (seq >= PACKETS) {
-          T.addOutputLine('--- 127.0.0.1 ping statistics ---');
-          T.addOutputLine(PACKETS + ' packets transmitted, ' + received + ' received, ' +
-            Math.round((PACKETS - received) / PACKETS * 100) + '% packet loss');
-          if (rtts.length) {
-            var min = Math.min.apply(null, rtts);
-            var max = Math.max.apply(null, rtts);
-            var avg = rtts.reduce(function(a,b) { return a+b; }, 0) / rtts.length;
-            var vari = rtts.reduce(function(a,b) { return a + (b-avg)*(b-avg); }, 0) / rtts.length;
-            var mdev = Math.sqrt(vari);
-            T.addOutputLine('rtt min/avg/max/mdev = ' +
-              min.toFixed(2) + '/' + avg.toFixed(2) + '/' + max.toFixed(2) + '/' + mdev.toFixed(2) + ' ms');
-          }
-          return;
-        }
+        if (seq > PACKETS) { printStats('127.0.0.1'); return; }
         var ms = Math.random() * 2 + 0.2;
-        rtts.push(ms);
-        received++;
-        T.addOutputLine('64 bytes from 127.0.0.1: icmp_seq=' + seq + ' ttl=64 time=' + ms.toFixed(2) + ' ms');
-        seq++;
+        sendReply('127.0.0.1', '127.0.0.1', 64, ms);
         setTimeout(sendLocal, Math.random() * 200 + 50);
       }
       sendLocal();
@@ -951,66 +958,52 @@
     }
 
     var apiStart = Date.now();
-    var userFound = null;
-    T.addOutputLine('PING @' + T.escapeHtml(target) + ' (' + window.location.host + '): 56 data bytes');
+    var apiHost = window.location.hostname || window.location.host;
+    T.addOutputLine('PING @' + T.escapeHtml(target) + ' (' + apiHost + ') 56(84) bytes of data.');
 
     fetch(window.API_USERS_SEARCH_URL + '?q=' + encodeURIComponent(target), {
       credentials: 'same-origin'
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
-      userFound = data.users && data.users.find(function(u) {
+      var userFound = data.users && data.users.find(function(u) {
         return u.username.toLowerCase() === target.toLowerCase();
       });
       var apiTime = Date.now() - apiStart;
 
       if (!userFound) {
-        for (var i = 0; i < PACKETS; i++) {
+        var unreachSent = 0;
+        for (var i = 1; i <= PACKETS; i++) {
           (function(s) {
             setTimeout(function() {
-              T.addOutputLine('<span class="tp-err">From ' + window.location.host + ' icmp_seq=' + s + ' Destination Host Unreachable</span>');
+              T.addOutputLine('<span class="tp-err">From ' + apiHost + ' icmp_seq=' + s + ' Destination Host Unreachable</span>');
               seq++;
-              if (seq >= PACKETS) {
-                T.addOutputLine('--- @' + T.escapeHtml(target) + ' ping statistics ---');
-                T.addOutputLine(PACKETS + ' packets transmitted, 0 received, 100% packet loss');
-              }
+              unreachSent++;
+              if (unreachSent >= PACKETS) printStats('@' + T.escapeHtml(target));
             }, Math.random() * 300 + 100);
           })(i);
         }
         return;
       }
 
+      var firstTtl = 64 - Math.floor(Math.random() * 10 + 1);
+
       function sendUser() {
-        if (seq >= PACKETS) {
-          T.addOutputLine('--- @' + T.escapeHtml(target) + ' ping statistics ---');
-          T.addOutputLine(PACKETS + ' packets transmitted, ' + received + ' received, ' +
-            Math.round((PACKETS - received) / PACKETS * 100) + '% packet loss');
-          if (rtts.length) {
-            var min = Math.min.apply(null, rtts);
-            var max = Math.max.apply(null, rtts);
-            var avg = rtts.reduce(function(a,b) { return a+b; }, 0) / rtts.length;
-            var vari = rtts.reduce(function(a,b) { return a + (b-avg)*(b-avg); }, 0) / rtts.length;
-            var mdev = Math.sqrt(vari);
-            T.addOutputLine('rtt min/avg/max/mdev = ' +
-              min.toFixed(2) + '/' + avg.toFixed(2) + '/' + max.toFixed(2) + '/' + mdev.toFixed(2) + ' ms');
-          }
-          return;
-        }
+        if (seq > PACKETS) { printStats('@' + T.escapeHtml(target)); return; }
 
         var ms;
-        if (seq === 0) {
+        if (seq === 1) {
           ms = Math.max(apiTime, Math.random() * 30 + 10);
         } else {
           ms = (rtts[0] || 30) + (Math.random() * 20 - 10);
           if (ms < 5) ms = 5;
         }
-        rtts.push(ms);
-        received++;
 
-        var ttl = 64 - Math.floor(Math.random() * 20 + 2);
-        T.addOutputLine('64 bytes from @' + T.escapeHtml(target) + ' (' + window.location.host + '): icmp_seq=' + seq +
-          ' ttl=' + ttl + ' time=' + ms.toFixed(2) + ' ms');
-        seq++;
+        var ttl = firstTtl + Math.floor(Math.random() * 4) - 1;
+        if (ttl < 40) ttl = 40;
+        if (ttl > 64) ttl = 64;
+
+        sendReply('@' + T.escapeHtml(target), apiHost, ttl, ms);
         setTimeout(sendUser, Math.random() * 200 + 50);
       }
 

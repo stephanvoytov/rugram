@@ -1028,7 +1028,8 @@ async function test_ping_local(dom) {
   runCommand(dom, 'ping');
   await nextTick(); await wait(100);
   hasOutput(dom, 'PING 127.0.0.1', 'ping localhost shows header');
-  hasOutput(dom, 'icmp_seq=0', 'ping localhost shows seq');
+  hasOutput(dom, 'icmp_seq=1', 'ping localhost shows seq starting at 1');
+  hasOutput(dom, '56(84) bytes of data', 'ping shows unix-style header');
 }
 
 async function test_ping_user(dom) {
