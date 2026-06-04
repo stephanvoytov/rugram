@@ -61,8 +61,8 @@
       T.stopChatPolling();
     }
 
-    // ✅ Меняем директорию
-    var parts = T.vfs.normalize(target);
+    // ✅ Меняем директорию (с учётом текущей)
+    var parts = T.vfs.normalize(target, T.cwd);
     T.cwd = T.vfs.canonical(parts);
     T.updatePrompt();
   };
