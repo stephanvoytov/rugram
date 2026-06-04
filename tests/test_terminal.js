@@ -1770,6 +1770,207 @@ async function test_cd_home(dom) {
   check(T.cwd === '', 'cd home goes to root');
 }
 
+async function test_cd_comprehensive(dom) {
+  const T = dom.window.TERMINAL;
+  setupLoggedIn(dom);
+
+  // ══════════════════════════════════════════
+  //  A. FROM ROOT (cwd = '')
+  // ══════════════════════════════════════════
+  // Each case resets T.cwd before itself
+
+  // A1. Simple section
+  T.cwd = '';
+  runCommand(dom, 'cd posts');
+  check(T.cwd === 'posts', 'A1: cd posts from root');
+
+  // A2. cd ../section from root = /section (Unix: /../x = /x)
+  T.cwd = '';
+  runCommand(dom, 'cd ../saved');
+  check(T.cwd === 'saved', 'A2: cd ../saved from root equals /saved');
+
+  // A3. cd ./section
+  T.cwd = '';
+  runCommand(dom, 'cd ./profile');
+  check(T.cwd === 'profile', 'A3: cd ./profile from root');
+
+  // A4. cd section/ (trailing slash)
+  T.cwd = '';
+  runCommand(dom, 'cd trash/');
+  check(T.cwd === 'trash', 'A4: cd trash/ from root');
+
+  // A5. cd /section (absolute)
+  T.cwd = '';
+  runCommand(dom, 'cd /notifications');
+  check(T.cwd === 'notifications', 'A5: cd /notifications from root');
+
+  // A6. cd /////section (many slashes)
+  T.cwd = '';
+  runCommand(dom, 'cd ////drafts');
+  check(T.cwd === 'drafts', 'A6: cd ////drafts normalizes slashes');
+
+  // A7. cd . (stay in place — needs a starting dir)
+  T.cwd = 'saved';
+  runCommand(dom, 'cd .');
+  check(T.cwd === 'saved', 'A7: cd . stays in same dir');
+
+  // A8. cd section/. (dot in middle)
+  T.cwd = '';
+  runCommand(dom, 'cd saved/.');
+  check(T.cwd === 'saved', 'A8: cd saved/. from root');
+
+  // A9. cd ~ (root)
+  runCommand(dom, 'cd ~');
+  check(T.cwd === '', 'A9: cd ~ goes to root');
+
+  // A10. cd ~/section (tilde = root)
+  T.cwd = '';
+  runCommand(dom, 'cd ~/posts');
+  check(T.cwd === 'posts', 'A10: cd ~/posts from root');
+
+  // A11. cd .. from root stays at root (Unix: /.. = /)
+  T.cwd = '';
+  runCommand(dom, 'cd ..');
+  check(T.cwd === '', 'A11: cd .. from root stays at root');
+
+  // A12. cd section/../other (path normalization)
+  T.cwd = '';
+  runCommand(dom, 'cd posts/../saved');
+  check(T.cwd === 'saved', 'A12: cd posts/../saved resolves correctly');
+
+  // A13. cd section/.. (back to parent)
+  T.cwd = '';
+  runCommand(dom, 'cd saved/..');
+  check(T.cwd === '', 'A13: cd saved/.. from root goes to root');
+
+  // A14. cd section/./ (dots + slash)
+  T.cwd = '';
+  runCommand(dom, 'cd profile/./');
+  check(T.cwd === 'profile', 'A14: cd profile/./ from root');
+
+  // A15. cd to nested dir: profile/posts
+  T.cwd = '';
+  runCommand(dom, 'cd profile/posts');
+  check(T.cwd === 'profile/posts', 'A15: cd profile/posts from root');
+  runCommand(dom, 'cd ..');
+  check(T.cwd === 'profile', 'A15b: cd .. from profile/posts goes to profile');
+  runCommand(dom, 'cd ..');
+  check(T.cwd === '', 'A15c: cd .. from profile goes to root');
+
+  // ══════════════════════════════════════════
+  //  B. FROM SUBDIR (cwd = 'profile')
+  // ══════════════════════════════════════════
+
+  // B1. Relative cd to subsection
+  T.cwd = 'profile';
+  runCommand(dom, 'cd posts');
+  check(T.cwd === 'profile/posts', 'B1: cd posts from profile/');
+
+  // B2. cd .. from sub-subdir → parent
+  runCommand(dom, 'cd ..');
+  check(T.cwd === 'profile', 'B2: cd .. from profile/posts');
+
+  // B3. cd ../section from subdir
+  runCommand(dom, 'cd ../saved');
+  check(T.cwd === 'saved', 'B3: cd ../saved from profile/');
+
+  // B4. cd ../../section from subdir (two levels up)
+  T.cwd = 'profile/posts';
+  runCommand(dom, 'cd ../../trash');
+  check(T.cwd === 'trash', 'B4: cd ../../trash from profile/posts');
+
+  // B5. cd ../../.. from subdir (past root, stays at root)
+  T.cwd = 'profile/posts';
+  runCommand(dom, 'cd ../../..');
+  check(T.cwd === '', 'B5: cd ../../.. from profile/posts = root');
+
+  // B6. cd /section (absolute from subdir)
+  T.cwd = 'profile';
+  runCommand(dom, 'cd /posts');
+  check(T.cwd === 'posts', 'B6: cd /posts from profile/ (absolute)');
+
+  // B7. cd ~ from subdir → root
+  T.cwd = 'profile/posts';
+  runCommand(dom, 'cd ~');
+  check(T.cwd === '', 'B7: cd ~ from profile/posts goes to root');
+
+  // B8. cd ~/section from subdir (FIXED BUG)
+  T.cwd = 'profile';
+  runCommand(dom, 'cd ~/saved');
+  check(T.cwd === 'saved', 'B8: cd ~/saved from profile/ (was BUG: profile/saved)');
+
+  // B9. cd . from subdir (stay)
+  T.cwd = 'profile';
+  runCommand(dom, 'cd .');
+  check(T.cwd === 'profile', 'B9: cd . from profile');
+
+  // B10. cd ./section from subdir
+  runCommand(dom, 'cd ./posts');
+  check(T.cwd === 'profile/posts', 'B10: cd ./posts from profile');
+
+  // B11. cd section/.. from subdir (back to parent)
+  T.cwd = 'profile';
+  runCommand(dom, 'cd posts/..');
+  check(T.cwd === 'profile', 'B11: cd posts/.. from profile');
+
+  // B12. cd section/./. from subdir (dots everywhere)
+  T.cwd = 'profile';
+  runCommand(dom, 'cd posts/./.');
+  check(T.cwd === 'profile/posts', 'B12: cd posts/./. from profile');
+
+  // B13. cd section/../../other = two up then down
+  T.cwd = 'profile';
+  runCommand(dom, 'cd posts/../../saved');
+  check(T.cwd === 'saved', 'B13: cd posts/../../saved from profile');
+
+  // ══════════════════════════════════════════
+  //  C. ERROR CASES
+  // ══════════════════════════════════════════
+
+  // C1. cd into file → error
+  T.cwd = 'profile';
+  T.clearOutput();
+  runCommand(dom, 'cd info');
+  hasOutput(dom, 'Not a directory', 'C1: cd info from profile/');
+  check(T.cwd === 'profile', 'C1b: cwd unchanged after cd into file');
+
+  // C2. cd nonexistent section → error
+  T.clearOutput();
+  runCommand(dom, 'cd nonexistent_dir');
+  hasOutput(dom, 'No such directory', 'C2: cd nonexistent_dir');
+  check(T.cwd === 'profile', 'C2b: cwd unchanged after cd nonexistent');
+
+  // C3. cd ../nonexistent → error
+  T.clearOutput();
+  runCommand(dom, 'cd ../nonexistent_dir');
+  hasOutput(dom, 'No such directory', 'C3: cd ../nonexistent from profile');
+  check(T.cwd === 'profile', 'C3b: cwd unchanged');
+
+  // ══════════════════════════════════════════
+  //  D. @user DIRS
+  // ══════════════════════════════════════════
+
+  // D1. cd @user from root
+  T.cwd = '';
+  runCommand(dom, 'cd @testuser2');
+  check(T.cwd === '@testuser2', 'D1: cd @testuser2 from root');
+
+  // D2. cd posts from inside @user (relative)
+  runCommand(dom, 'cd posts');
+  check(T.cwd === '@testuser2/posts', 'D2: cd posts from @testuser2/');
+
+  // D3. cd .. from @user/posts → back to @user
+  runCommand(dom, 'cd ..');
+  check(T.cwd === '@testuser2', 'D3: cd .. from @user/posts');
+
+  // D4. cd ../posts from @user → root/posts
+  runCommand(dom, 'cd ../posts');
+  check(T.cwd === 'posts', 'D4: cd ../posts from @testuser2');
+
+  // Restore
+  T.cwd = '';
+}
+
 async function test_history_empty(dom) {
   const T = dom.window.TERMINAL;
   T.commandHistory = [];
@@ -2003,6 +2204,7 @@ async function run() {
     ['rm other post',   test_rm_other_post],
     ['export MATRIX',   test_export_matrix],
     ['cd home',         test_cd_home],
+    ['cd comprehensive',test_cd_comprehensive],
     ['history empty',   test_history_empty],
     ['history search no',test_history_search_no_match],
   ];
