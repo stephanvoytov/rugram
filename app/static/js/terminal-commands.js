@@ -274,7 +274,7 @@
     }
     T.renderNeofetch(T.username, 'No description', null);
     // Also fetch to get fresh data
-    fetch(window.API_ME_URL, { credentials: 'same-origin' })
+    T.vfsFetch(window.API_ME_URL, { credentials: 'same-origin' })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (data.authenticated) {
@@ -1040,11 +1040,9 @@
   };
 
   // ── COMMAND: echo ──
+  // $VAR expansion is done at _dispatchCommand level, echo just outputs raw text
   T.cmdEcho = function(text) {
-    var out = text.replace(/\$(\w+)/g, function(m, key) {
-      return T.env[key] !== undefined ? T.env[key] : '$' + key;
-    });
-    T.addOutputLine(T.escapeHtml(out));
+    T.addOutputLine(T.escapeHtml(text));
   };
 
   // ── COMMAND: history ──

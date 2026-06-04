@@ -230,7 +230,7 @@
       },
       remove: function(out) {
         T.showLoading(T._('Удаление навсегда...', 'Deleting permanently...'));
-        fetch('/delete/' + id, {
+        T.vfsFetch('/delete/' + id, {
           method: 'DELETE',
           headers: { 'X-CSRFToken': T.csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
           credentials: 'same-origin'
@@ -275,7 +275,7 @@
         content: function(out) { T.cmdWhoami(); },
         edit: function(out, newText) {
           if (!T.isLoggedIn) { out('<span class="tp-err">' + T._('Требуется вход.', 'Login required.') + '</span>'); return; }
-          fetch(window.EDIT_PROFILE_URL, {
+          T.vfsFetch(window.EDIT_PROFILE_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': T.csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
             body: 'description=' + encodeURIComponent(newText),
@@ -380,7 +380,7 @@
     function _loadMsgs(afterResolve) {
       if (!T.isLoggedIn) return afterResolve(null, T._('Требуется вход.', 'Login required.'));
       T.showLoading(T._('Загрузка сообщений...', 'Loading messages...'));
-      fetch(window.API_CHAT_LIST_URL, { credentials: 'same-origin' })
+      T.vfsFetch(window.API_CHAT_LIST_URL, { credentials: 'same-origin' })
         .then(function(r) { return r.json(); })
         .then(function(data) {
           var chats = data.chats || [];
@@ -395,7 +395,7 @@
             afterResolve(null, T._('Нет диалога с @', 'No chat with @') + T.escapeHtml(name));
             return;
           }
-          fetch('/chat/' + chat.id + '/messages?limit=50', { credentials: 'same-origin' })
+          T.vfsFetch('/chat/' + chat.id + '/messages?limit=50', { credentials: 'same-origin' })
             .then(function(r2) { return r2.json(); })
             .then(function(msgData) {
               T.hideLoading();
@@ -539,7 +539,7 @@
               return;
             }
             T.showLoading(T._('Загрузка уведомления...', 'Loading notification...'));
-            fetch(window.API_NOTIFICATIONS_URL, { credentials: 'same-origin' })
+            T.vfsFetch(window.API_NOTIFICATIONS_URL, { credentials: 'same-origin' })
               .then(function(r) { return r.json(); })
               .then(function(data) {
                 T.hideLoading();
@@ -584,7 +584,7 @@
           return;
         }
         T.showLoading(T._('Загрузка уведомлений...', 'Loading notifications...'));
-        fetch(window.API_NOTIFICATIONS_URL, { credentials: 'same-origin' })
+        T.vfsFetch(window.API_NOTIFICATIONS_URL, { credentials: 'same-origin' })
           .then(function(r) { return r.json(); })
           .then(function(data) {
             T.hideLoading();
@@ -661,7 +661,7 @@
           return;
         }
         T.showLoading(T._('Загрузка подписчиков...', 'Loading followers...'));
-        fetch('/api/followers/' + encodeURIComponent(user), { credentials: 'same-origin' })
+        T.vfsFetch('/api/followers/' + encodeURIComponent(user), { credentials: 'same-origin' })
           .then(function(r) { if (!r.ok) throw new Error(); return r.json(); })
           .then(function(data) {
             T.hideLoading();
@@ -706,7 +706,7 @@
           return;
         }
         T.showLoading(T._('Загрузка подписок...', 'Loading following...'));
-        fetch('/api/following/' + encodeURIComponent(user), { credentials: 'same-origin' })
+        T.vfsFetch('/api/following/' + encodeURIComponent(user), { credentials: 'same-origin' })
           .then(function(r) { if (!r.ok) throw new Error(); return r.json(); })
           .then(function(data) {
             T.hideLoading();
@@ -742,7 +742,7 @@
 
   function _editPost(id, newText, out) {
     var url = window.EDIT_POST_URL.replace('/0/', '/' + id + '/');
-    fetch(url, {
+    T.vfsFetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -765,7 +765,7 @@
   // ── Trash / permanent-delete a post (shared, used by VFS and cmdRm) ──
   T.vfs.movePostToTrash = function(post, out, force) {
     if (force) {
-      fetch('/delete/' + post.id, {
+      T.vfsFetch('/delete/' + post.id, {
         method: 'DELETE',
         headers: { 'X-CSRFToken': T.csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
         credentials: 'same-origin'

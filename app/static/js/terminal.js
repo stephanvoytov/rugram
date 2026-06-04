@@ -189,7 +189,7 @@
 
   // ── Fetch feed posts from API (terminal-independent) ──
   T.fetchFeedFromAPI = function(callback) {
-    fetch(window.API_FEED_URL + '?per_page=50', { credentials: 'same-origin' })
+    T.vfsFetch(window.API_FEED_URL + '?per_page=50', { credentials: 'same-origin' })
       .then(function(r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();
@@ -291,9 +291,16 @@
 
     var addToHistory = T._shouldAddToHistory(cmd);
 
-    if (cmd.includes('&&')) {
-      var parts = cmd.split('&&');
-      // Limit && chaining depth
+    // ── Chaining: ; (always), || (if exit code), && (if exit code) ──
+    // Since we don't track exit codes, all three just run sequentially.
+    // Split precedence: ; first, then ||, then && (like bash precedence).
+    var chainOp = null;
+    if (cmd.indexOf(';') >= 0) chainOp = ';';
+    else if (cmd.indexOf('||') >= 0) chainOp = '||';
+    else if (cmd.indexOf('&&') >= 0) chainOp = '&&';
+
+    if (chainOp) {
+      var parts = cmd.split(chainOp);
       if (parts.length > 5) {
         T.addOutputLine('<span class="tp-err">bash: too many chained commands (max 5)</span>');
         return;
@@ -323,7 +330,97 @@
     T._dispatchCommand(cmd);
   };
 
+  // ── AbortController for Ctrl+C ──
+  T._abortController = null;
+
+  T._newAbort = function() {
+    if (T._abortController) T._abortController.abort();
+    T._abortController = new AbortController();
+    return T._abortController.signal;
+  };
+
+  T._cancelCommand = function() {
+    if (T._abortController) {
+      T._abortController.abort();
+      T._abortController = null;
+    }
+    if (T._programStack && T._programStack.length > 0) {
+      while (T._programStack.length > 0) T.exitProgramView();
+    }
+  };
+
+  // ── fetch wrapper with abort support ──
+  // All VFS fetches should use this instead of raw fetch.
+  // On abort (Ctrl+C), rejects silently — callers should handle
+  // by checking .catch or the special error name.
+  T.vfsFetch = function(url, options) {
+    options = options || {};
+    if (!options.signal && T._abortController) {
+      options.signal = T._abortController.signal;
+    }
+    return fetch(url, options);
+  };
+
+  // ── $VAR expansion for all commands ──
+  T._expandEnv = function(text) {
+    return text.replace(/\$(\w+)/g, function(m, key) {
+      return T.env[key] !== undefined ? T.env[key] : m;
+    });
+  };
+
+  // ── VFS tab completion ──
+  T._completeVFSPath = function(partial, cwd) {
+    // Split into parent path + partial last segment
+    var hasSlash = partial.lastIndexOf('/') >= 0;
+    var parentPath = hasSlash ? partial.substring(0, partial.lastIndexOf('/')) : '';
+    var lastName = hasSlash ? partial.substring(partial.lastIndexOf('/') + 1) : partial;
+    var prefix = hasSlash ? parentPath + '/' : '';
+
+    // Resolve the parent directory
+    var node;
+    if (parentPath) {
+      // Resolve parent relative to cwd
+      var parts = T.vfs.normalize(parentPath, cwd);
+      node = T.vfs.route(parts);
+    } else {
+      // No parent — resolve current directory to get its children
+      var curParts = cwd ? T.vfs.normalize(cwd, '') : [];
+      node = T.vfs.route(curParts);
+    }
+
+    if (!node || node.error || node.type !== 'dir') return [];
+
+    var children = node.children || [];
+    var results = [];
+    var seen = {};
+
+    for (var i = 0; i < children.length; i++) {
+      var name = children[i].name;
+      if (name.toLowerCase().startsWith(lastName.toLowerCase())) {
+        var suffix = children[i].type === 'dir' ? '/' : '';
+        var full = prefix + name + suffix;
+        if (!seen[full]) { seen[full] = true; results.push(full); }
+      }
+    }
+
+    // Also complete @usernames at root level (or when at /users)
+    if (lastName.startsWith('@') && (!parentPath || parentPath === 'users')) {
+      var userPartial = lastName.toLowerCase().replace('@', '');
+      (T.feedData || []).forEach(function(p) {
+        if (p.author.toLowerCase().startsWith(userPartial)) {
+          var at = prefix + '@' + p.author + '/';
+          if (!seen[at]) { seen[at] = true; results.push(at); }
+        }
+      });
+    }
+
+    return results.sort();
+  };
+
   T._dispatchCommand = function(cmd) {
+    // Expand $VAR in the entire command line before dispatching
+    cmd = T._expandEnv(cmd);
+
     // --help flag (generic — works for any command)
     if (/\s--help$|^--help$/.test(cmd)) {
       var hlpName = cmd.replace(/\s*--help$/, '').trim().split(' ')[0];
@@ -391,6 +488,19 @@
 
   // ── Input handler ──
   T.onInputKey = function(e) {
+    // Ctrl+C — interrupt
+    if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) {
+      // Let nano handle its own Ctrl+C
+      if (T.nanoOverlay) return;
+      e.preventDefault();
+      T._cancelCommand();
+      T.addOutputLine('<span class="tp-muted">^C</span>');
+      T.el.input.value = '';
+      T.updatePrompt();
+      if (T.el.input) { setTimeout(function() { T.el.input.focus(); }, 10); }
+      return;
+    }
+
     // Ctrl+R — reverse-i-search
     if (e.ctrlKey && (e.key === 'r' || e.key === 'R')) {
       e.preventDefault();
@@ -493,30 +603,42 @@
       var words = input.split(/\s+/);
       var partial = words[0].toLowerCase();
       var candidates = [];
+      var navCmds = { cd: 1, ls: 1, cat: 1, nano: 1, rm: 1 };
 
-      // Match against registry keys
-      var names = Object.keys(T.registry);
-      for (var i = 0; i < names.length; i++) {
-        if (names[i].toLowerCase().startsWith(partial)) {
-          candidates.push(names[i]);
-        }
-      }
-
-      // If second word starts with @, match usernames from feedData
-      if (words.length > 1 && words[1].startsWith('@')) {
-        var userPartial = words[1].toLowerCase().replace('@', '');
-        T.feedData.forEach(function(p) {
-          if (p.author.toLowerCase().startsWith(userPartial)) {
-            var at = '@' + p.author;
-            if (candidates.indexOf(at) < 0) candidates.push(at);
+      if (words.length === 1) {
+        // ── Complete command name ──
+        var names = Object.keys(T.registry);
+        for (var i = 0; i < names.length; i++) {
+          if (names[i].toLowerCase().startsWith(partial)) {
+            candidates.push(names[i]);
           }
-        });
+        }
+      } else if (navCmds[partial] && words.length === 2) {
+        // ── Complete VFS path for nav commands (cd, ls, cat, nano, rm) ──
+        candidates = T._completeVFSPath(words[1], T.cwd);
+      } else {
+        // ── Complete @username from feedData ──
+        if (words[1] && words[1].startsWith('@')) {
+          var userPartial = words[1].toLowerCase().replace('@', '');
+          T.feedData.forEach(function(p) {
+            if (p.author.toLowerCase().startsWith(userPartial)) {
+              var at = '@' + p.author;
+              if (candidates.indexOf(at) < 0) candidates.push(at);
+            }
+          });
+        }
       }
 
       if (candidates.length === 0) return;
       if (candidates.length === 1) {
-        words[0] = candidates[0];
-        T.el.input.value = words.join(' ') + ' ';
+        if (words.length >= 2 && navCmds[partial]) {
+          // VFS path: use last word as the completion base
+          words[words.length - 1] = candidates[0];
+          T.el.input.value = words.join(' ') + ' ';
+        } else {
+          words[0] = candidates[0];
+          T.el.input.value = words.join(' ') + ' ';
+        }
       } else {
         T.addOutputLine('<span class="tp-desc">' + candidates.join('  ') + '</span>');
       }
@@ -1208,7 +1330,7 @@
   T._feedToggleLike = function(item) {
     if (!item || !item.id) return;
     var url = window.LIKE_URL.replace('/0/', '/' + item.id + '/');
-    fetch(url, {
+    T.vfsFetch(url, {
       method: 'POST',
       headers: { 'X-CSRFToken': T.csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
       credentials: 'same-origin'
@@ -1229,7 +1351,7 @@
   T._feedToggleSave = function(item) {
     if (!item || !item.id) return;
     var url = window.SAVE_URL.replace('/0/', '/' + item.id + '/');
-    fetch(url, {
+    T.vfsFetch(url, {
       method: 'POST',
       headers: { 'X-CSRFToken': T.csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
       credentials: 'same-origin'
@@ -1249,7 +1371,7 @@
   T._feedToggleRepost = function(item) {
     if (!item || !item.id) return;
     var url = window.REPOST_URL.replace('/0/', '/' + item.id + '/');
-    fetch(url, {
+    T.vfsFetch(url, {
       method: 'POST',
       headers: { 'X-CSRFToken': T.csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
       credentials: 'same-origin'
@@ -1433,6 +1555,8 @@
 
   // ── Init ──
   T.init = function() {
+    T._abortController = new AbortController();
+
     if (!T.savedLang) {
       var htmlLang = document.documentElement.getAttribute('lang') || '';
       if (htmlLang.startsWith('ru')) T.env.LANG = 'ru_RU';
@@ -1462,7 +1586,7 @@
     }
 
     if (T.username === 'guest' && window.isAuthenticated) {
-      fetch(window.API_ME_URL, { credentials: 'same-origin' })
+      T.vfsFetch(window.API_ME_URL, { credentials: 'same-origin' })
         .then(function(r) { return r.json(); })
         .then(function(data) {
           if (data.authenticated) {
@@ -1475,7 +1599,7 @@
         .catch(function() {});
     }
 
-    fetch(window.API_NOTIFICATIONS_URL + '?page=1&per_page=1', { credentials: 'same-origin' })
+    T.vfsFetch(window.API_NOTIFICATIONS_URL + '?page=1&per_page=1', { credentials: 'same-origin' })
       .then(function(r) { return r.json(); })
       .then(function(data) {
         T.unreadNotifs = data.total_unread || data.unread || 0;
