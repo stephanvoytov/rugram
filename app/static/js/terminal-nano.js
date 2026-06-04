@@ -142,6 +142,10 @@
     }
     renderShortcuts();
 
+    // Fullscreen: hide command bar like program view
+    if (T.el.bar) { T.el.bar.style.display = 'none'; }
+    if (T.el.terminal) { T.el.terminal.style.bottom = '0'; }
+
     document.body.appendChild(overlay);
     T.nanoOverlay = overlay;
 
@@ -165,6 +169,8 @@
         T.nanoOverlay.remove();
         T.nanoOverlay = null;
       }
+      if (T.el.bar) { T.el.bar.style.display = 'block'; }
+      if (T.el.terminal) { T.el.terminal.style.bottom = '49px'; }
       if (T.el.input) T.el.input.focus();
     }
 

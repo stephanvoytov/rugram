@@ -1198,6 +1198,9 @@
       if (T.watchInterval) {
         clearInterval(T.watchInterval);
         T.watchInterval = null;
+        if (T.el.bar) T.el.bar.style.display = 'block';
+        if (T.el.terminal) T.el.terminal.style.bottom = '49px';
+        T.clearOutput();
         T.addOutputLine('<span class="tp-ok">watch stopped</span>');
       } else {
         T.addOutputLine('<span class="tp-muted">No active watch.</span>');
@@ -1215,6 +1218,12 @@
       cmd = m[2];
     }
 
+    // Fullscreen: hide command bar like program view
+    if (T.el.bar) T.el.bar.style.display = 'none';
+    if (T.el.terminal) T.el.terminal.style.bottom = '0';
+    if (T.el.input) T.el.input.blur();
+
+    T.clearOutput();
     T.addOutputLine('<span class="tp-ok">watch: every ' + interval + 's — ' + T.escapeHtml(cmd) + '</span>');
     T.addOutputLine('<span class="tp-desc"># <span class="tp-cmd">watch stop</span> — stop watching</span>');
 
@@ -1222,13 +1231,15 @@
 
     T.watchInterval = setInterval(function() {
       T.clearOutput();
+      T.addOutputLine('<span class="tp-ok">watch: every ' + interval + 's — ' + T.escapeHtml(cmd) + '</span>');
+      T.addOutputLine('<span class="tp-desc"># <span class="tp-cmd">watch stop</span> — stop watching</span>');
       T._dispatchCommand(cmd);
     }, interval * 1000);
   };
 
   // ── COMMAND: top ──
   T.cmdTop = function() {
-    T.clearOutput();
+    T.enterProgramView();
     var running = true;
 
     T.addOutputLine('<span class="tp-output-header">-- top --</span>');
@@ -1268,9 +1279,9 @@
       running = false;
       clearInterval(topInterval);
       document.removeEventListener('keydown', exitTop);
-      T.el.output.innerHTML = '';
-      T.addOutputLine('<span class="tp-muted">--- top end ---</span>');
+      T.exitProgramView();
     }
+
     setTimeout(function() {
       document.addEventListener('keydown', exitTop);
     }, 200);
