@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+{% block title %}help — Rugram{% endblock %}
+{% block robots %}index,follow{% endblock %}
+
+{% block content %}
+<div class="terminal-box" style="max-width:720px;margin:24px auto">
+    <div class="auth-header" style="padding:14px 24px">
+        <span class="auth-title">[help]</span>
+        <span class="auth-subtitle">{{ _('Rugram Help') }}</span>
+    </div>
+
+    <!-- Tab bar -->
+    <div style="display:flex;gap:0;border-bottom:2px solid var(--border);padding:0">
+        <button class="help-tab active" data-tab="about" style="flex:1;padding:10px;background:none;border:none;border-bottom:2px solid var(--accent);color:var(--accent);cursor:pointer;font-family:var(--font);font-size:0.85rem">[{{ _('about') }}]</button>
+        <button class="help-tab" data-tab="commands" style="flex:1;padding:10px;background:none;border:none;border-bottom:2px solid transparent;color:var(--subtle);cursor:pointer;font-family:var(--font);font-size:0.85rem">[{{ _('commands') }}]</button>
+        <button class="help-tab" data-tab="filesystem" style="flex:1;padding:10px;background:none;border:none;border-bottom:2px solid transparent;color:var(--subtle);cursor:pointer;font-family:var(--font);font-size:0.85rem">[{{ _('filesystem') }}]</button>
+    </div>
+
+    <!-- ── TAB: About ── -->
+    <div class="help-panel" id="panel-about" style="padding:24px;font-size:0.88rem;line-height:1.7;color:var(--fg)">
+        <p style="margin-bottom:16px">
+            <b>rugram</b> — {{ _('a social network you drive from a terminal. Like, comment, follow, search, and message — all without leaving the command line.') }}
+        </p>
+
+        <div style="margin-bottom:16px;padding:14px 16px;background:var(--surface);border:1px solid var(--border)">
+            <div style="color:var(--green);margin-bottom:8px;font-size:0.82rem">$ <span style="color:var(--accent)">cat</span> /about/why.txt</div>
+            <div style="padding-left:14px;border-left:2px solid var(--overlay)">
+                <p style="margin-bottom:8px">{{ _('Most social networks are endless feeds, buttons, and popups. Rugram is built for developers — everything is duplicated in the terminal.') }}</p>
+                <p style="margin-bottom:0;font-family:var(--font);font-size:0.82rem;color:var(--subtext)">
+                    <span style="color:var(--mauve)">like</span> 42 &nbsp;|&nbsp;
+                    <span style="color:var(--mauve)">grep</span> "flask" &nbsp;|&nbsp;
+                    <span style="color:var(--mauve)">neofetch</span> @user
+                </p>
+            </div>
+        </div>
+
+        <div style="margin-bottom:16px;padding:14px 16px;background:var(--surface);border:1px solid var(--border)">
+            <div style="color:var(--green);margin-bottom:8px;font-size:0.82rem">$ <span style="color:var(--accent)">ls</span> /about/features/</div>
+            <ul style="margin:0;padding-left:20px">
+                <li style="margin-bottom:4px">{{ _('Full TTY terminal emulator in the browser —') }} <span style="color:var(--mauve)">help</span>, <span style="color:var(--mauve)">man</span>, <span style="color:var(--mauve)">cd</span>, <span style="color:var(--mauve)">grep</span>, <span style="color:var(--mauve)">nano</span>, <span style="color:var(--mauve)">watch</span>, …</li>
+                <li style="margin-bottom:4px">{{ _('GUI on Bootstrap 5.3 styled in Catppuccin — dark/light theme, infinite scroll, animations') }}</li>
+                <li style="margin-bottom:4px">{{ _('Bilingual UI — English and Russian, switch at any time') }}</li>
+                <li style="margin-bottom:4px">{{ _('Real-time messenger with encryption at rest') }}</li>
+                <li style="margin-bottom:4px">{{ _('Push notifications via Web Push API') }}</li>
+                <li style="margin-bottom:0">{{ _('Image upload, bookmarks, reposts, REST API') }}</li>
+            </ul>
+        </div>
+
+        <div style="margin-bottom:16px;padding:14px 16px;background:var(--surface);border:1px solid var(--border)">
+            <div style="color:var(--green);margin-bottom:8px;font-size:0.82rem">$ <span style="color:var(--accent)">cat</span> /about/stack.txt</div>
+            <div style="padding-left:14px;border-left:2px solid var(--overlay);font-size:0.82rem;color:var(--subtext)">
+                Python 3.12 / Flask / SQLAlchemy / SQLite / Jinja2 / Bootstrap 5.3 / Vanilla JS
+            </div>
+        </div>
+
+        <div style="padding:14px 16px;background:var(--surface);border:1px solid var(--border)">
+            <div style="color:var(--green);margin-bottom:8px;font-size:0.82rem">$ <span style="color:var(--accent)">cat</span> /about/links.txt</div>
+            <div style="padding-left:14px;border-left:2px solid var(--overlay)">
+                <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px">
+                    <a href="https://github.com/stephanvoytov/rugram" target="_blank" rel="noopener" class="btn-term" style="padding:4px 12px;text-decoration:none;font-size:0.82rem">[github]</a>
+                    <a href="{{ url_for('main.index') }}" class="btn-term" style="padding:4px 12px;text-decoration:none;font-size:0.82rem">[feed]</a>
+                    <a href="{{ url_for('auth.register') }}" class="btn-term" style="padding:4px 12px;text-decoration:none;font-size:0.82rem">[register]</a>
+                </div>
+                <div style="font-size:0.78rem;color:var(--subtle)">
+                    {{ _('MIT License') }}
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);font-size:0.78rem;color:var(--subtle);text-align:center">
+            {{ _('Type') }} <code style="background:var(--surface2);padding:1px 6px">neofetch</code> {{ _('in the terminal for your profile') }}
+        </div>
+    </div>
+
+    <!-- ── TAB: Commands ── -->
+    <div class="help-panel" id="panel-commands" style="display:none;padding:24px;font-size:0.88rem;line-height:1.7">
+        <div class="tty-help-section">
+            <p class="tty-help-intro" style="margin-bottom:12px;color:var(--subtext)">
+                {{ _('All commands are in English') }} — <code>help</code> {{ _('in the terminal to get started.') }}
+                {{ _('Use the') }} <strong>[>_]</strong> {{ _('button in the top bar to open the terminal.') }}
+            </p>
+
+            {%- set sections = [
+              ('Auth', [
+                ('login', '&lt;user&gt; &lt;pass&gt;', _('Sign in to your account'), 'login alice secret123'),
+                ('register', '&lt;user&gt; &lt;email&gt; &lt;pass&gt;', _('Create a new account'), 'register alice a@b.com pass123'),
+                ('logout', '', _('Sign out'), 'logout'),
+              ]),
+              ('Posts', [
+                ('like', '&lt;id&gt;', _('Like or unlike a post'), 'like 42'),
+                ('comment', '&lt;id&gt; "&lt;text&gt;"', _('Add a comment to a post'), 'comment 42 "nice post!"'),
+                ('bookmark', '&lt;id&gt;', _('Save or unsave a post'), 'bookmark 42'),
+              ]),
+              ('Social', [
+                ('follow', '@&lt;user&gt;', _('Follow a user'), 'follow @alice'),
+                ('unfollow', '@&lt;user&gt;', _('Unfollow a user'), 'unfollow @alice'),
+                ('whoami', '', _('Show your profile (neofetch)'), 'whoami'),
+                ('neofetch', '@&lt;user&gt;', _('View any user profile'), 'neofetch @alice'),
+                ('ping', '[@user]', _('Check if a user exists'), 'ping @alice'),
+              ]),
+              ('Navigation (filesystem)', [
+                ('ls', '[-l] [dir]', _('List files in current directory'), 'ls -l'),
+                ('cd', '&lt;dir&gt;', _('Change directory'), 'cd feed / cd saved / cd profile'),
+                ('cd ..', '', _('Go up one directory'), 'cd ..'),
+                ('pwd', '', _('Show current directory path'), 'pwd'),
+              ]),
+              ('Programs (view content)', [
+                ('feed', '[-tail N] [--page N] [--search s] [--less]', _('Show the post feed'), 'feed --tail 10 --search cat'),
+                ('saved', '[-tail N] [--less]', _('Show saved posts'), 'saved --less'),
+                ('followers', '[-of @user] [--less]', _('Show followers list'), 'followers --of @alice'),
+                ('following', '[-of @user] [--less]', _('Show following list'), 'following --less'),
+                ('notifications', '', _('Show notifications'), 'notifications'),
+                ('less', '[section]', _('Interactive pager'), 'less feed'),
+                ('cat', '&lt;id&gt;', _('View a post by ID'), 'cat 42'),
+                ('create', '', _('Create a new post (opens nano)'), 'create'),
+                ('grep', '"&lt;text&gt;"', _('Search posts in feed'), 'grep "python"'),
+                ('head', '[-n N]', _('Show first N posts'), 'head -n 10'),
+                ('tail', '[-n N]', _('Show last N posts'), 'tail -n 5'),
+              ]),
+              ('System', [
+                ('clear', '', _('Clear terminal screen'), 'clear'),
+                ('gui / exit', '', _('Switch back to GUI mode'), 'gui'),
+                ('help', '', _('Show this help'), 'help'),
+                ('sudo !!', '', _('Re-run the last command'), 'sudo !!'),
+                ('date', '[-u]', _('Show current date and time'), 'date -u'),
+                ('uptime', '', _('Show terminal session uptime'), 'uptime'),
+                ('history', '[-c]', _('Show or clear command history'), 'history'),
+                ('echo', '&lt;text&gt;', _('Print text with $VAR support'), 'echo $THEME'),
+                ('man', '[-k] [command]', _('Show manual pages'), 'man ls'),
+                ('export', '[VAR=value]', _('Set or view environment variables'), 'export THEME=dark'),
+                ('fortune', '', _('Random programmer quote'), 'fortune'),
+                ('watch', '[-n N] &lt;cmd&gt;', _('Execute command repeatedly'), 'watch -n 5 feed'),
+                ('top', '', _('Live activity feed'), 'top'),
+                ('nano', '&lt;file&gt;', _('Edit a post or profile'), 'nano 42.txt / nano description.txt'),
+                ('say', '&lt;text&gt;', _('Send a message in the current chat'), 'say hello!'),
+                ('start', '@&lt;user&gt;', _('Start a chat with a user'), 'start @alice'),
+              ]),
+            ] -%}
+
+            {% for section_name, cmds in sections %}
+            <div class="tty-help-category">
+                <div class="tty-help-section-header" style="margin-top:16px">-- {{ _(section_name) }} --</div>
+                <table class="tty-help-table">
+                    <thead>
+                        <tr><th>{{ _('Command') }}</th><th>{{ _('Params') }}</th><th>{{ _('Description') }}</th><th>{{ _('Example') }}</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for cmd, params, desc, example in cmds %}
+                        <tr>
+                            <td class="tty-help-cmd">{{ cmd }}</td>
+                            <td class="tty-help-params">{{ params|safe }}</td>
+                            <td class="tty-help-desc">{{ desc }}</td>
+                            <td class="tty-help-example"><code>{{ example }}</code></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endfor %}
+
+            <div class="tty-help-category" style="margin-top:24px">
+                <div class="tty-help-section-header">-- {{ _('Keyboard Shortcuts') }} --</div>
+                <table class="tty-help-table tty-help-shortcuts">
+                    <thead><tr><th>{{ _('Key') }}</th><th>{{ _('Description') }}</th></tr></thead>
+                    <tbody>
+                        <tr><td><kbd>/</kbd></td><td>{{ _('Focus input') }}</td></tr>
+                        <tr><td><kbd>?</kbd></td><td>{{ _('Show help') }}</td></tr>
+                        <tr><td><kbd>&uarr;</kbd> / <kbd>&darr;</kbd></td><td>{{ _('Command history') }}</td></tr>
+                        <tr><td><kbd>Esc</kbd></td><td>{{ _('Blur input') }}</td></tr>
+                        <tr><td><code>--help</code></td><td>{{ _('Per-command help') }}</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── TAB: Filesystem ── -->
+    <div class="help-panel" id="panel-filesystem" style="display:none;padding:24px;font-size:0.88rem;line-height:1.7">
+        <p class="tty-help-intro" style="margin-bottom:12px;color:var(--subtext)">
+            {{ _('Navigate with') }} <code>cd</code>, {{ _('list with') }} <code>ls</code>,
+            <code>cat</code> {{ _('reads files') }}, <code>nano</code> {{ _('edits') }}.
+        </p>
+
+        <div style="font-family:var(--font);font-size:0.9rem;line-height:1.7">
+
+            <div class="tty-help-category" style="margin-bottom:2px">
+                <div class="tty-help-section-header">-- {{ _('Sections') }} --</div>
+            </div>
+
+            <details open style="margin-bottom:6px">
+                <summary style="cursor:pointer;padding:2px 0"><span class="tty-help-cmd">posts/</span>
+                    <span class="tty-help-desc">— {{ _('post feed') }}</span></summary>
+                <div style="padding-left:28px">
+                    <div><span class="tty-help-cmd">42.post</span> <span class="tty-help-desc">— {{ _('post (cat, nano)') }}</span></div>
+                    <div><span class="tty-help-cmd">.meta</span> <span class="tty-help-desc">— {{ _('metadata: likes, comments, time') }}</span></div>
+                    <div><span class="tty-help-cmd">image</span> <span class="tty-help-desc">— {{ _('image as ASCII art') }}</span></div>
+                    <div><span class="tty-help-cmd">comments/</span> <span class="tty-help-desc">— {{ _('post comments') }}</span></div>
+                </div>
+            </details>
+
+            <div style="padding-left:16px">
+                <div><span class="tty-help-cmd">saved/</span><span class="tty-help-desc">— {{ _('saved posts (symlink → posts/)') }}</span></div>
+                <div><span class="tty-help-cmd">drafts/</span><span class="tty-help-desc">— {{ _('post drafts') }}</span></div>
+                <div><span class="tty-help-cmd">trash/</span><span class="tty-help-desc">— {{ _('recycle bin (rm without -f)') }}</span></div>
+            </div>
+
+            <div style="margin-top:10px;padding-left:16px">
+                <div><span class="tty-help-cmd">profile/</span><span class="tty-help-desc">— {{ _('your profile (info, posts/)') }}</span></div>
+                <div style="padding-left:16px">
+                    <div><span class="tty-help-cmd">info</span> <span class="tty-help-desc">— {{ _('bio and stats (cat, nano)') }}</span></div>
+                    <div><span class="tty-help-cmd">posts/</span> <span class="tty-help-desc">— {{ _('your posts') }}</span></div>
+                </div>
+            </div>
+
+            <div style="margin-top:6px;padding-left:16px">
+                <div><span class="tty-help-cmd">users/@name/</span><span class="tty-help-desc">— {{ _('user profile (info, posts/)') }}</span></div>
+            </div>
+
+            <div style="margin-top:6px;padding-left:16px">
+                <div><span class="tty-help-cmd">chat/@name/</span><span class="tty-help-desc">— {{ _('chat with user (live messages)') }}</span></div>
+                <div style="padding-left:16px">
+                    <div><span class="tty-help-cmd">inbox/</span> <span class="tty-help-desc">— {{ _('incoming messages (N.msg)') }}</span></div>
+                    <div><span class="tty-help-cmd">outbox/</span> <span class="tty-help-desc">— {{ _('outgoing messages (N.msg)') }}</span></div>
+                </div>
+            </div>
+
+            <div style="margin-top:6px;padding-left:16px">
+                <div><span class="tty-help-cmd">followers/</span><span class="tty-help-desc">— {{ _('followers (ls = list, cat @user = info)') }}</span></div>
+                <div><span class="tty-help-cmd">following/</span><span class="tty-help-desc">— {{ _('following (ls = list, cat @user = info)') }}</span></div>
+                <div><span class="tty-help-cmd">notifications/</span><span class="tty-help-desc">— {{ _('notifications (ls = list, cat N = details)') }}</span></div>
+            </div>
+
+            <div style="margin-top:6px;padding-left:16px">
+                <div><span class="tty-help-cmd">mnt/</span><span class="tty-help-desc">— {{ _('GUI mount points') }}</span></div>
+                <div style="padding-left:16px">
+                    <div><span class="tty-help-cmd">settings</span> <span class="tty-help-desc">— {{ _('settings (cat = open GUI)') }}</span></div>
+                    <div><span class="tty-help-cmd">edit_profile</span> <span class="tty-help-desc">— {{ _('edit profile (cat = open GUI)') }}</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top:24px">
+            <div class="tty-help-section-header">-- {{ _('File types') }} --</div>
+            <table class="tty-help-table">
+                <thead><tr><th>{{ _('File') }}</th><th>{{ _('Description') }}</th><th>{{ _('Commands') }}</th></tr></thead>
+                <tbody>
+                    <tr><td class="tty-help-cmd">42.post</td><td>{{ _('post') }}</td><td><code>cat</code>, <code>nano</code></td></tr>
+                    <tr><td class="tty-help-cmd">.meta</td><td>{{ _('metadata: likes, comments, time') }}</td><td><code>cat</code></td></tr>
+                    <tr><td class="tty-help-cmd">image</td><td>{{ _('image as ASCII art') }}</td><td><code>cat --img</code></td></tr>
+                    <tr><td class="tty-help-cmd">info</td><td>{{ _('profile info (cat, nano)') }}</td><td><code>cat</code>, <code>nano</code></td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div style="margin-top:24px">
+            <div class="tty-help-section-header">-- {{ _('Key commands') }} --</div>
+            <table class="tty-help-table">
+                <thead><tr><th>{{ _('Command') }}</th><th>{{ _('Description') }}</th></tr></thead>
+                <tbody>
+                    <tr><td class="tty-help-cmd">cd &lt;dir&gt;</td><td>{{ _('change directory') }}</td></tr>
+                    <tr><td class="tty-help-cmd">ls [-l]</td><td>{{ _('list files') }}</td></tr>
+                    <tr><td class="tty-help-cmd">cat &lt;path&gt;</td><td>{{ _('view file') }}</td></tr>
+                    <tr><td class="tty-help-cmd">nano &lt;path&gt;</td><td>{{ _('edit file') }}</td></tr>
+                    <tr><td class="tty-help-cmd">rm [-f] &lt;id&gt;</td><td>{{ _('remove (trash / permanent)') }}</td></tr>
+                    <tr><td class="tty-help-cmd">feed</td><td>{{ _('post feed') }}</td></tr>
+                    <tr><td class="tty-help-cmd">saved</td><td>{{ _('saved posts') }}</td></tr>
+                    <tr><td class="tty-help-cmd">help / man</td><td>{{ _('help & manuals') }}</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+{% block help_scripts %}
+<script>
+(function() {
+    const tabs = document.querySelectorAll('.help-tab');
+    const panels = {
+        about: document.getElementById('panel-about'),
+        commands: document.getElementById('panel-commands'),
+        filesystem: document.getElementById('panel-filesystem'),
+    };
+
+    // Check URL hash for initial tab
+    var initialTab = window.location.hash.replace('#', '') || 'about';
+    if (!panels[initialTab]) initialTab = 'about';
+
+    function switchTab(name) {
+        tabs.forEach(function(t) {
+            var isActive = t.dataset.tab === name;
+            t.style.borderBottomColor = isActive ? 'var(--accent)' : 'transparent';
+            t.style.color = isActive ? 'var(--accent)' : 'var(--subtle)';
+        });
+        Object.keys(panels).forEach(function(key) {
+            panels[key].style.display = key === name ? '' : 'none';
+        });
+        window.location.hash = name;
+    }
+
+    tabs.forEach(function(tab) {
+        tab.addEventListener('click', function() { switchTab(tab.dataset.tab); });
+    });
+
+    switchTab(initialTab);
+})();
+</script>
+{% endblock %}
+{% endblock %}

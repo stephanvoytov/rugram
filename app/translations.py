@@ -238,6 +238,14 @@ RU: dict[str, str] = {
     'Type': 'Введите',
     'in the terminal for your profile': 'в терминале чтобы увидеть свой профиль',
 
+    # ── Help page ──
+    'Rugram Help': 'Справка Rugram',
+    'about': 'о проекте',
+    'commands': 'команды',
+    'filesystem': 'файловая система',
+    'All commands are in English': 'Все команды на английском',
+    'button in the top bar to open the terminal.': 'в верхней панели чтобы открыть терминал.',
+
     # ── VFS page ──
     'TTY File System': 'Файловая структура терминала',
     'Virtual File System reference for the Rugram TTY terminal': 'Файловая система TTY-терминала Rugram',

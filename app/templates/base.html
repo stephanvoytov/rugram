@@ -123,9 +123,7 @@
         <a href="{{ url_for('main.notifications_page') }}" class="status-item {% if request.endpoint == 'main.notifications_page' %}active{% endif %}" id="notifStatusItem">~notifications<span class="notif-badge" id="notificationBadge"></span></a>
         <a href="{{ url_for('main.chat') }}" class="status-item {% if request.endpoint == 'main.chat' %}active{% endif %}">✉ chat</a>
         {% endif %}
-        <a href="{{ url_for('main.tty_help') }}" class="status-item" title="TTY commands">[?]</a>
-        <a href="{{ url_for('main.tty_vfs') }}" class="status-item" title="VFS structure">[vfs]</a>
-        <a href="{{ url_for('main.about') }}" class="status-item" title="About Rugram">[about]</a>
+        <a href="{{ url_for('main.help') }}" class="status-item" title="Help">[?]</a>
     </div>
     <div class="status-right">
         <button class="term-toggle-btn" id="termToggle" title="Toggle terminal mode">[>_ TTY]</button>
@@ -200,7 +198,7 @@
     <span>
         <a href="{{ url_for('main.index') }}">[feed]</a> ·
         <a href="{{ url_for('auth.login') }}">[login]</a> ·
-        <a href="{{ url_for('main.about') }}">[about]</a> ·
+        <a href="{{ url_for('main.help') }}">[help]</a> ·
         <a href="https://github.com/stephanvoytov/rugram" target="_blank" rel="noopener">[github]</a> ·
         <span>&copy; 2026</span>
     </span>
