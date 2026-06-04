@@ -681,6 +681,17 @@ async function test_cd(dom) {
   check(T.cwd === 'saved', 'cd normalizes slashes');
 }
 
+async function test_cd_from_subdir(dom) {
+  const T = dom.window.TERMINAL;
+  T.cwd = 'profile';
+  runCommand(dom, 'cd posts');
+  check(T.cwd === 'profile/posts', 'cd posts from profile/ goes to profile/posts');
+  runCommand(dom, 'cd ..');
+  check(T.cwd === 'profile', 'cd .. from profile/posts goes back to profile');
+  runCommand(dom, 'cd /posts');
+  check(T.cwd === 'posts', 'cd /posts from anywhere goes to root posts');
+}
+
 async function test_ls_root(dom) {
   const T = dom.window.TERMINAL;
   T.cwd = '';
@@ -1834,6 +1845,7 @@ async function run() {
 
     // NAVIGATION
     ['cd',             test_cd],
+    ['cd from subdir', test_cd_from_subdir],
     ['ls root',        test_ls_root],
     ['ls posts',       test_ls_in_posts],
     ['ls detail',      test_ls_detail],
