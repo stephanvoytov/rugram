@@ -321,7 +321,7 @@
       T.addOutputLine('<span class="tp-ok">' + T.escapeHtml(m[1]) + ' aliased to "' + T.escapeHtml(m[2]) + '"</span>');
       return;
     }
-    T.addOutputLine('<span class="tp-err">alias: invalid syntax. Usage: alias name="command"</span>');
+    T.addOutputLine('<span class="tp-err">bash: alias: `' + T.escapeHtml(args) + '\': not a valid identifier</span>');
   };
 
   // ── COMMAND: rm — с корзиной, -f флагом (VFS-powered) ──
@@ -470,7 +470,7 @@
         localStorage.setItem('rugram_scripts', JSON.stringify(scripts));
         T.addOutputLine('<span class="tp-ok">script "' + T.escapeHtml(rmMatch[1]) + '" removed</span>');
       } else {
-        T.addOutputLine('<span class="tp-err">source: script "' + T.escapeHtml(rmMatch[1]) + '" not found</span>');
+        T.addOutputLine('<span class="tp-err">bash: source: ' + T.escapeHtml(rmMatch[1]) + ': No such file or directory</span>');
       }
       return;
     }
@@ -482,7 +482,7 @@
       return;
     }
 
-    T.addOutputLine('<span class="tp-err">source: ' + T.escapeHtml(args) + ': script not found</span>');
+    T.addOutputLine('<span class="tp-err">bash: source: ' + T.escapeHtml(args) + ': No such file or directory</span>');
   };
 
   // ── COMMAND: unalias ──
@@ -1115,7 +1115,7 @@
       }
       return;
     }
-    T.addOutputLine('<span class="tp-err">export: invalid syntax. Usage: export VAR=value</span>');
+    T.addOutputLine('<span class="tp-err">bash: export: `' + T.escapeHtml(args) + '\': not a valid identifier</span>');
   };
 
   // ── COMMAND: uptime ──
@@ -1435,7 +1435,7 @@
       }
       // Директория без content-обработчика
       if (node.type === 'dir') {
-        T.addOutputLine('<span class="tp-desc">cat: ' + T.escapeHtml(args) + ': Is a directory</span>');
+        T.addOutputLine('<span class="tp-err">cat: ' + T.escapeHtml(args) + ': Is a directory</span>');
         T.addOutputLine('<span class="tp-desc">  # <span class="tp-cmd">ls ' + T.escapeHtml(args) + '</span> ' + T._('для просмотра содержимого', 'to list contents') + '</span>');
         return;
       }
