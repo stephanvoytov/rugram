@@ -860,6 +860,7 @@ def sitemap_xml() -> Response:
 
     # Main pages
     add_url(f'{base_url}/', priority='1.0', changefreq='daily')
+    add_url(f'{base_url}/help', priority='0.6', changefreq='monthly')
 
     # Public profiles (users with at least one non-deleted post)
     users_with_posts = (
