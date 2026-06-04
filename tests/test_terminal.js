@@ -1125,6 +1125,38 @@ async function test_chained_commands(dom) {
   hasOutput(dom, 'World', 'chain second cmd runs');
 }
 
+async function test_chain_semicolon(dom) {
+  runCommand(dom, 'echo One ; echo Two ; echo Three');
+  hasOutput(dom, 'One', '; chain first cmd runs');
+  hasOutput(dom, 'Two', '; chain second cmd runs');
+  hasOutput(dom, 'Three', '; chain third cmd runs');
+}
+
+async function test_chain_or(dom) {
+  runCommand(dom, 'echo A || echo B || echo C');
+  hasOutput(dom, 'A', '|| chain first cmd runs');
+  hasOutput(dom, 'B', '|| chain second cmd runs');
+  hasOutput(dom, 'C', '|| chain third cmd runs');
+}
+
+async function test_var_expansion_in_cat(dom) {
+  const T = dom.window.TERMINAL;
+  setupLoggedIn(dom);
+  T.env.TEST_DIR = 'profile';
+  T.cwd = '';
+  T.clearOutput();
+  runCommand(dom, 'cat $TEST_DIR/info');
+  hasOutput(dom, 'testuser', '$TEST_DIR expands before cat command (shows profile)');
+  delete T.env.TEST_DIR;
+}
+
+async function test_var_expansion_undefined(dom) {
+  const T = dom.window.TERMINAL;
+  T.clearOutput();
+  runCommand(dom, 'echo $NOEXIST');
+  hasOutput(dom, '$NOEXIST', 'undefined $VAR keeps literal (intentional)');
+}
+
 // ──────────────────────────────────
 // 13. LESS VIEW — tests for less mode feed/followers/notifications
 // ──────────────────────────────────
@@ -1770,6 +1802,20 @@ async function test_cd_home(dom) {
   check(T.cwd === '', 'cd home goes to root');
 }
 
+async function test_vfs_completion(dom) {
+  const T = dom.window.TERMINAL;
+  T.cwd = '';
+
+  var res = T._completeVFSPath('po', '');
+  check(res.length > 0 && res[0] === 'posts/', 'tab complete "po" → "posts/"');
+
+  var res2 = T._completeVFSPath('sav', '');
+  check(res2.length > 0 && res2[0] === 'saved/', 'tab complete "sav" → "saved/"');
+
+  var res3 = T._completeVFSPath('x', '');
+  check(res3.length === 0, 'tab complete "x" → no matches');
+}
+
 async function test_cd_comprehensive(dom) {
   const T = dom.window.TERMINAL;
   setupLoggedIn(dom);
@@ -2114,6 +2160,10 @@ async function run() {
     ['sudo no prev',   test_sudo_no_prev],
     ['--help flag',    test_help_flag],
     ['&& chain',       test_chained_commands],
+    ['; chain',        test_chain_semicolon],
+    ['|| chain',       test_chain_or],
+    ['$VAR in cat',    test_var_expansion_in_cat],
+    ['$VAR undefined', test_var_expansion_undefined],
 
     // LESS
     ['less feed',      test_less_feed],
@@ -2205,6 +2255,7 @@ async function run() {
     ['export MATRIX',   test_export_matrix],
     ['cd home',         test_cd_home],
     ['cd comprehensive',test_cd_comprehensive],
+    ['vfs tab complete',test_vfs_completion],
     ['history empty',   test_history_empty],
     ['history search no',test_history_search_no_match],
   ];
