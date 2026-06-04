@@ -894,17 +894,23 @@ def sitemap_xml() -> Response:
 
 @main_bp.route('/tty/help')
 def tty_help() -> Response:
-    """Show the TTY terminal reference page."""
-    return render_template('main/tty_help.html')
+    """Redirect to unified help page."""
+    return redirect(url_for('main.help', _anchor='commands'))
 
 
 @main_bp.route('/tty/vfs')
 def tty_vfs() -> Response:
-    """Show the TTY virtual filesystem structure."""
-    return render_template('main/vfs.html')
+    """Redirect to unified help page."""
+    return redirect(url_for('main.help', _anchor='filesystem'))
 
 
 @main_bp.route('/about')
 def about() -> Response:
-    """Show the About page with project info."""
-    return render_template('main/about.html')
+    """Redirect to unified help page."""
+    return redirect(url_for('main.help', _anchor='about'))
+
+
+@main_bp.route('/help')
+def help() -> Response:
+    """Unified help page: about + commands + filesystem."""
+    return render_template('main/help.html')
