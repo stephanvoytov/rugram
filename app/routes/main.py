@@ -830,7 +830,7 @@ def robots_txt() -> Response:
         'Disallow: /notifications',
         'Disallow: /saved',
         '',
-        f'Sitemap: {request.url_root}sitemap.xml',
+        f'Sitemap: {request.url_root}static/sitemap.xml',
     ]
     return Response('\n'.join(lines), mimetype='text/plain')
 
