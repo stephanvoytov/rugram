@@ -16,7 +16,7 @@
       path = path.substring(1);
     } else if (path.startsWith('~/')) {
       path = path.substring(2);
-      if (cwd) path = cwd + '/' + path;
+      // ~ means VFS root (like /), no cwd prepending
     } else {
       if (cwd) path = cwd + '/' + path;
     }
