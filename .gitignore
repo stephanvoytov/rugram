@@ -35,3 +35,17 @@ terminal-*.png
 *.log
 flask_err.txt
 flask_out.txt
+
+# Node (used by test runner)
+node_modules/
+
+# Coverage / debug
+.coverage
+tests/_debug.js
+tests/_debug2.js
+
+# Internal planning docs (were committed by accident)
+AGENTS.md
+AUDIT.md
+AUDIT2.md
+CONCEPT.md
