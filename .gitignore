@@ -50,3 +50,6 @@ AUDIT.md
 AUDIT2.md
 CONCEPT.md
 PLAN.md
+
+# Generated at deploy time
+app/static/sitemap.xml
