@@ -1013,11 +1013,11 @@
     T.addOutputLine('  <span class="tp-cmd">trash/</span>          <span class="tp-desc">— ' + T._('корзина (rm без -f)', 'recycle bin (rm without -f)') + '</span>');
     T.addOutputLine('  <span class="tp-cmd">profile/</span>        <span class="tp-desc">— ' + T._('профиль (info, posts/)', 'profile (info, posts/)') + '</span>');
     T.addOutputLine('  <span class="tp-cmd">users/@name/</span>    <span class="tp-desc">— ' + T._('профили пользователей (info, posts/)', 'user profiles (info, posts/)') + '</span>');
-    T.addOutputLine('  <span class="tp-cmd">chat/@name/</span>     <span class="tp-desc">— ' + T._('чаты (inbox/, outbox/)', 'chats (inbox/, outbox/)') + '</span>');
-    T.addOutputLine('  <span class="tp-cmd">followers/</span>      <span class="tp-desc">— ' + T._('подписчики (hint → команда followers)', 'followers (hint → followers command)') + '</span>');
-    T.addOutputLine('  <span class="tp-cmd">following/</span>      <span class="tp-desc">— ' + T._('подписки (hint → команда following)', 'following (hint → following command)') + '</span>');
-    T.addOutputLine('  <span class="tp-cmd">notifications/</span>  <span class="tp-desc">— ' + T._('уведомления (hint → команда notifications)', 'notifications (hint → notifications command)') + '</span>');
-    T.addOutputLine('  <span class="tp-cmd">mnt/</span>            <span class="tp-desc">— ' + T._('точки монтирования GUI (settings, edit_profile)', 'GUI mount points (settings, edit_profile)') + '</span>');
+    T.addOutputLine('  <span class="tp-cmd">chat/@name/</span>     <span class="tp-desc">— ' + T._('чаты (inbox/outbox с живыми сообщениями)', 'chats (inbox/outbox with live messages)') + '</span>');
+    T.addOutputLine('  <span class="tp-cmd">followers/</span>      <span class="tp-desc">— ' + T._('подписчики (ls = список, cat @user = описание)', 'followers (ls = list, cat @user = info)') + '</span>');
+    T.addOutputLine('  <span class="tp-cmd">following/</span>      <span class="tp-desc">— ' + T._('подписки (ls = список, cat @user = описание)', 'following (ls = list, cat @user = info)') + '</span>');
+    T.addOutputLine('  <span class="tp-cmd">notifications/</span>  <span class="tp-desc">— ' + T._('уведомления (ls = список, cat N = детали)', 'notifications (ls = list, cat N = details)') + '</span>');
+    T.addOutputLine('  <span class="tp-cmd">mnt/</span>            <span class="tp-desc">— ' + T._('точки монтирования GUI (cat = открыть)', 'GUI mount points (cat = open)') + '</span>');
     T.addOutputLine('');
     T.addOutputLine('<span class="tp-bold">' + T._('Типы файлов:', 'File types:') + '</span>');
     T.addOutputLine('  <span class="tp-post-id">42.post</span>        <span class="tp-desc">— ' + T._('пост (cat, nano)', 'post (cat, nano)') + '</span>');

@@ -55,8 +55,8 @@
       case 'users':    return _users(sub);
       case 'chat':     return _chat(sub);
       case 'notifications': return _notifications(sub);
-      case 'followers':  return _hintDir('followers');
-      case 'following':  return _hintDir('following');
+      case 'followers':  return _followers(sub);
+      case 'following':  return _following(sub);
       case 'mnt':      return _mnt(sub);
     }
 
@@ -79,17 +79,6 @@
     return node;
   }
   function _dir(children) { return { type: 'dir', children: children || [] }; }
-  function _hintDir(name) {
-    return {
-      type: 'dir',
-      children: [],
-      content: function(out) {
-        out('<span class="tp-desc">' + name + '/</span>');
-        out('<span class="tp-muted">  # <span class="tp-cmd">' + name + '</span> ' + T._('чтобы открыть', 'to open') + '</span>');
-      },
-    };
-  }
-
   // ── 4. Route handlers ──
 
   // ── / (root) ──
@@ -387,25 +376,147 @@
       ]);
     }
 
+    // Shared: resolve @name → chatId then load messages
+    function _loadMsgs(afterResolve) {
+      if (!T.isLoggedIn) return afterResolve(null, T._('Требуется вход.', 'Login required.'));
+      T.showLoading(T._('Загрузка сообщений...', 'Loading messages...'));
+      fetch(window.API_CHAT_LIST_URL, { credentials: 'same-origin' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          var chats = data.chats || [];
+          var chat = null;
+          for (var i = 0; i < chats.length; i++) {
+            if (chats[i].other_user && chats[i].other_user.username.toLowerCase() === name.toLowerCase()) {
+              chat = chats[i]; break;
+            }
+          }
+          if (!chat) {
+            T.hideLoading();
+            afterResolve(null, T._('Нет диалога с @', 'No chat with @') + T.escapeHtml(name));
+            return;
+          }
+          fetch('/chat/' + chat.id + '/messages?limit=50', { credentials: 'same-origin' })
+            .then(function(r2) { return r2.json(); })
+            .then(function(msgData) {
+              T.hideLoading();
+              var msgs = msgData.messages || [];
+              var otherUser = msgData.other_user || {};
+              afterResolve({ chatId: chat.id, messages: msgs, otherUser: otherUser, chat: chat });
+            })
+            .catch(function() {
+              T.hideLoading();
+              afterResolve(null, T._('Ошибка загрузки сообщений.', 'Error loading messages.'));
+            });
+        })
+        .catch(function() {
+          T.hideLoading();
+          afterResolve(null, T._('Ошибка загрузки диалогов.', 'Error loading conversations.'));
+        });
+    }
+
     if (sub[0] === 'inbox') {
-      if (sub.length === 1) return _dir([]); // dynamic
-      var m = sub[1].match(/^(\d+)\.msg$/);
-      if (m) {
+      if (sub.length === 1) {
+        return {
+          type: 'dir',
+          children: [],
+          content: function(out) {
+            _loadMsgs(function(result, err) {
+              if (err) { out('<span class="tp-err">' + err + '</span>'); return; }
+              var msgs = result.messages.filter(function(m) {
+                return m.author && m.author.username.toLowerCase() !== (T.username || '').toLowerCase();
+              });
+              if (!msgs.length) {
+                out('<span class="tp-muted">  ' + T._('Нет входящих сообщений', 'No incoming messages') + '</span>');
+                return;
+              }
+              out('<span class="tp-section">' + T._('Входящие от @', 'Inbox from @') + T.escapeHtml(name) + '</span>');
+              msgs.forEach(function(m) {
+                var time = T.relTime(m.created_date);
+                out('  <span class="tp-post-id">' + m.id + '.msg</span>  <span class="tp-muted">@' + T.escapeHtml(m.author.username) + ' ' + time + '</span>');
+              });
+              out('<span class="tp-muted">' + msgs.length + ' ' + T._('сообщений', 'messages') + '</span>');
+            });
+          },
+        };
+      }
+      var mInbox = sub[1].match(/^(\d+)\.msg$/);
+      if (mInbox) {
         return _file({
-          name: m[1] + '.msg',
-          content: function(out) { out('<span class="tp-muted">message #' + m[1] + ' from @' + T.escapeHtml(name) + '</span>'); },
+          name: mInbox[1] + '.msg',
+          content: function(out) {
+            _loadMsgs(function(result, err) {
+              if (err) { out('<span class="tp-err">' + err + '</span>'); return; }
+              var msgs = result.messages.filter(function(m) {
+                return m.author && m.author.username.toLowerCase() !== (T.username || '').toLowerCase();
+              });
+              var msg = null;
+              for (var i = 0; i < msgs.length; i++) {
+                if (msgs[i].id === parseInt(mInbox[1], 10)) { msg = msgs[i]; break; }
+              }
+              if (!msg) {
+                out('<span class="tp-err">message #' + mInbox[1] + ' ' + T._('не найдено', 'not found') + '</span>');
+                return;
+              }
+              var time = T.relTime(msg.created_date);
+              out('<span class="tp-section">' + T._('Сообщение #', 'Message #') + msg.id + '</span>');
+              out('  <span class="tp-post-author">@' + T.escapeHtml(msg.author.username) + '</span> <span class="tp-muted">' + time + '</span>');
+              out('<span class="tp-ok">' + T.escapeHtml(msg.text) + '</span>');
+            });
+          },
         });
       }
       return _err('No such file or directory');
     }
 
     if (sub[0] === 'outbox') {
-      if (sub.length === 1) return _dir([]);
-      var m = sub[1].match(/^(\d+)\.msg$/);
-      if (m) {
+      if (sub.length === 1) {
+        return {
+          type: 'dir',
+          children: [],
+          content: function(out) {
+            _loadMsgs(function(result, err) {
+              if (err) { out('<span class="tp-err">' + err + '</span>'); return; }
+              var msgs = result.messages.filter(function(m) {
+                return m.author && m.author.username.toLowerCase() === (T.username || '').toLowerCase();
+              });
+              if (!msgs.length) {
+                out('<span class="tp-muted">  ' + T._('Нет исходящих сообщений', 'No outgoing messages') + '</span>');
+                return;
+              }
+              out('<span class="tp-section">' + T._('Исходящие @', 'Outbox to @') + T.escapeHtml(name) + '</span>');
+              msgs.forEach(function(m) {
+                var time = T.relTime(m.created_date);
+                out('  <span class="tp-post-id">' + m.id + '.msg</span>  <span class="tp-muted">' + time + '</span>');
+              });
+              out('<span class="tp-muted">' + msgs.length + ' ' + T._('сообщений', 'messages') + '</span>');
+            });
+          },
+        };
+      }
+      var mOutbox = sub[1].match(/^(\d+)\.msg$/);
+      if (mOutbox) {
         return _file({
-          name: m[1] + '.msg',
-          content: function(out) { out('<span class="tp-muted">message #' + m[1] + ' to @' + T.escapeHtml(name) + '</span>'); },
+          name: mOutbox[1] + '.msg',
+          content: function(out) {
+            _loadMsgs(function(result, err) {
+              if (err) { out('<span class="tp-err">' + err + '</span>'); return; }
+              var msgs = result.messages.filter(function(m) {
+                return m.author && m.author.username.toLowerCase() === (T.username || '').toLowerCase();
+              });
+              var msg = null;
+              for (var i = 0; i < msgs.length; i++) {
+                if (msgs[i].id === parseInt(mOutbox[1], 10)) { msg = msgs[i]; break; }
+              }
+              if (!msg) {
+                out('<span class="tp-err">message #' + mOutbox[1] + ' ' + T._('не найдено', 'not found') + '</span>');
+                return;
+              }
+              var time = T.relTime(msg.created_date);
+              out('<span class="tp-section">' + T._('Сообщение #', 'Message #') + msg.id + '</span>');
+              out('  <span class="tp-post-author">me</span> <span class="tp-muted">' + time + '</span>');
+              out('<span class="tp-ok">' + T.escapeHtml(msg.text) + '</span>');
+            });
+          },
         });
       }
       return _err('No such file or directory');
@@ -416,12 +527,83 @@
 
   // ── /notifications ──
   function _notifications(sub) {
+    if (sub.length > 0) {
+      var m = sub[0].match(/^(\d+)(\.notification)?$/);
+      if (m) {
+        var notifId = parseInt(m[1], 10);
+        return _file({
+          name: m[1] + '.notification',
+          content: function(out) {
+            if (!T.isLoggedIn) {
+              out('<span class="tp-err">' + T._('Требуется вход.', 'Login required.') + '</span>');
+              return;
+            }
+            T.showLoading(T._('Загрузка уведомления...', 'Loading notification...'));
+            fetch(window.API_NOTIFICATIONS_URL, { credentials: 'same-origin' })
+              .then(function(r) { return r.json(); })
+              .then(function(data) {
+                T.hideLoading();
+                var raw = data.notifications || [];
+                var n = null;
+                for (var i = 0; i < raw.length; i++) {
+                  if (raw[i].id === notifId) { n = raw[i]; break; }
+                }
+                if (!n) {
+                  out('<span class="tp-err">' + T._('Уведомление #', 'Notification #') + notifId + ' ' + T._('не найдено', 'not found') + '</span>');
+                  return;
+                }
+                var icon = n.type === 'like' ? '+' : n.type === 'comment' ? 'c' : '>';
+                var msg = n.type === 'like' ? T._('лайкнул(а) ваш пост', 'liked your post') :
+                          n.type === 'comment' ? T._('прокомментировал(а) ваш пост', 'commented on your post') :
+                          T._('подписался(ась) на вас', 'followed you');
+                out('<span class="tp-section">' + T._('Уведомление #', 'Notification #') + notifId + '</span>');
+                out('<span class="tp-desc">  ' + icon + ' @' + T.escapeHtml(n.actor.username) + ' — ' + msg + '</span>');
+                out('<span class="tp-muted">  ' + T._('Время:', 'Time:') + ' ' + n.created_date + '</span>');
+                out('<span class="tp-muted">  ' + T._('Тип:', 'Type:') + ' ' + n.type + '</span>');
+                if (n.post_id) {
+                  out('<span class="tp-muted">  ' + T._('Пост:', 'Post:') + ' #' + n.post_id + '</span>');
+                }
+                var readStatus = n.is_read ? T._('прочитано', 'read') : T._('не прочитано', 'unread');
+                out('<span class="tp-muted">  ' + T._('Статус:', 'Status:') + ' ' + readStatus + '</span>');
+              })
+              .catch(function() {
+                T.hideLoading();
+                out('<span class="tp-err">' + T._('Ошибка загрузки.', 'Error loading.') + '</span>');
+              });
+          },
+        });
+      }
+      return _err('No such file or directory');
+    }
     return {
       type: 'dir',
       children: [],
       content: function(out) {
-        out('<span class="tp-desc">notifications/</span>');
-        out('<span class="tp-muted">  # <span class="tp-cmd">notifications</span> ' + T._('чтобы открыть', 'to open') + '</span>');
+        if (!T.isLoggedIn) {
+          out('<span class="tp-err">notifications: ' + T._('Требуется вход.', 'Login required.') + '</span>');
+          return;
+        }
+        T.showLoading(T._('Загрузка уведомлений...', 'Loading notifications...'));
+        fetch(window.API_NOTIFICATIONS_URL, { credentials: 'same-origin' })
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            T.hideLoading();
+            var raw = data.notifications || [];
+            if (!raw.length) {
+              out('<span class="tp-muted">  ' + T._('Нет уведомлений.', 'No notifications.') + '</span>');
+              return;
+            }
+            out('<span class="tp-section">' + T._('Уведомления', 'Notifications') + ' (' + raw.length + ')</span>');
+            raw.forEach(function(n) {
+              var icon = n.is_read ? '<span class="tp-muted">●</span>' : '<span class="tp-ok">●</span>';
+              var typeIcon = n.type === 'like' ? '+' : n.type === 'comment' ? 'c' : '>';
+              out(icon + ' <span class="tp-post-id">' + n.id + '.notification</span>  <span class="tp-post-author">@' + T.escapeHtml(n.actor.username) + '</span>  <span class="tp-muted">' + typeIcon + ' ' + n.type + '</span>');
+            });
+          })
+          .catch(function() {
+            T.hideLoading();
+            out('<span class="tp-err">' + T._('Ошибка загрузки уведомлений.', 'Error loading notifications.') + '</span>');
+          });
       },
     };
   }
@@ -438,8 +620,10 @@
       return _file({
         name: 'settings',
         content: function(out) {
-          out('<span class="tp-desc">' + T._('Настройки:', 'Settings:') + '</span>');
-          out('<span class="tp-muted">  # <span class="tp-cmd">gui</span> ' + T._('для перехода', 'to open') + '</span>');
+          out('<span class="tp-section">' + T._('Настройки', 'Settings') + '</span>');
+          out('<span class="tp-muted">  ' + T._('Открыть в GUI:', 'Open in GUI:') + ' <a href="' + T.escapeHtml(window.SETTINGS_URL || '/settings') + '" target="_blank" class="tp-cmd">' + T._('Настройки', 'Settings') + '</a></span>');
+          out('<span class="tp-desc">  # <span class="tp-cmd">gui</span> ' + T._('для перехода в GUI', 'to switch to GUI') + '</span>');
+          out('<span class="tp-desc">  # ' + T._('или используйте nano profile/info', 'or use nano profile/info') + '</span>');
         },
       });
     }
@@ -447,12 +631,104 @@
       return _file({
         name: 'edit_profile',
         content: function(out) {
-          out('<span class="tp-desc">' + T._('Редактирование профиля:', 'Edit profile:') + '</span>');
-          out('<span class="tp-muted">  # <span class="tp-cmd">nano profile/info</span></span>');
+          out('<span class="tp-section">' + T._('Редактирование профиля', 'Edit profile') + '</span>');
+          out('<span class="tp-muted">  ' + T._('Открыть в GUI:', 'Open in GUI:') + ' <a href="' + T.escapeHtml(window.EDIT_PROFILE_URL || '/edit_profile') + '" target="_blank" class="tp-cmd">' + T._('Редактор профиля', 'Edit profile') + '</a></span>');
+          out('<span class="tp-desc">  # <span class="tp-cmd">nano profile/info</span> ' + T._('редактировать из терминала', 'to edit from terminal') + '</span>');
+          out('<span class="tp-desc">  # <span class="tp-cmd">profile/info</span> ' + T._('чтобы увидеть текущий', 'to see current') + '</span>');
         },
       });
     }
     return _err('No such file or directory');
+  }
+
+  // ── /followers ──
+  function _followers(sub) {
+    if (sub.length > 0 && sub[0].startsWith('@')) {
+      var name = sub[0].replace('@', '');
+      return _file({
+        name: sub[0],
+        content: function(out) { T.cmdNeofetch(name); },
+      });
+    }
+    return {
+      type: 'dir',
+      children: [],
+      content: function(out) {
+        var user = T.isLoggedIn ? T.username : null;
+        if (!user) {
+          out('<span class="tp-err">' + T._('Требуется вход.', 'Login required.') + '</span>');
+          out('<span class="tp-desc">  # <span class="tp-cmd">followers --of @user</span></span>');
+          return;
+        }
+        T.showLoading(T._('Загрузка подписчиков...', 'Loading followers...'));
+        fetch('/api/followers/' + encodeURIComponent(user), { credentials: 'same-origin' })
+          .then(function(r) { if (!r.ok) throw new Error(); return r.json(); })
+          .then(function(data) {
+            T.hideLoading();
+            var users = data.users || [];
+            if (!users.length) {
+              out('<span class="tp-muted">  ' + T._('Нет подписчиков.', 'No followers.') + '</span>');
+              return;
+            }
+            out('<span class="tp-section">' + T._('Подписчики', 'Followers') + ' (' + T.escapeHtml(user) + ')</span>');
+            users.forEach(function(u) {
+              var online = u.is_online ? '<span class="tp-ok">●</span>' : '<span class="tp-muted">○</span>';
+              out('  ' + online + ' <span class="tp-post-author">@' + T.escapeHtml(u.username) + '</span>');
+              if (u.description) out('    <span class="tp-muted">' + T.escapeHtml(u.description.substring(0, 80)) + '</span>');
+            });
+            out('<span class="tp-muted">' + users.length + ' ' + T._('пользователей', 'users') + '</span>');
+          })
+          .catch(function() {
+            T.hideLoading();
+            out('<span class="tp-err">' + T._('Ошибка загрузки подписчиков.', 'Error loading followers.') + '</span>');
+          });
+      },
+    };
+  }
+
+  // ── /following ──
+  function _following(sub) {
+    if (sub.length > 0 && sub[0].startsWith('@')) {
+      var name = sub[0].replace('@', '');
+      return _file({
+        name: sub[0],
+        content: function(out) { T.cmdNeofetch(name); },
+      });
+    }
+    return {
+      type: 'dir',
+      children: [],
+      content: function(out) {
+        var user = T.isLoggedIn ? T.username : null;
+        if (!user) {
+          out('<span class="tp-err">' + T._('Требуется вход.', 'Login required.') + '</span>');
+          out('<span class="tp-desc">  # <span class="tp-cmd">following --of @user</span></span>');
+          return;
+        }
+        T.showLoading(T._('Загрузка подписок...', 'Loading following...'));
+        fetch('/api/following/' + encodeURIComponent(user), { credentials: 'same-origin' })
+          .then(function(r) { if (!r.ok) throw new Error(); return r.json(); })
+          .then(function(data) {
+            T.hideLoading();
+            var users = data.users || [];
+            if (!users.length) {
+              out('<span class="tp-muted">  ' + T._('Нет подписок.', 'Not following anyone.') + '</span>');
+              return;
+            }
+            out('<span class="tp-section">' + T._('Подписки', 'Following') + ' (' + T.escapeHtml(user) + ')</span>');
+            users.forEach(function(u) {
+              var online = u.is_online ? '<span class="tp-ok">●</span>' : '<span class="tp-muted">○</span>';
+              out('  ' + online + ' <span class="tp-post-author">@' + T.escapeHtml(u.username) + '</span>');
+              if (u.description) out('    <span class="tp-muted">' + T.escapeHtml(u.description.substring(0, 80)) + '</span>');
+            });
+            out('<span class="tp-muted">' + users.length + ' ' + T._('пользователей', 'users') + '</span>');
+          })
+          .catch(function() {
+            T.hideLoading();
+            out('<span class="tp-err">' + T._('Ошибка загрузки подписок.', 'Error loading following.') + '</span>');
+          });
+      },
+    };
   }
 
   // ── 5. Helpers ──
