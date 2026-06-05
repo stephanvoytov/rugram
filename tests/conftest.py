@@ -34,6 +34,10 @@ class TestConfig(BaseConfig):
 @pytest.fixture(scope='session')
 def app() -> Flask:
     """Create the Flask application with test configuration."""
+    # Override Config class attrs BEFORE create_app() is called
+    from config import Config as _Cfg
+    _Cfg.CHAT_UPLOAD_FOLDER = str(Path(__file__).parent / 'test_chat_uploads')
+
     app = create_app()
 
     # Replace config with test values
@@ -45,8 +49,9 @@ def app() -> Flask:
         'UPLOAD_FOLDER': TestConfig.UPLOAD_FOLDER,
     })
 
-    # Ensure upload directory exists
+    # Ensure upload directories exist
     Path(TestConfig.UPLOAD_FOLDER).mkdir(parents=True, exist_ok=True)
+    Path(_Cfg.CHAT_UPLOAD_FOLDER).mkdir(parents=True, exist_ok=True)
 
     return app
 

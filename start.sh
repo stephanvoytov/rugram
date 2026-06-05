@@ -8,7 +8,7 @@ if [ -z "$SECRET_KEY" ]; then
 fi
 
 echo "==> Ensuring upload directories exist..."
-mkdir -p /app/app/static/uploads/posts /app/app/static/uploads/profile_images /app/app/static/uploads/chat
+mkdir -p /app/app/static/uploads/posts /app/app/static/uploads/profile_images /app/instance/uploads/chat
 
 echo "==> Cleaning stale Alembic temp tables..."
 python3 -c "

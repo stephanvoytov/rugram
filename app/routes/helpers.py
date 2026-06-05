@@ -124,7 +124,7 @@ def process_chat_image(image_file: FileStorage) -> Optional[str]:
             img = img.resize((800, int(img.height * ratio)), Image.Resampling.LANCZOS)
 
         filename = f'chat_{uuid.uuid4().hex}.jpg'
-        save_dir = os.path.join(Config.UPLOAD_FOLDER, 'chat')
+        save_dir = Config.CHAT_UPLOAD_FOLDER
         os.makedirs(save_dir, exist_ok=True)
         save_path = os.path.join(save_dir, filename)
         img.save(save_path, 'JPEG', quality=85, optimize=True)

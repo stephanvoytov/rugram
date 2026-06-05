@@ -1,7 +1,7 @@
 import os
 import logging
 
-from flask import render_template, flash, redirect, url_for, Blueprint, request, jsonify, abort, current_app, Response
+from flask import render_template, flash, redirect, url_for, Blueprint, request, jsonify, abort, current_app, Response, send_from_directory
 from flask_login import login_required, current_user, logout_user
 from sqlalchemy.orm import joinedload, load_only
 
@@ -577,7 +577,7 @@ def chat_messages(chat_id: int) -> Response:
             'author_id': msg.author.id,
             'text': decrypt(msg.text) if msg.text else '',
             'image': msg.image,
-            'image_url': url_for('static', filename=f'uploads/chat/{msg.image}') if msg.image else None,
+            'image_url': url_for('main.chat_image', chat_id=chat_id, filename=msg.image) if msg.image else None,
             'created_date': msg.created_date.isoformat(),
             'is_read': msg.is_read,
             'author': {
@@ -659,7 +659,7 @@ def chat_send(chat_id: int) -> Response:
             'id': new_message.id,
             'text': text or '',
             'image': image_filename,
-            'image_url': url_for('static', filename=f'uploads/chat/{image_filename}') if image_filename else None,
+            'image_url': url_for('main.chat_image', chat_id=chat_id, filename=image_filename) if image_filename else None,
             'created_date': new_message.created_date.isoformat(),
             'is_read': new_message.is_read,
             'author': {
@@ -669,6 +669,17 @@ def chat_send(chat_id: int) -> Response:
             }
         }
     })
+
+
+@main_bp.route('/chat/<int:chat_id>/image/<filename>')
+@login_required
+def chat_image(chat_id: int, filename: str) -> Response:
+    """Serve a chat image — requires login + chat participation."""
+    from config import Config as _Cfg
+    participant, err = _require_chat_participant(chat_id)
+    if err:
+        return err
+    return send_from_directory(_Cfg.CHAT_UPLOAD_FOLDER, filename)
 
 
 @main_bp.route('/chat/<int:chat_id>/typing', methods=['POST'])
