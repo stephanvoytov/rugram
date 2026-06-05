@@ -41,6 +41,11 @@
 .msg-img-overlay .read-status.other { color:var(--subtle); }
 .msg-caption { display:block; padding:8px 12px 4px; width:100%; }
 .msg-bubble-img { padding:0 !important; overflow:hidden; }
+.ctx-menu { font-family:var(--font); font-size:0.82rem; min-width:100px; background:var(--bg); border:1px solid var(--border) !important; }
+.ctx-item { padding:6px 14px; cursor:pointer; transition:all 0.12s; border:1px solid transparent; font-size:0.82rem; }
+.ctx-item:hover { border-color:var(--accent); color:var(--accent) !important; }
+.ctx-item.ctx-danger { color:var(--subtle); }
+.ctx-item.ctx-danger:hover { border-color:var(--red); color:var(--red) !important; }
 </style>
 {% endblock %}
 
@@ -441,9 +446,9 @@ function showContextMenu(e, msgId) {
 
     var menu = document.createElement('div');
     menu.className = 'ctx-menu';
-    menu.style.cssText = 'position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:6px;min-width:120px;box-shadow:0 4px 16px rgba(0,0,0,0.3)';
-    menu.innerHTML = '<div class="ctx-item" data-action="edit" data-msg-id="' + msgId + '">Edit</div>'
-        + '<div class="ctx-item ctx-danger" data-action="delete" data-msg-id="' + msgId + '">Delete</div>';
+    menu.style.cssText = 'position:fixed;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.3)';
+    menu.innerHTML = '<div class="ctx-item" data-action="edit" data-msg-id="' + msgId + '">[Edit]</div>'
+        + '<div class="ctx-item ctx-danger" data-action="delete" data-msg-id="' + msgId + '">[Delete]</div>';
 
     // Position anchored to right edge of bubble (Telegram-style)
     var left = rect.right + MARGIN;
