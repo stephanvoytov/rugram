@@ -19,6 +19,12 @@ logger = logging.getLogger(__name__)
 _MULTI_FERNET_CACHE = None
 
 
+def reset_crypto_cache() -> None:
+    """Сбрасывает кеш MultiFerNet — нужно вызвать после изменения SECRET_KEY* в рантайме."""
+    global _MULTI_FERNET_CACHE
+    _MULTI_FERNET_CACHE = None
+
+
 def _to_fernet_key(raw: str) -> bytes:
     """Превращает произвольную строку в 32-байтный Fernet-ключ через SHA256."""
     digest = hashlib.sha256(raw.encode()).digest()

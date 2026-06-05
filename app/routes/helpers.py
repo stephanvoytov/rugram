@@ -1,5 +1,6 @@
 import os
 import re
+import uuid
 import logging
 from typing import Optional
 
@@ -7,10 +8,12 @@ from PIL import Image
 
 from flask import jsonify, current_app
 from flask_login import current_user
+from werkzeug.datastructures import FileStorage
 
 logger = logging.getLogger(__name__)
 
 from config import Config
+from app.translations import _
 from app.models import Notification, ChatParticipant, Tag, PostTag, utcnow
 from extensions import db
 
@@ -35,11 +38,11 @@ def _require_chat_participant(chat_id: int) -> tuple:
         user_id=current_user.id
     ).first()
     if not participant:
-        return None, (jsonify({'error': 'Access denied'}), 403)
+        return None, (jsonify({'error': _('Access denied')}), 403)
     return participant, None
 
 
-def process_avatar(image_file: object) -> Optional[str]:
+def process_avatar(image_file: FileStorage) -> Optional[str]:
     """Обрезает и сохраняет аватар (500×500, JPEG)."""
     try:
         img = Image.open(image_file)
@@ -69,7 +72,7 @@ def process_avatar(image_file: object) -> Optional[str]:
         return None
 
 
-def process_post_image(image_file: object, filename: str) -> Optional[str]:
+def process_post_image(image_file: FileStorage, filename: str) -> Optional[str]:
     """Сохраняет две версии изображения поста:
     - {filename} — ресайз до 1200px по ширине (для детальной страницы)
     - thumb_{filename} — ресайз до 400px (для ленты)
@@ -103,6 +106,43 @@ def process_post_image(image_file: object, filename: str) -> Optional[str]:
     except Exception:
         logger.exception('process_post_image failed')
         return None
+
+
+def process_chat_image(image_file: FileStorage) -> Optional[str]:
+    """Ресайзит изображение для чата (макс. 800px по ширине) и сохраняет в uploads/chat/.
+
+    Возвращает имя файла или None при ошибке.
+    """
+    try:
+        img = Image.open(image_file)
+        if img.mode == 'RGBA':
+            img = img.convert('RGB')
+
+        # Максимум 800px по ширине (хорошо вписывается в чат)
+        if img.width > 800:
+            ratio = 800 / img.width
+            img = img.resize((800, int(img.height * ratio)), Image.Resampling.LANCZOS)
+
+        filename = f'chat_{uuid.uuid4().hex}.jpg'
+        save_dir = os.path.join(Config.UPLOAD_FOLDER, 'chat')
+        os.makedirs(save_dir, exist_ok=True)
+        save_path = os.path.join(save_dir, filename)
+        img.save(save_path, 'JPEG', quality=85, optimize=True)
+        return filename
+    except Exception:
+        logger.exception('process_chat_image failed')
+        return None
+
+
+ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
+
+def is_allowed_image(filename: str) -> bool:
+    """Проверяет расширение файла."""
+    if not filename or '.' not in filename:
+        return False
+    ext = filename.rsplit('.', 1)[1].lower()
+    return ext in ALLOWED_IMAGE_EXTENSIONS
 
 
 def extract_tags(text: str | None) -> list[str]:

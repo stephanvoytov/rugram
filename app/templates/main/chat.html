@@ -63,10 +63,15 @@
 
             <div class="chat-input-area">
                 <form id="messageForm" style="display:flex;gap:4px;flex:1">
+                    <input type="file" id="fileInput" accept="image/*" style="display:none">
                     <input type="text" id="messageInput" class="chat-input" placeholder="{{ _('Type a message...') }}" autocomplete="off">
+                    <button type="button" class="btn-term" id="attachBtn" title="Attach image" style="padding:4px 8px;font-size:1rem;line-height:1">[📎]</button>
                     <button type="button" class="btn-term" id="emojiBtn" title="Emoji" style="padding:4px 8px;font-size:1rem;line-height:1">[😊]</button>
                     <button type="submit" class="btn-term primary">[>>]</button>
                 </form>
+                <div style="display:flex;gap:4px;align-items:center;padding:2px 4px">
+                    <span id="filePreview" style="display:none;font-size:0.75rem;color:var(--subtle)"></span>
+                </div>
                 <div id="emojiPicker" class="emoji-picker" style="display:none"></div>
             </div>
         </div>
@@ -145,6 +150,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     setupTypingSignal();
     document.getElementById('messageForm').addEventListener('submit', sendMessage);
+    document.getElementById('attachBtn').addEventListener('click', () => document.getElementById('fileInput').click());
+    document.getElementById('fileInput').addEventListener('change', function() {
+        const preview = document.getElementById('filePreview');
+        if (this.files && this.files[0]) {
+            preview.textContent = '📎 ' + this.files[0].name;
+            preview.style.display = 'inline';
+        } else {
+            preview.style.display = 'none';
+        }
+    });
     document.getElementById('messagesContainer').addEventListener('scroll', function() {
         if (this.scrollTop < 80 && hasMoreMessages && !isLoadingOlder) loadOlderMessages();
     });
@@ -360,8 +375,13 @@ function createMessageElement(message) {
         ? '<span style="color:var(--accent);font-size:0.6rem;margin-left:3px">✓✓</span>'
         : '<span style="color:var(--subtle);font-size:0.6rem;margin-left:3px">✓</span>')
         : '';
+    const textHtml = message.text ? '<span>' + escapeHtml(message.text) + '</span>' : '';
+    const imageHtml = message.image_url
+        ? '<img src="' + message.image_url + '" alt="chat image" class="chat-img" style="max-width:240px;max-height:200px;border-radius:6px;display:block;cursor:pointer" onclick="window.open(this.src)">'
+        : '';
     div.innerHTML = '<div class="msg-bubble ' + (isOwn ? 'own' : 'other') + '">'
-        + '<span>' + escapeHtml(message.text) + '</span>'
+        + imageHtml
+        + textHtml
         + '<div style="display:flex;align-items:center;gap:2px;justify-content:flex-end">'
         + '<small style="opacity:0.6;font-size:0.65rem;white-space:nowrap">' + time + '</small>'
         + readIcon
@@ -373,15 +393,38 @@ function createMessageElement(message) {
 async function sendMessage(e) {
     e.preventDefault();
     const input = document.getElementById('messageInput');
+    const fileInput = document.getElementById('fileInput');
     const text = input.value.trim();
-    if (!text || !currentChatId) return;
+    const file = fileInput.files[0];
+    if (!text && !file || !currentChatId) return;
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+    let body;
+    let headers = { 'X-CSRFToken': csrfToken };
+
+    if (file) {
+        const formData = new FormData();
+        if (text) formData.append('text', text);
+        formData.append('image', file);
+        body = formData;
+        // Don't set Content-Type — browser sets it with boundary for FormData
+    } else {
+        headers['Content-Type'] = 'application/json';
+        body = JSON.stringify({ text });
+    }
+
     try {
         const response = await fetch('{{ url_for('main.chat_send', chat_id=0) }}'.replace('/0/', '/' + currentChatId + '/'), {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content },
-            body: JSON.stringify({ text })
+            headers: headers,
+            body: body
         });
-        if (response.ok) { input.value = ''; await loadMessages(); }
+        if (response.ok) {
+            input.value = '';
+            fileInput.value = '';
+            document.getElementById('filePreview').style.display = 'none';
+            await loadMessages();
+        }
     } catch (error) { console.error('Error sending message:', error); }
 }
 

@@ -59,6 +59,7 @@ def create_app():
         instance_dir,
         os.path.join(Config.UPLOAD_FOLDER, 'posts'),
         os.path.join(Config.UPLOAD_FOLDER, 'profile_images'),
+        os.path.join(Config.UPLOAD_FOLDER, 'chat'),
     ])
 
     with app.app_context():

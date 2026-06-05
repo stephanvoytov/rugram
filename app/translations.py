@@ -298,6 +298,10 @@ RU: dict[str, str] = {
     'Help': 'Справка',
     'profile info (cat, nano)': 'информация профиля (cat, nano)',
     'post': 'пост',
+    # ── Chat image support ──
+    'Failed to process image': 'Не удалось обработать изображение',
+    'Invalid file type':       'Недопустимый тип файла',
+    'Message cannot be empty': 'Сообщение не может быть пустым',
 }
 
 

@@ -129,6 +129,10 @@ def toggle_admin(user_id):
     if user.id == current_user.id:
         flash('Cannot change your own admin status', 'error')
         return redirect(url_for('admin.users'))
+    # Нельзя снять админку с последнего админа
+    if user.is_admin and User.query.filter(User.is_admin == True).count() <= 1:
+        flash('Cannot revoke — at least one admin must remain', 'error')
+        return redirect(url_for('admin.users'))
     user.is_admin = not user.is_admin
     db.session.commit()
     flash(f'Admin {"granted" if user.is_admin else "revoked"} for {user.username}', 'success')
@@ -161,6 +165,10 @@ def delete_user(user_id):
         return redirect(url_for('admin.users'))
     if user.id == current_user.id:
         flash('Cannot delete your own account', 'error')
+        return redirect(url_for('admin.users'))
+    # Нельзя удалить последнего админа
+    if user.is_admin and User.query.filter(User.is_admin == True).count() <= 1:
+        flash('Cannot delete — at least one admin must remain', 'error')
         return redirect(url_for('admin.users'))
     username = user.username
     db.session.delete(user)
