@@ -696,6 +696,13 @@
     return d.innerHTML;
   };
 
+  T._linkifyTags = function(escapedHtml) {
+    // Преобразует #tag в кликабельные спаны (текст уже экранирован)
+    return escapedHtml.replace(/#(\w{1,32})/g, function(match, tag) {
+      return '<span class="tp-tag" data-tag="' + tag.toLowerCase() + '">#' + tag + '</span>';
+    });
+  };
+
   T.sysTime = function() {
     var d = new Date();
     return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -1285,9 +1292,9 @@
       + ' <span class="tp-post-author">@' + esc(item.author) + '</span>'
       + ' <span class="tp-post-time">' + esc(timeDisplay) + '</span>';
 
-    // Text — full, not truncated
+    // Text — full, not truncated, with clickable #tags
     var textBlock = item.text
-      ? '<div class="tp-feed-text">' + esc(item.text) + '</div>'
+      ? '<div class="tp-feed-text">' + T._linkifyTags(esc(item.text)) + '</div>'
       : '';
 
     // Image → ASCII art (async, cached)
@@ -1627,6 +1634,14 @@
     if (T.el.input) {
       T.el.input.addEventListener('keydown', T.onInputKey);
     }
+
+    // Clickable #tags in terminal output
+    T.el.output.addEventListener('click', function(e) {
+      var tagEl = e.target.closest('.tp-tag');
+      if (tagEl && tagEl.dataset.tag) {
+        T.exec('feed --tag ' + tagEl.dataset.tag);
+      }
+    });
 
     document.addEventListener('keydown', function(e) {
       var tag = e.target.tagName;

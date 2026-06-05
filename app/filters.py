@@ -1,6 +1,9 @@
+import re
+
 from datetime import datetime, timezone
 
 from flask import Blueprint
+from markupsafe import Markup
 
 filters_bp = Blueprint('filters', __name__)
 
@@ -59,3 +62,16 @@ def format_datetime(value, format='medium'):
         format = "%H:%M"
 
     return value.strftime(format)
+
+
+@filters_bp.app_template_filter('linkify_tags')
+def linkify_tags_filter(text: str) -> str:
+    """Преобразует #хештеги в кликабельные ссылки."""
+    if not text:
+        return text
+    result = re.sub(
+        r'(?<!\w)#(\w{1,32})',
+        r'<a href="/?tag=\1" class="tag-link">#\1</a>',
+        text
+    )
+    return Markup(result)

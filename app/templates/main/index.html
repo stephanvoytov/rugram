@@ -15,9 +15,23 @@
 <h1 class="sr-only">Rugram</h1>
 {% if current_user.is_authenticated %}
 <div class="filter-line">
+    {% if tag_filter %}
+    <a href="{{ url_for('main.index') }}" class="filter-item">all</a>
+    <a href="{{ url_for('main.index', tag=tag_filter) }}" class="filter-item active">#{{ tag_filter }}</a>
+    {% else %}
     <a href="{{ url_for('main.index') }}" class="filter-item {% if not request.args.get('followed') %}active{% endif %}">all</a>
+    {% endif %}
     <a href="{{ url_for('main.index', followed='1') }}" class="filter-item {% if request.args.get('followed') %}active{% endif %}">~subs</a>
     <a href="{{ url_for('posts.create_post') }}" class="filter-item" style="margin-left:auto">[+ create]</a>
+</div>
+{% endif %}
+
+{# Trending tags #}
+{% if trending_tags %}
+<div class="trending-bar">
+    {% for t in trending_tags %}
+    <a href="{{ url_for('main.index', tag=t.name) }}" class="trending-tag {% if tag_filter == t.name %}active{% endif %}">#{{ t.name }}<span class="trending-count">{{ t.post_count }}</span></a>
+    {% endfor %}
 </div>
 {% endif %}
 

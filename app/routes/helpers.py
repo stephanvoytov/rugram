@@ -1,4 +1,5 @@
 import os
+import re
 import logging
 from typing import Optional
 
@@ -10,7 +11,7 @@ from flask_login import current_user
 logger = logging.getLogger(__name__)
 
 from config import Config
-from app.models import Notification, ChatParticipant, utcnow
+from app.models import Notification, ChatParticipant, Tag, PostTag, utcnow
 from extensions import db
 
 
@@ -102,3 +103,48 @@ def process_post_image(image_file: object, filename: str) -> Optional[str]:
     except Exception:
         logger.exception('process_post_image failed')
         return None
+
+
+def extract_tags(text: str | None) -> list[str]:
+    """Извлекает уникальные хештеги из текста (без #, lowercase, до 32 символов)."""
+    if not text:
+        return []
+    tags = re.findall(r'(?<!\w)#(\w{1,32})', text)
+    seen = set()
+    result = []
+    for tag in tags:
+        t = tag.lower()
+        if t not in seen:
+            seen.add(t)
+            result.append(t)
+    return result
+
+
+def sync_post_tags(post_id: int, tag_names: list[str]) -> None:
+    """Синхронизирует теги поста: удаляет старые связи, создаёт новые."""
+    # Удаляем старые PostTag для этого поста
+    PostTag.query.filter(PostTag.post_id == post_id).delete()
+
+    for name in tag_names:
+        tag = Tag.query.filter(Tag.name == name).first()
+        if not tag:
+            tag = Tag(name=name)
+            db.session.add(tag)
+            db.session.flush()
+        # Создаём связь
+        db.session.add(PostTag(post_id=post_id, tag_id=tag.id))
+
+    # Пересчитываем post_count для всех затронутых тегов
+    db.session.flush()
+    from sqlalchemy import func
+    counts = db.session.query(
+        PostTag.tag_id, func.count(PostTag.id)
+    ).group_by(PostTag.tag_id).all()
+    for tag_id, cnt in counts:
+        Tag.query.filter(Tag.id == tag_id).update({'post_count': cnt})
+    # Сбрасываем счётчик для тегов без постов
+    active_ids = [t[0] for t in counts]
+    if active_ids:
+        Tag.query.filter(~Tag.id.in_(active_ids)).update({'post_count': 0})
+    else:
+        Tag.query.update({'post_count': 0})

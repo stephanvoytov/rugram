@@ -1306,15 +1306,17 @@
       return;
     }
 
-    var tailN = null, pageN = null, searchQ = null, inlineMode = false, byUser = null;
+    var tailN = null, pageN = null, searchQ = null, inlineMode = false, byUser = null, tag = null;
 
     // Parse flags (order-independent, search text ends at next --flag or end)
     var tailMatch  = args.match(/--tail\s+(\d+)/);
     var pageMatch  = args.match(/--page\s+(\d+)/);
     var byMatch    = args.match(/--by\s+@?(\w+)/);
+    var tagMatch   = args.match(/--tag\s+(\w+)/);
     if (tailMatch) tailN = parseInt(tailMatch[1], 10);
     if (pageMatch) pageN = parseInt(pageMatch[1], 10);
     if (byMatch)   byUser = byMatch[1].toLowerCase();
+    if (tagMatch)  tag = tagMatch[1].toLowerCase();
     if (/--inline\b/.test(args)) inlineMode = true;
 
     // --search: extract text between --search and next --flag (or end)
@@ -1326,6 +1328,13 @@
     // Filter by author (--by @user)
     if (byUser) {
       list = list.filter(function(p) { return p.author && p.author.toLowerCase() === byUser; });
+    }
+
+    // Filter by tag (--tag xxx)
+    if (tag) {
+      list = list.filter(function(p) {
+        return p.text && new RegExp('#' + tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i').test(p.text);
+      });
     }
 
     // Search filter
