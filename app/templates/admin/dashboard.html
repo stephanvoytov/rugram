@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}admin · rugram{% endblock %}
+{% block robots %}noindex,nofollow{% endblock %}
+{% block content %}
+<h1 style="margin-bottom:8px">[*] admin</h1>
+<p class="text-secondary" style="font-size:0.85rem;margin-bottom:20px">dashboard · <a href="{{ url_for('admin.users') }}">users</a> · <a href="{{ url_for('admin.posts') }}">posts</a> · <a href="{{ url_for('admin.tags') }}">tags</a></p>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px">
+    <div class="stat-block">
+        <div class="stat-number">{{ stats.users_total }}</div>
+        <div class="stat-label">users</div>
+    </div>
+    <div class="stat-block">
+        <div class="stat-number">{{ stats.users_today }}</div>
+        <div class="stat-label">new today</div>
+    </div>
+    <div class="stat-block">
+        <div class="stat-number">{{ stats.posts_total }}</div>
+        <div class="stat-label">posts</div>
+    </div>
+    <div class="stat-block">
+        <div class="stat-number">{{ stats.likes_total }}</div>
+        <div class="stat-label">likes</div>
+    </div>
+    <div class="stat-block">
+        <div class="stat-number">{{ stats.comments_total }}</div>
+        <div class="stat-label">comments</div>
+    </div>
+    <div class="stat-block">
+        <div class="stat-number">{{ stats.follows_total }}</div>
+        <div class="stat-label">follows</div>
+    </div>
+    <div class="stat-block">
+        <div class="stat-number">{{ stats.tags_total }}</div>
+        <div class="stat-label">tags</div>
+    </div>
+</div>
+
+<style>
+.stat-block {
+    background: var(--surface0); border: 1px solid var(--surface1); border-radius: 8px;
+    padding: 16px; text-align: center;
+}
+.stat-number { font-size: 1.8rem; font-weight: 700; color: var(--accent); }
+.stat-label { font-size: 0.75rem; color: var(--subtext); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 4px; }
+</style>
+{% endblock %}

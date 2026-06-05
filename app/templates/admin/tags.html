@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}tags · admin · rugram{% endblock %}
+{% block robots %}noindex,nofollow{% endblock %}
+{% block content %}
+<h1 style="margin-bottom:8px">[*] tags</h1>
+<p class="text-secondary" style="font-size:0.85rem;margin-bottom:12px"><a href="{{ url_for('admin.dashboard') }}">dashboard</a> · <a href="{{ url_for('admin.users') }}">users</a> · <a href="{{ url_for('admin.posts') }}">posts</a> · tags</p>
+
+<form method="GET" style="margin-bottom:12px;display:flex;gap:6px;max-width:360px">
+    <input type="text" name="q" value="{{ q }}" placeholder="search tags..." style="flex:1;background:var(--surface0);border:1px solid var(--surface1);color:var(--text);padding:4px 8px;border-radius:4px;font-family:var(--font);font-size:0.82rem">
+    <button type="submit" class="btn-term" style="padding:4px 10px;font-size:0.82rem">[search]</button>
+</form>
+
+<table class="admin-table">
+<thead>
+<tr><th>ID</th><th>Name</th><th>Posts</th><th>Actions</th></tr>
+</thead>
+<tbody>
+{% for t in tags %}
+<tr>
+    <td>{{ t.id }}</td>
+    <td><strong>#{{ t.name }}</strong></td>
+    <td>{{ t.post_count }}</td>
+    <td>
+        <form method="POST" action="{{ url_for('admin.delete_tag', tag_id=t.id, page=pagination.page) }}" style="display:inline" onsubmit="return confirm('Delete tag #{{ t.name }} and remove from all posts?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn-term small danger" style="font-size:0.72rem">delete</button>
+        </form>
+    </td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+
+{% if pagination.pages > 1 %}
+<div class="pagination-bar">
+    {% if pagination.has_prev %}<a href="{{ url_for('admin.tags', page=pagination.prev_num, q=q) }}">[&lt;&lt; prev]</a>{% endif %}
+    {% for p in range(1, pagination.pages + 1) %}
+    <a href="{{ url_for('admin.tags', page=p, q=q) }}" {% if p == pagination.page %}class="active"{% endif %}>{{ p }}</a>
+    {% endfor %}
+    {% if pagination.has_next %}<a href="{{ url_for('admin.tags', page=pagination.next_num, q=q) }}">[next &gt;&gt;]</a>{% endif %}
+</div>
+{% endif %}
+
+<style>
+.admin-table { width:100%; border-collapse:collapse; font-size:0.82rem; }
+.admin-table th, .admin-table td { padding:6px 10px; text-align:left; border-bottom:1px solid var(--surface1); }
+.admin-table th { font-size:0.72rem; text-transform:uppercase; color:var(--subtext); letter-spacing:0.03em; background:var(--surface0); }
+.admin-table tr:hover td { background:var(--surface0); }
+.btn-term.small { padding:2px 6px; font-size:0.78rem; }
+.btn-term.danger { border-color:var(--red); color:var(--red); }
+.btn-term.danger:hover { background:var(--red); color:var(--base); }
+.pagination-bar { display:flex; gap:6px; align-items:center; margin-top:16px; font-size:0.82rem; }
+.pagination-bar a { padding:3px 8px; border:1px solid var(--surface1); border-radius:3px; text-decoration:none; }
+.pagination-bar a.active { background:var(--blue); color:var(--base); border-color:var(--blue); }
+</style>
+{% endblock %}

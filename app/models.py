@@ -41,6 +41,7 @@ class User(db.Model, UserMixin, SerializerMixin):
     description: Mapped[str] = mapped_column(nullable=True)
     last_seen: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=True)
     notifications_enabled: Mapped[bool] = mapped_column(default=True)
+    is_admin: Mapped[bool] = mapped_column(default=False)
 
     posts: Mapped[list["Post"]] = relationship(back_populates='author', cascade='all, delete-orphan')
     likes: Mapped[list["Like"]] = relationship(back_populates='user', cascade='all, delete-orphan')

@@ -9,7 +9,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from app.models import User
 from app.filters import filters_bp
 from app.resources import post_resources
-from app.routes import main_bp, auth_bp, posts_bp
+from app.routes import main_bp, auth_bp, posts_bp, admin_bp
 from app.translations import _
 from app.limiter import limiter
 from extensions import db, csrf
@@ -68,6 +68,7 @@ def create_app():
     app.register_blueprint(auth_bp)
     app.register_blueprint(posts_bp)
     app.register_blueprint(filters_bp)
+    app.register_blueprint(admin_bp)
 
     # Версия для сброса кеша статики (на основе mtime файлов)
     static_dir = os.path.join(app.root_path, 'static')

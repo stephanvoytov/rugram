@@ -134,6 +134,7 @@
             <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 user-dropdown-menu">
                 <li><a class="dropdown-item" href="{{ url_for('main.profile', user_id_or_username=current_user.id)}}">[@profile]</a></li>
                 <li><a class="dropdown-item" href="{{ url_for('main.saved_posts') }}">[*saved]</a></li>
+                {% if current_user.is_admin %}<li><a class="dropdown-item" href="{{ url_for('admin.dashboard') }}">[*admin]</a></li>{% endif %}
                 <li><a class="dropdown-item" href="{{ url_for('main.settings') }}">[settings]</a></li>
                 <li><hr class="dropdown-divider"></li>
                 <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">[logout]</a></li>
