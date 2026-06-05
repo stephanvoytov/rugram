@@ -433,11 +433,11 @@ function showContextMenu(e, msgId) {
     hideContextMenu();
     const menu = document.createElement('div');
     menu.className = 'ctx-menu';
-    menu.style.cssText = 'position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:6px;min-width:120px;box-shadow:0 4px 16px rgba(0,0,0,0.3);font-family:var(--font);font-size:0.85rem;overflow:hidden';
-    menu.innerHTML = '<div style="padding:6px 14px;cursor:pointer;color:var(--fg);transition:background 0.1s" onmouseover="this.style.background=\\'var(--overlay)\\'" onmouseout="this.style.background=\\'transparent\\'" onclick="editMessage(' + msgId + ')">Edit</div>'
-        + '<div style="padding:6px 14px;cursor:pointer;color:var(--red);transition:background 0.1s" onmouseover="this.style.background=\\'var(--overlay)\\'" onmouseout="this.style.background=\\'transparent\\'" onclick="deleteMessage(' + msgId + ')">Delete</div>';
-    menu.style.left = Math.min(e.clientX || e.touches?.[0]?.clientX || 0, window.innerWidth - 130) + 'px';
-    menu.style.top = Math.min(e.clientY || e.touches?.[0]?.clientY || 0, window.innerHeight - 80) + 'px';
+    menu.style.cssText = 'position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:6px;min-width:120px;box-shadow:0 4px 16px rgba(0,0,0,0.3)';
+    menu.innerHTML = '<div class="ctx-item" data-action="edit" data-msg-id="' + msgId + '">Edit</div>'
+        + '<div class="ctx-item ctx-danger" data-action="delete" data-msg-id="' + msgId + '">Delete</div>';
+    menu.style.left = Math.min(e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0), window.innerWidth - 130) + 'px';
+    menu.style.top = Math.min(e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0), window.innerHeight - 80) + 'px';
     document.body.appendChild(menu);
     ctxMenu = menu;
 }
