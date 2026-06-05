@@ -1,6 +1,12 @@
 #!/bin/sh
 set -e
 
+echo "==> Checking SECRET_KEY..."
+if [ -z "$SECRET_KEY" ]; then
+    echo "FATAL: SECRET_KEY is not set. Create a .env file with SECRET_KEY=..."
+    exit 1
+fi
+
 echo "==> Ensuring upload directories exist..."
 mkdir -p /app/app/static/uploads/posts /app/app/static/uploads/profile_images /app/app/static/uploads/chat
 
