@@ -19,10 +19,13 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    with op.batch_alter_table('users') as batch_op:
-        batch_op.add_column(sa.Column('is_moderator', sa.Boolean(), nullable=False, server_default=sa.text('0')))
+    # op.add_column на SQLite НЕ требует batch-режима —
+    # использует нативный ALTER TABLE ADD COLUMN, без временных таблиц.
+    op.add_column('users', sa.Column('is_moderator', sa.Boolean(),
+                                     nullable=False, server_default=sa.text('0')))
 
 
 def downgrade() -> None:
+    # DROP COLUMN требует batch на старых SQLite (< 3.35)
     with op.batch_alter_table('users') as batch_op:
         batch_op.drop_column('is_moderator')
