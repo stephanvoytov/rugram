@@ -137,6 +137,29 @@ a:hover { color: var(--blue); }
 .trending-tag.active { border-color: var(--accent); color: var(--accent); background: var(--surface2); }
 .trending-count { color: var(--subtle); font-size: 0.65rem; }
 
+/* ── Tag Chips & Preview ── */
+.trending-chips {
+    display: flex; gap: 6px; flex-wrap: wrap;
+    padding: 6px 0 0; margin-top: 4px;
+    border-top: 1px solid var(--overlay);
+}
+.tag-chip {
+    display: inline-block;
+    font-size: 0.72rem; padding: 2px 8px;
+    border: 1px solid var(--border);
+    color: var(--subtle); cursor: pointer;
+    transition: all 0.12s; user-select: none;
+}
+.tag-chip:hover { border-color: var(--accent); color: var(--accent); background: var(--surface2); }
+.tag-preview {
+    display: flex; gap: 6px; align-items: center;
+    padding: 4px 8px; margin-top: 2px;
+    font-size: 0.72rem; background: var(--surface2);
+    border: 1px dashed var(--border); border-radius: 2px;
+}
+.tag-preview-label { color: var(--green); white-space: nowrap; }
+.tag-preview-tags { color: var(--accent); word-break: break-all; }
+
 /* ── Filter Line (feed) ── */
 .filter-line {
     display: flex; gap: 12px; margin-bottom: 16px; font-size: 0.78rem;

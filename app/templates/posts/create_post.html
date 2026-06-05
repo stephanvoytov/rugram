@@ -13,7 +13,12 @@
 
         <div class="auth-field">
             {{ form.text.label(class="field-label") }}
-            {{ form.text(class="field-input", rows=4, placeholder="what's on your mind?") }}
+            {{ form.text(class="field-input", rows=4, id="postText", placeholder="what's on your mind? (#python #web)") }}
+            <div class="tag-preview" id="postTagPreview" style="display:none">
+                <span class="tag-preview-label">tags:</span>
+                <span class="tag-preview-tags" id="postTagList"></span>
+            </div>
+            <div class="trending-chips" id="postTrendingChips"></div>
             {% for error in form.text.errors %}
             <div class="field-msg error">{{ error }}</div>
             {% endfor %}
@@ -56,5 +61,72 @@ function previewImage() {
     if (file) reader.readAsDataURL(file);
     else { preview.src = '#'; preview.style.display = 'none'; }
 }
+
+// Tag helpers
+function _extractTags(text) {
+    var m = text.match(/(?<!\w)#(\w{1,32})/g);
+    if (!m) return [];
+    var seen = {}, r = [];
+    for (var i = 0; i < m.length; i++) {
+        var t = m[i].toLowerCase();
+        if (!seen[t]) { seen[t] = true; r.push(t); }
+    }
+    return r;
+}
+function _updateTagPreview(textarea, previewEl, listEl) {
+    var tags = _extractTags(textarea.value);
+    if (tags.length > 0) {
+        previewEl.style.display = 'flex';
+        listEl.textContent = tags.join(' ');
+    } else {
+        previewEl.style.display = 'none';
+    }
+}
+function _insertTag(textarea, tag) {
+    var start = textarea.selectionStart, end = textarea.selectionEnd;
+    var val = textarea.value, before = val.substring(0, start);
+    var lastCh = before.slice(-1);
+    var ins = (lastCh === ' ' || lastCh === '' || lastCh === '\n') ? '#' + tag + ' ' : ' #' + tag + ' ';
+    textarea.value = before + ins + val.substring(end);
+    var pos = start + ins.length;
+    textarea.selectionStart = textarea.selectionEnd = pos;
+    textarea.dispatchEvent(new Event('input'));
+    textarea.focus();
+}
+
+// Tag preview on input
+(function() {
+    var ta = document.getElementById('postText');
+    var preview = document.getElementById('postTagPreview');
+    var list = document.getElementById('postTagList');
+    if (!ta || !preview || !list) return;
+    ta.addEventListener('input', function() { _updateTagPreview(ta, preview, list); });
+})();
+
+// Fetch trending tags from API and render chips
+(function() {
+    var chipsContainer = document.getElementById('postTrendingChips');
+    if (!chipsContainer) return;
+    fetch('/api/tags/trending')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data.tags || data.tags.length === 0) return;
+            chipsContainer.innerHTML = '';
+            data.tags.forEach(function(t) {
+                var span = document.createElement('span');
+                span.className = 'tag-chip';
+                span.dataset.tag = t.name;
+                span.textContent = '#' + t.name;
+                chipsContainer.appendChild(span);
+            });
+        })
+        .catch(function() {});
+    chipsContainer.addEventListener('click', function(e) {
+        var chip = e.target.closest('.tag-chip');
+        if (!chip) return;
+        var ta = document.getElementById('postText');
+        if (ta) _insertTag(ta, chip.dataset.tag);
+    });
+})();
 </script>
 {% endblock %}
