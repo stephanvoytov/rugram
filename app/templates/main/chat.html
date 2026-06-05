@@ -431,13 +431,44 @@ let ctxMenu = null;
 function showContextMenu(e, msgId) {
     e.preventDefault();
     hideContextMenu();
-    const menu = document.createElement('div');
+    const item = e.target.closest('.message-item.own');
+    if (!item) return;
+    // Get message bubble position for Telegram-style anchor
+    var bubble = item.querySelector('.msg-bubble');
+    if (!bubble) return;
+    var rect = bubble.getBoundingClientRect();
+    var MARGIN = 4;
+
+    var menu = document.createElement('div');
     menu.className = 'ctx-menu';
     menu.style.cssText = 'position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:6px;min-width:120px;box-shadow:0 4px 16px rgba(0,0,0,0.3)';
     menu.innerHTML = '<div class="ctx-item" data-action="edit" data-msg-id="' + msgId + '">Edit</div>'
         + '<div class="ctx-item ctx-danger" data-action="delete" data-msg-id="' + msgId + '">Delete</div>';
-    menu.style.left = Math.min(e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0), window.innerWidth - 130) + 'px';
-    menu.style.top = Math.min(e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0), window.innerHeight - 80) + 'px';
+
+    // Position anchored to right edge of bubble (Telegram-style)
+    var left = rect.right + MARGIN;
+    var top = rect.top;
+    var menuW = 130;
+    var menuH = 68;
+
+    // If menu would overflow right edge, flip to left side of bubble
+    if (left + menuW > window.innerWidth - MARGIN) {
+        left = rect.left - menuW - MARGIN;
+    }
+    // If still overflows (tiny screen), clamp
+    if (left < MARGIN) left = MARGIN;
+    if (left + menuW > window.innerWidth - MARGIN) {
+        left = window.innerWidth - menuW - MARGIN;
+    }
+
+    // Vertical: keep fully visible
+    if (top + menuH > window.innerHeight - MARGIN) {
+        top = window.innerHeight - menuH - MARGIN;
+    }
+    if (top < MARGIN) top = MARGIN;
+
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
     document.body.appendChild(menu);
     ctxMenu = menu;
 }
