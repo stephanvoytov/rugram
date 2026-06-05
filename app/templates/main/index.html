@@ -40,7 +40,11 @@
 <div class="create-box">
     <form action="{{ url_for('posts.create_post') }}" method="POST" enctype="multipart/form-data" id="quickPostForm">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <textarea name="text" placeholder="[>] type something..." rows="2" maxlength="3000" required></textarea>
+        <textarea name="text" id="quickPostText" placeholder="[>] type something... (#python #web)" rows="2" maxlength="3000" required></textarea>
+        <div class="tag-preview" id="quickTagPreview" style="display:none">
+            <span class="tag-preview-label">tags:</span>
+            <span class="tag-preview-tags" id="quickTagList"></span>
+        </div>
         <div class="create-actions">
             <span class="hint">[*] Ctrl+Enter to post</span>
             <div style="display:flex;gap:4px">
@@ -51,6 +55,13 @@
                 <button type="submit" class="btn-term primary">[>> post]</button>
             </div>
         </div>
+        {% if trending_tags %}
+        <div class="trending-chips">
+            {% for t in trending_tags %}
+            <span class="tag-chip" data-tag="{{ t.name }}">#{{ t.name }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
     </form>
 </div>
 {% endif %}
@@ -81,11 +92,66 @@
 
 {% block scripts %}
 <script>
+// ── Tag helpers ──
+function _extractTags(text) {
+    var m = text.match(/(?<!\w)#(\w{1,32})/g);
+    if (!m) return [];
+    var seen = {}, r = [];
+    for (var i = 0; i < m.length; i++) {
+        var t = m[i].toLowerCase();
+        if (!seen[t]) { seen[t] = true; r.push(t); }
+    }
+    return r;
+}
+
+function _updateTagPreview(textarea, previewEl, listEl) {
+    var tags = _extractTags(textarea.value);
+    if (tags.length > 0) {
+        previewEl.style.display = 'flex';
+        listEl.textContent = tags.join(' ');
+    } else {
+        previewEl.style.display = 'none';
+    }
+}
+
+function _insertTag(textarea, tag) {
+    var start = textarea.selectionStart, end = textarea.selectionEnd;
+    var val = textarea.value, before = val.substring(0, start);
+    var lastCh = before.slice(-1);
+    var ins = (lastCh === ' ' || lastCh === '' || lastCh === '\n') ? '#' + tag + ' ' : ' #' + tag + ' ';
+    textarea.value = before + ins + val.substring(end);
+    var pos = start + ins.length;
+    textarea.selectionStart = textarea.selectionEnd = pos;
+    textarea.dispatchEvent(new Event('input'));
+    textarea.focus();
+}
+
 // Quick post form
 document.getElementById('quickPostForm')?.addEventListener('submit', function(e) {
     const text = this.querySelector('textarea').value.trim();
     if (!text) { e.preventDefault(); return; }
 });
+
+// Tag preview on quick post
+(function() {
+    var ta = document.getElementById('quickPostText');
+    var preview = document.getElementById('quickTagPreview');
+    var list = document.getElementById('quickTagList');
+    if (!ta || !preview || !list) return;
+    ta.addEventListener('input', function() { _updateTagPreview(ta, preview, list); });
+})();
+
+// Chip clicks on quick post
+(function() {
+    var chips = document.querySelector('#quickPostForm .trending-chips');
+    if (!chips) return;
+    chips.addEventListener('click', function(e) {
+        var chip = e.target.closest('.tag-chip');
+        if (!chip) return;
+        var ta = document.getElementById('quickPostText');
+        if (ta) _insertTag(ta, chip.dataset.tag);
+    });
+})();
 
 // Post card click → detail page (unless clicking a button/link)
 document.getElementById('posts-container')?.addEventListener('click', function(e) {
