@@ -17,6 +17,9 @@ import os
 import sys
 import argparse
 
+# Add project root to path so 'from app import create_app' works
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
 from alembic.config import Config
 from alembic.command import upgrade
 from alembic.script import ScriptDirectory
