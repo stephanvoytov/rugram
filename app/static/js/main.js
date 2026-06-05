@@ -189,7 +189,14 @@
     }
 
     async function enablePush() {
-        if (!('serviceWorker' in navigator) || !('PushManager' in window) || !window.VAPID_PUBLIC_KEY) return;
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            showToast('[!] push not supported', 'service workers or push manager unavailable', 'danger');
+            return;
+        }
+        if (!window.VAPID_PUBLIC_KEY || window.VAPID_PUBLIC_KEY.length < 20) {
+            showToast('[!] VAPID keys missing', 'run: python scripts/gen_vapid_keys.py and restart', 'danger');
+            return;
+        }
         function urlBase64ToUint8Array(b64) {
             const padding = '='.repeat((4 - b64.length % 4) % 4);
             const base64 = (b64 + padding).replace(/\-/g, '+').replace(/_/g, '/');
@@ -221,7 +228,10 @@
                     body: JSON.stringify({ subscription: sub.toJSON() })
                 });
             }
-        } catch (e) { console.error('Push setup error:', e); }
+        } catch (e) {
+            console.error('Push setup error:', e);
+            showToast('[!] push setup failed', e.message || 'unknown error', 'danger');
+        }
     }
 })();
 

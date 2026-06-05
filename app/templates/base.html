@@ -235,9 +235,9 @@
 <script defer src="{{ url_for('static', filename='js/terminal-navigation.js') }}?v={{ static_version }}"></script>
 <script defer src="{{ url_for('static', filename='js/terminal-commands.js') }}?v={{ static_version }}"></script>
 <script defer src="{{ url_for('static', filename='js/main.js') }}?v={{ static_version }}"></script>
-<script defer>
-// Регистрация Service Worker для push-уведомлений — сразу, без window.load
-if ('serviceWorker' in navigator && window.isAuthenticated && window.VAPID_PUBLIC_KEY) {
+<script>
+// Регистрация Service Worker для push-уведомлений
+if ('serviceWorker' in navigator && window.isAuthenticated) {
     navigator.serviceWorker.register('{{ url_for('static', filename='sw.js') }}?v={{ static_version }}')
         .then(function(registration) {
             window.swRegistration = registration;
