@@ -133,6 +133,7 @@ let hasMoreMessages = true;
 let isLoadingOlder = false;
 let typingTimeout = null;
 let otherUsername = '';
+let lastPollTimestamp = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     currentUser = {{ current_user.id|tojson if current_user.is_authenticated else 'null' }};
@@ -299,6 +300,7 @@ function updateTypingIndicator(isTyping) {
 
 async function loadMessages() {
     if (!currentChatId) return;
+    lastPollTimestamp = null; // Force fresh baseline on full reload
     try {
         const response = await fetch('{{ url_for('main.chat_messages', chat_id=0) }}'.replace('/0/', '/' + currentChatId + '/') + '?limit=50');
         const data = await response.json();
@@ -517,6 +519,7 @@ function copyMsgText(text) {
         document.execCommand('copy');
         document.body.removeChild(ta);
     }
+    showToast('[*] copied', 'message text copied', 'success');
 }
 
 function hideContextMenu() {
@@ -554,14 +557,10 @@ function editMessage(msgId) {
     input.focus();
     input.select();
 
-    // Save on Enter
+    // Save on Enter, cancel on Escape
     input.addEventListener('keydown', function(ev) {
         if (ev.key === 'Enter') { saveEdit(ev); }
         if (ev.key === 'Escape') { cancelEdit(ev); }
-    });
-    // Save on blur (with small delay to allow click on other elements)
-    input.addEventListener('blur', function(ev) {
-        setTimeout(function() { saveEdit(ev); }, 200);
     });
 }
 
@@ -788,7 +787,47 @@ function stopChatListPolling() {
 
 function startPolling() {
     if (pollingInterval) clearInterval(pollingInterval);
-    pollingInterval = setInterval(async () => { if (currentChatId) await loadMessages(); }, 3000);
+    lastPollTimestamp = new Date().toISOString();
+    pollingInterval = setInterval(pollMessages, 3000);
+}
+
+async function pollMessages() {
+    if (!currentChatId) return;
+    const container = document.getElementById('messagesContainer');
+    const lastMsg = container.querySelector('.message-item:last-child');
+    const since = lastMsg ? parseInt(lastMsg.dataset.messageId) : 0;
+    const ts = lastPollTimestamp || new Date().toISOString();
+
+    try {
+        const url = '{{ url_for('main.chat_messages', chat_id=0) }}'.replace('/0/', '/' + currentChatId + '/')
+            + '?after=' + since + '&ts=' + encodeURIComponent(ts) + '&limit=50';
+        const resp = await fetch(url);
+        const data = await resp.json();
+
+        if (data.other_user) updateChatStatus(data.other_user.is_online, data.other_user.last_seen);
+        updateTypingIndicator(data.is_typing);
+
+        // Append new messages only (no DOM destruction)
+        if (data.messages && data.messages.length > 0) {
+            const wasNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 60;
+            appendMessages(container, data.messages);
+            if (wasNearBottom) container.scrollTop = container.scrollHeight;
+        }
+
+        // Apply edits/deletes to existing elements
+        if (data.updates && data.updates.length > 0) {
+            data.updates.forEach(function(msg) { updateMessageElement(msg); });
+        }
+
+        lastPollTimestamp = new Date().toISOString();
+    } catch (e) { console.error('Poll error:', e); }
+}
+
+function updateMessageElement(message) {
+    const existing = document.querySelector('.message-item[data-message-id="' + message.id + '"]');
+    if (!existing) return;
+    const newEl = createMessageElement(message);
+    existing.replaceWith(newEl);
 }
 
 function formatDate(dateString) {
