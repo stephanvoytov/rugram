@@ -4,12 +4,32 @@ import json
 import logging
 
 from flask import current_app
+from py_vapid import Vapid
 from pywebpush import webpush, WebPushException
 
 from app.models import PushSubscription, User, utcnow
 from extensions import db
 
 logger = logging.getLogger(__name__)
+
+# Кешируем Vapid Instance — создаётся один раз
+_vapid_instance: Vapid | None = None
+
+
+def _get_vapid() -> Vapid | None:
+    """Вернуть Vapid instance из приватного ключа в конфиге."""
+    global _vapid_instance
+    if _vapid_instance is not None:
+        return _vapid_instance
+    key = current_app.config.get('VAPID_PRIVATE_KEY')
+    if not key:
+        return None
+    try:
+        _vapid_instance = Vapid.from_string(key)
+        return _vapid_instance
+    except Exception as e:
+        logger.error(f'Failed to create Vapid instance: {e}')
+        return None
 
 
 def get_vapid_claims():
@@ -40,7 +60,10 @@ def send_push_to_user(user_id, title, body, url='/', tag=None, chat_id=None, not
     }
     payload_bytes = json.dumps(payload).encode('utf-8')
 
-    vapid_private_key = current_app.config.get('VAPID_PRIVATE_KEY')
+    vapid = _get_vapid()
+    if not vapid:
+        logger.debug(f'VAPID not configured, skipping push to user {user_id}')
+        return False
 
     sent_any = False
     for sub in subscriptions:
@@ -54,7 +77,7 @@ def send_push_to_user(user_id, title, body, url='/', tag=None, chat_id=None, not
                     }
                 },
                 data=payload_bytes,
-                vapid_private_key=vapid_private_key,
+                vapid_private_key=vapid,
                 vapid_claims=get_vapid_claims(),
                 content_encoding='aes128gcm',
             )

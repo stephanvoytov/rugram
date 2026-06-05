@@ -54,6 +54,7 @@
                 <span style="color:var(--subtle);font-size:0.75rem">likes · comments · follows</span>
             </div>
             <div style="margin-top:6px;padding:4px 14px;font-size:0.82rem" id="notifStatus">checking...</div>
+            <div style="margin-top:2px;padding:0 14px;font-size:0.72rem;color:var(--subtle)" id="vapidStatus"></div>
         </div>
 
         <div class="auth-field" style="margin-bottom:20px;padding-top:16px;border-top:1px solid var(--red)">
@@ -132,20 +133,32 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     if (np && cp) { np.addEventListener('input', validate); cp.addEventListener('input', validate); }
 
-    // ── Notification permission status ──
+    // ── Notification permission + VAPID status ──
     if ('Notification' in window) {
         var statusDiv = document.getElementById('notifStatus');
+        var vapidDiv = document.getElementById('vapidStatus');
         if (statusDiv) {
             var perm = Notification.permission;
             var html = '';
             if (perm === 'granted') {
-                html = '<span style="color:var(--green)">✓ active</span>';
+                html = '<span style="color:var(--green)">[+] active in browser</span>';
             } else if (perm === 'denied') {
-                html = '<span style="color:var(--red)">✗ blocked in browser</span> <small style="color:var(--subtle);font-size:0.72rem">— click 🔒 lock icon in URL bar → Site Settings → Notifications → Allow, then reload</small>';
+                html = '<span style="color:var(--red)">[x] blocked in browser</span> <small style="color:var(--subtle);font-size:0.72rem">— click lock icon in URL bar -> Site Settings -> Notifications -> Allow</small>';
             } else {
-                html = '<span style="color:var(--yellow)">— not set</span> <small style="color:var(--subtle);font-size:0.72rem">enable from the notification banner or browser site settings</small>';
+                html = '<span style="color:var(--yellow)">[-] not set</span> <small style="color:var(--subtle);font-size:0.72rem">enable from the notification banner</small>';
             }
             statusDiv.innerHTML = html;
+        }
+        if (vapidDiv) {
+            var hasVapid = window.VAPID_PUBLIC_KEY && window.VAPID_PUBLIC_KEY.length > 10;
+            var hasSw = 'serviceWorker' in navigator;
+            if (!hasSw) {
+                vapidDiv.innerHTML = '[!] service workers not supported in this browser';
+            } else if (!hasVapid) {
+                vapidDiv.innerHTML = '[!] VAPID keys not configured — run <code>python scripts/gen_vapid_keys.py</code> and restart';
+            } else {
+                vapidDiv.innerHTML = '[i] VAPID keys: configured  |  Service Worker: ' + (hasSw ? 'available' : 'unavailable');
+            }
         }
     }
 });
