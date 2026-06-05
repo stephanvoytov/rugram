@@ -133,6 +133,7 @@ class Post(db.Model, SerializerMixin):
     comments: Mapped[list['Comment']] = relationship(back_populates='post', cascade='all, delete-orphan')
     reposted_by: Mapped[list['Repost']] = relationship(back_populates='post')
     saved_by: Mapped[list['SavedPost']] = relationship(back_populates='post')
+    post_tags: Mapped[list['PostTag']] = relationship(back_populates='post', cascade='all, delete-orphan')
 
     def is_liked_by(self, user):
         if not user.is_authenticated:
@@ -314,3 +315,29 @@ class PushSubscription(db.Model):
     created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
 
     user: Mapped["User"] = relationship(back_populates="push_subscriptions")
+
+
+class Tag(db.Model, SerializerMixin):
+    __tablename__ = 'tags'
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(index=True, unique=True)
+    post_count: Mapped[int] = mapped_column(default=0)
+
+    post_tags: Mapped[list['PostTag']] = relationship(back_populates='tag', cascade='all, delete-orphan')
+
+
+class PostTag(db.Model, SerializerMixin):
+    __tablename__ = 'post_tags'
+    __table_args__ = (
+        UniqueConstraint('post_id', 'tag_id', name='uq_post_tag'),
+        Index('ix_post_tags_tag_id', 'tag_id'),
+        Index('ix_post_tags_post_id', 'post_id'),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    post_id: Mapped[int] = mapped_column(db.ForeignKey('posts.id', ondelete='CASCADE'))
+    tag_id: Mapped[int] = mapped_column(db.ForeignKey('tags.id', ondelete='CASCADE'))
+
+    post: Mapped['Post'] = relationship(back_populates='post_tags')
+    tag: Mapped['Tag'] = relationship(back_populates='post_tags')

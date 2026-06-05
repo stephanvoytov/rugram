@@ -13,7 +13,7 @@ from app.models import User, Post, Like, Comment, Follow, Notification, SavedPos
 from app.limiter import limiter
 from app.push import send_notification_push
 from extensions import db, csrf
-from app.routes.helpers import logger, process_post_image, _create_notification_and_push
+from app.routes.helpers import logger, process_post_image, _create_notification_and_push, extract_tags, sync_post_tags
 
 posts_bp = Blueprint('posts', __name__, template_folder='../templates')
 
@@ -39,6 +39,13 @@ def create_post() -> Response:
                 post.image = unique_filename
 
         db.session.add(post)
+        db.session.flush()  # получаем post.id
+
+        # Извлекаем и синхронизируем теги
+        tags = extract_tags(form.text.data)
+        if tags:
+            sync_post_tags(post.id, tags)
+
         db.session.commit()
 
         flash(_('Post published!'), 'success')
@@ -56,6 +63,10 @@ def edit_post(post_id: int) -> Response:
     if form.validate_on_submit():
         try:
             post.text = form.text.data
+
+            # Синхронизируем теги
+            tags = extract_tags(form.text.data)
+            sync_post_tags(post.id, tags)
 
             if form.image.data:
                 if post.image:

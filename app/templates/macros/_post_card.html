@@ -23,7 +23,7 @@
              data-full-img="{{ url_for('static', filename='uploads/posts/' + post.image) }}"
              alt="Post image" class="post-img-clickable mb-2" loading="lazy">
         {%- endif %}
-{{- post.text -}}</div>
+{{- post.text | linkify_tags -}}</div>
     <div class="post-actions">
         <button class="post-action like-btn {% if post.is_liked_by(current_user) %}liked{% endif %}" data-post-id="{{ post.id }}" data-liked="{{ 'true' if post.is_liked_by(current_user) else 'false' }}">
             [♥{% if post.likes_count > 0 %} {{ post.likes_count }}{% endif %} like]

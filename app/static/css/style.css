@@ -122,6 +122,21 @@ a:hover { color: var(--blue); }
 .alert-info { background: var(--surface2); color: var(--blue); border-color: var(--blue); }
 .alert-dismissible .btn-close { filter: invert(0.8); }
 
+/* ── Trending Tags Bar ── */
+.trending-bar {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    margin-bottom: 12px; padding: 4px 0;
+    font-size: 0.72rem;
+}
+.trending-tag {
+    color: var(--subtle); text-decoration: none; border: 1px solid var(--border);
+    padding: 2px 8px; transition: all 0.12s; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 4px;
+}
+.trending-tag:hover { border-color: var(--accent); color: var(--accent); }
+.trending-tag.active { border-color: var(--accent); color: var(--accent); background: var(--surface2); }
+.trending-count { color: var(--subtle); font-size: 0.65rem; }
+
 /* ── Filter Line (feed) ── */
 .filter-line {
     display: flex; gap: 12px; margin-bottom: 16px; font-size: 0.78rem;
@@ -332,6 +347,10 @@ code, .inline-code {
     font-family: var(--font); background: var(--surface2); padding: 1px 5px;
     font-size: 0.8em; color: var(--peach);
 }
+
+/* ── Tag links (#hashtag) ── */
+.tag-link { color: var(--accent); text-decoration: none; font-weight: 600; }
+.tag-link:hover { color: var(--mauve); text-decoration: underline; }
 
 /* ── Footer ── */
 .footer {
@@ -594,6 +613,10 @@ code, .inline-code {
 #termOutput::-webkit-scrollbar { width: 4px; }
 #termOutput::-webkit-scrollbar-track { background: transparent; }
 #termOutput::-webkit-scrollbar-thumb { background: #2a2a2a; }
+
+/* Clickable #tags in terminal */
+.tp-tag { color: var(--accent); cursor: pointer; font-weight: 600; }
+.tp-tag:hover { color: var(--mauve); text-decoration: underline; }
 
 /* Terminal output lines */
 .tp-line {

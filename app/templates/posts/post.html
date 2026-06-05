@@ -85,7 +85,7 @@
                             </div>
                             {% endif %}
                         </div>
-                        <p class="comment-text" style="margin:0;font-size:0.85rem;line-height:1.5;word-break:break-word;color:var(--fg)">{{ comment.text }}</p>
+                        <p class="comment-text" style="margin:0;font-size:0.85rem;line-height:1.5;word-break:break-word;color:var(--fg)">{{ comment.text | linkify_tags }}</p>
                     </div>
                 </div>
             </div>

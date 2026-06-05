@@ -7,7 +7,7 @@ from sqlalchemy.orm import joinedload
 
 from app.translations import _
 from app.forms import ProfileForm, SettingsForm
-from app.models import User, Post, Like, Comment, Follow, Notification, PushSubscription, Chat, ChatParticipant, Message, SavedPost, Repost, utcnow
+from app.models import User, Post, Like, Comment, Follow, Notification, PushSubscription, Chat, ChatParticipant, Message, SavedPost, Repost, Tag, PostTag, utcnow
 from app.crypto import encrypt, decrypt
 from app.limiter import limiter
 from app.push import send_message_push, send_notification_push
@@ -21,6 +21,7 @@ main_bp = Blueprint('main', __name__, template_folder='../templates')
 @main_bp.route('/index')
 def index() -> Response:
     search_query = request.args.get('q', '').strip().lower()
+    tag_filter = request.args.get('tag', '').strip().lower()
     page = request.args.get('page', 1, type=int)
     per_page = current_app.config.get('POSTS_PER_PAGE', 15)
     followed_only = request.args.get('followed') == '1'
@@ -35,6 +36,9 @@ def index() -> Response:
             (Post.author_id.in_(followed_sub)) | (Post.author_id == current_user.id)
         )
 
+    if tag_filter:
+        base_query = base_query.join(PostTag).join(Tag).filter(Tag.name == tag_filter)
+
     if search_query:
         search_filter = Post.text.ilike(f'%{search_query}%')
         pagination = base_query.filter(search_filter) \
@@ -43,6 +47,10 @@ def index() -> Response:
     else:
         pagination = base_query.order_by(Post.created_date.desc()) \
             .paginate(page=page, per_page=per_page)
+
+    # Trending tags for sidebar
+    trending_tags = Tag.query.filter(Tag.post_count > 0) \
+        .order_by(Tag.post_count.desc()).limit(10).all()
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.args.get('ajax') == '1':
         return render_template(
@@ -55,7 +63,9 @@ def index() -> Response:
         posts=pagination.items,
         pagination=pagination,
         search_query=search_query,
-        followed_only=followed_only
+        followed_only=followed_only,
+        tag_filter=tag_filter,
+        trending_tags=trending_tags
     )
 
 
@@ -726,6 +736,30 @@ def search_users() -> Response:
             'profile_image': user.profile_image,
             'is_online': user.is_online
         } for user in users]
+    })
+
+
+@main_bp.route('/api/tags/search')
+def tags_search() -> Response:
+    """Автодополнение тегов (начинается с)."""
+    query = request.args.get('q', '').strip().lower()
+    if not query:
+        return jsonify({'tags': []})
+    tags = Tag.query.filter(
+        Tag.name.ilike(f'{query}%')
+    ).order_by(Tag.post_count.desc()).limit(10).all()
+    return jsonify({
+        'tags': [{'name': t.name, 'post_count': t.post_count} for t in tags]
+    })
+
+
+@main_bp.route('/api/tags/trending')
+def tags_trending() -> Response:
+    """Топ-10 популярных тегов."""
+    tags = Tag.query.filter(Tag.post_count > 0) \
+        .order_by(Tag.post_count.desc()).limit(10).all()
+    return jsonify({
+        'tags': [{'name': t.name, 'post_count': t.post_count} for t in tags]
     })
 
 
