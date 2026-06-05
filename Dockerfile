@@ -13,8 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Директории для данных (примонтировать volume)
-RUN mkdir -p instance app/static/uploads/posts app/static/uploads/profile_images
+# Директории для данных создаются в start.sh (примонтировать volume)
 
 # Создаём непривилегированного пользователя
 RUN addgroup --system rugram && adduser --system --ingroup rugram --uid 1000 rugram && chown -R rugram:rugram /app
