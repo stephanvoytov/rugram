@@ -11,7 +11,7 @@
         <img src="{{ url_for('static', filename='uploads/profile_images/' + post.author.profile_image) if post.author.profile_image else url_for('static', filename='default-profile.png') }}"
              alt="{{ post.author.username }}" class="post-avatar" loading="lazy"
              onerror="this.src='{{ url_for('static', filename='default-profile.png') }}'">
-        <a href="{{ url_for('main.profile', user_id_or_username=post.author.username) }}" class="post-author">@{{ post.author.username }}</a>
+        <a href="{{ url_for('main.profile', user_id_or_username=post.author.username) }}" class="post-author" {% if post.author.role_color %}style="color:{{ post.author.role_color }}"{% endif %}>@{{ post.author.username }}</a>{% if post.author.is_admin %}<span class="role-badge role-admin">admin</span>{% elif post.author.is_moderator %}<span class="role-badge role-mod">mod</span>{% endif %}
         <span class="post-stats">
             <span class="post-stat {% if post.is_liked_by(current_user) %}liked{% endif %}">♥ {{ post.likes_count }}</span>
             <span class="post-stat">💬 {{ post.comments_count }}</span>

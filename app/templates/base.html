@@ -101,6 +101,27 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ static_version }}">
     {% block styles %}{% endblock %}
 
+    <style>
+    .role-badge {
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        margin-left: 4px;
+        padding: 0 4px;
+        border-radius: 3px;
+        vertical-align: middle;
+    }
+    .role-admin {
+        color: var(--yellow);
+        border: 1px solid var(--yellow);
+    }
+    .role-mod {
+        color: var(--red);
+        border: 1px solid var(--red);
+    }
+    </style>
+
     <!-- Блокирующий скрипт темы: применяется ДО рендеринга, чтобы не было вспышки -->
     <script>
     (function() {

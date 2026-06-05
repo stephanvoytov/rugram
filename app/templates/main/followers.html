@@ -14,7 +14,7 @@
                 <img src="{{ url_for('static', filename='uploads/profile_images/' + follow.follower.profile_image) if follow.follower.profile_image else url_for('static', filename='default-profile.png') }}"
                      width="36" height="36" class="chat-avatar" alt="@{{ follow.follower.username }}">
                 <div style="flex:1">
-                    <a href="{{ url_for('main.profile', user_id_or_username=follow.follower.username) }}" style="font-weight:600;color:var(--fg);text-decoration:none">@{{ follow.follower.username }}</a>
+                    <a href="{{ url_for('main.profile', user_id_or_username=follow.follower.username) }}" style="font-weight:600;text-decoration:none{% if follow.follower.role_color %};color:{{ follow.follower.role_color }}{% else %};color:var(--fg){% endif %}">@{{ follow.follower.username }}{% if follow.follower.is_admin %}<span class="role-badge role-admin">admin</span>{% elif follow.follower.is_moderator %}<span class="role-badge role-mod">mod</span>{% endif %}</a>
                     {% if follow.follower.description %}<br><small style="color:var(--subtle);font-size:0.75rem">{{ follow.follower.description|truncate(50) }}</small>{% endif %}
                 </div>
             </div>

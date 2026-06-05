@@ -24,7 +24,7 @@
             </div>
 
             <div class="profile-identity">
-                <span class="profile-name">@{{ user.username }}</span>
+                <span class="profile-name" {% if user.role_color %}style="color:{{ user.role_color }}"{% endif %}>@{{ user.username }}{% if user.is_admin %}<span class="role-badge role-admin">admin</span>{% elif user.is_moderator %}<span class="role-badge role-mod">mod</span>{% endif %}</span>
                 {% if user.description %}
                 <div class="profile-desc-box">
                     <span class="profile-desc-prompt">&gt;</span>

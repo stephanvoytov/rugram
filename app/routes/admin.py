@@ -1,10 +1,13 @@
 """Admin panel blueprint — управление пользователями, постами, тегами."""
 
 import logging
+import datetime
 from functools import wraps
+from collections import defaultdict
 
 from flask import render_template, flash, redirect, url_for, Blueprint, request, jsonify, Response, abort
 from flask_login import login_required, current_user
+from sqlalchemy import func
 
 from app.translations import _
 from app.models import User, Post, Tag, Like, Comment, Follow, utcnow
@@ -16,7 +19,7 @@ admin_bp = Blueprint('admin', __name__, template_folder='../templates', url_pref
 
 
 def admin_required(f):
-    """Decorator: требует прав администратора."""
+    """Decorator: требует прав администратора (полный доступ)."""
     @wraps(f)
     @login_required
     def decorated(*args, **kwargs):
@@ -28,10 +31,23 @@ def admin_required(f):
     return decorated
 
 
+def mod_or_admin_required(f):
+    """Decorator: требует прав модератора или администратора."""
+    @wraps(f)
+    @login_required
+    def decorated(*args, **kwargs):
+        if not (current_user.is_admin or current_user.is_moderator):
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'error': 'Forbidden'}), 403
+            abort(403)
+        return f(*args, **kwargs)
+    return decorated
+
+
 # ── Dashboard ──
 
 @admin_bp.route('/')
-@admin_required
+@mod_or_admin_required
 def dashboard():
     stats = {
         'users_total': User.query.count(),
@@ -44,7 +60,43 @@ def dashboard():
         'follows_total': Follow.query.count(),
         'tags_total': Tag.query.count(),
     }
-    return render_template('admin/dashboard.html', stats=stats)
+
+    # ── Данные для графиков ──
+    today = utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    days = [today - datetime.timedelta(days=i) for i in range(6, -1, -1)]
+    day_labels = [d.strftime('%a') for d in days]
+    day_strs = [d.strftime('%Y-%m-%d') for d in days]
+
+    # Посты по дням
+    posts_raw = db.session.query(
+        func.date(Post.created_date).label('day'),
+        func.count(Post.id)
+    ).filter(Post.created_date >= days[0]).group_by('day').all()
+    posts_by_day = dict(posts_raw)
+    posts_chart = [posts_by_day.get(d, 0) for d in day_strs]
+
+    # Пользователи по дням
+    users_raw = db.session.query(
+        func.date(User.created_date).label('day'),
+        func.count(User.id)
+    ).filter(User.created_date >= days[0]).group_by('day').all()
+    users_by_day = dict(users_raw)
+    users_chart = [users_by_day.get(d, 0) for d in day_strs]
+
+    # Топ-10 тегов
+    top_tags = Tag.query.filter(Tag.post_count > 0) \
+        .order_by(Tag.post_count.desc()).limit(10).all()
+    tags_labels = ['#' + t.name for t in top_tags][::-1]
+    tags_data = [t.post_count for t in top_tags][::-1]
+
+    chart_data = {
+        'days': day_labels,
+        'posts': posts_chart,
+        'users': users_chart,
+        'tags_labels': tags_labels,
+        'tags_data': tags_data,
+    }
+    return render_template('admin/dashboard.html', stats=stats, chart=chart_data)
 
 
 # ── Users ──
@@ -83,6 +135,23 @@ def toggle_admin(user_id):
     return redirect(url_for('admin.users', page=request.args.get('page', 1)))
 
 
+@admin_bp.route('/users/<int:user_id>/toggle-mod', methods=['POST'])
+@admin_required
+def toggle_moderator(user_id):
+    user = db.session.get(User, user_id)
+    if not user:
+        flash('User not found', 'error')
+        return redirect(url_for('admin.users'))
+    if user.id == current_user.id and user.is_moderator:
+        flash('Cannot remove your own moderator status', 'error')
+        return redirect(url_for('admin.users'))
+    user.is_moderator = not user.is_moderator
+    db.session.commit()
+    username = user.username
+    flash(f'Moderator {"granted" if user.is_moderator else "revoked"} for @{username}', 'success')
+    return redirect(url_for('admin.users', page=request.args.get('page', 1)))
+
+
 @admin_bp.route('/users/<int:user_id>/delete', methods=['POST'])
 @admin_required
 def delete_user(user_id):
@@ -103,7 +172,7 @@ def delete_user(user_id):
 # ── Posts ──
 
 @admin_bp.route('/posts')
-@admin_required
+@mod_or_admin_required
 def posts():
     page = request.args.get('page', 1, type=int)
     q = request.args.get('q', '').strip()
@@ -118,7 +187,7 @@ def posts():
 
 
 @admin_bp.route('/posts/<int:post_id>/delete', methods=['POST'])
-@admin_required
+@mod_or_admin_required
 def delete_post(post_id):
     post = db.session.get(Post, post_id)
     if not post:
@@ -131,7 +200,7 @@ def delete_post(post_id):
 
 
 @admin_bp.route('/posts/<int:post_id>/restore', methods=['POST'])
-@admin_required
+@mod_or_admin_required
 def restore_post(post_id):
     post = db.session.get(Post, post_id)
     if not post:
@@ -149,7 +218,7 @@ def restore_post(post_id):
 # ── Tags ──
 
 @admin_bp.route('/tags')
-@admin_required
+@mod_or_admin_required
 def tags():
     page = request.args.get('page', 1, type=int)
     q = request.args.get('q', '').strip()
@@ -164,7 +233,7 @@ def tags():
 
 
 @admin_bp.route('/tags/<int:tag_id>/delete', methods=['POST'])
-@admin_required
+@mod_or_admin_required
 def delete_tag(tag_id):
     tag = db.session.get(Tag, tag_id)
     if not tag:
