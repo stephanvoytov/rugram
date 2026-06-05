@@ -42,6 +42,16 @@ class User(db.Model, UserMixin, SerializerMixin):
     last_seen: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=True)
     notifications_enabled: Mapped[bool] = mapped_column(default=True)
     is_admin: Mapped[bool] = mapped_column(default=False)
+    is_moderator: Mapped[bool] = mapped_column(default=False)
+
+    @property
+    def role_color(self) -> str | None:
+        """Цвет для подсветки имени в UI: admin=yellow, moderator=red."""
+        if self.is_admin:
+            return 'var(--yellow)'
+        if self.is_moderator:
+            return 'var(--red)'
+        return None
 
     posts: Mapped[list["Post"]] = relationship(back_populates='author', cascade='all, delete-orphan')
     likes: Mapped[list["Like"]] = relationship(back_populates='user', cascade='all, delete-orphan')

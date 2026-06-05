@@ -36,6 +36,8 @@ with app.app_context():
         bob.description = 'AI/ML researcher. Love Rust, neural networks, and good coffee.'
         bob.name = 'Bob'
         db.session.add(bob)
+        db.session.flush()
+    bob.is_moderator = True
 
     db.session.flush()
 

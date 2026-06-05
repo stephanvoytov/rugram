@@ -6,7 +6,7 @@
 <p class="text-secondary" style="font-size:0.85rem;margin-bottom:12px"><a href="{{ url_for('admin.dashboard') }}">dashboard</a> · <a href="{{ url_for('admin.users') }}">users</a> · posts · <a href="{{ url_for('admin.tags') }}">tags</a></p>
 
 <form method="GET" style="margin-bottom:12px;display:flex;gap:6px;max-width:360px">
-    <input type="text" name="q" value="{{ q }}" placeholder="search posts..." style="flex:1;background:var(--surface0);border:1px solid var(--surface1);color:var(--text);padding:4px 8px;border-radius:4px;font-family:var(--font);font-size:0.82rem">
+    <input type="text" name="q" value="{{ q }}" placeholder="search posts..." style="flex:1;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:4px;font-family:var(--font);font-size:0.82rem">
     <button type="submit" class="btn-term" style="padding:4px 10px;font-size:0.82rem">[search]</button>
 </form>
 
@@ -56,14 +56,14 @@
 
 <style>
 .admin-table { width:100%; border-collapse:collapse; font-size:0.82rem; }
-.admin-table th, .admin-table td { padding:6px 10px; text-align:left; border-bottom:1px solid var(--surface1); }
-.admin-table th { font-size:0.72rem; text-transform:uppercase; color:var(--subtext); letter-spacing:0.03em; background:var(--surface0); }
-.admin-table tr:hover td { background:var(--surface0); }
+.admin-table th, .admin-table td { padding:6px 10px; text-align:left; border-bottom:1px solid var(--border); }
+.admin-table th { font-size:0.72rem; text-transform:uppercase; color:var(--subtext); letter-spacing:0.03em; background:var(--surface); }
+.admin-table tr:hover td { background:var(--surface); }
 .btn-term.small { padding:2px 6px; font-size:0.78rem; }
 .btn-term.danger { border-color:var(--red); color:var(--red); }
-.btn-term.danger:hover { background:var(--red); color:var(--base); }
+.btn-term.danger:hover { background:var(--red); color:var(--bg); }
 .pagination-bar { display:flex; gap:6px; align-items:center; margin-top:16px; font-size:0.82rem; }
-.pagination-bar a { padding:3px 8px; border:1px solid var(--surface1); border-radius:3px; text-decoration:none; }
-.pagination-bar a.active { background:var(--blue); color:var(--base); border-color:var(--blue); }
+.pagination-bar a { padding:3px 8px; border:1px solid var(--border); border-radius:3px; text-decoration:none; }
+.pagination-bar a.active { background:var(--blue); color:var(--bg); border-color:var(--blue); }
 </style>
 {% endblock %}

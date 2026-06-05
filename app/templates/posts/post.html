@@ -74,8 +74,8 @@
                     <div style="flex:1;min-width:0">
                         <div style="display:flex;align-items:center;gap:8px;margin-bottom:1px">
                             <a href="{{ url_for('main.profile', user_id_or_username=comment.author.username) }}"
-                               style="font-weight:600;color:var(--accent);font-size:0.82rem;text-decoration:none">
-                                @{{ comment.author.username }}
+                               class="comment-author" {% if comment.author.role_color %}style="color:{{ comment.author.role_color }}"{% endif %}>
+                                @{{ comment.author.username }}{% if comment.author.is_admin %}<span class="role-badge role-admin">admin</span>{% elif comment.author.is_moderator %}<span class="role-badge role-mod">mod</span>{% endif %}
                             </a>
                             <span style="color:var(--subtle);font-size:0.7rem">{{ comment.created_date|time_ago }}</span>
                             {% if current_user.is_authenticated and current_user.id == comment.author_id %}
