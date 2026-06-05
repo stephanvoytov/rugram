@@ -9,6 +9,10 @@
 
     // gui / exit
     if (target === 'gui' || target === 'exit') {
+      if (window.location.pathname === '/terminal') {
+        window.location.href = '/';
+        return;
+      }
       T.setMode('gui');
       return;
     }

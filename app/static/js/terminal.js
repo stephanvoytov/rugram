@@ -440,6 +440,11 @@
 
     // gui / exit
     if (cmd.toLowerCase() === 'gui' || cmd.toLowerCase() === 'exit') {
+      // На отдельной странице /terminal — редирект на главную
+      if (window.location.pathname === '/terminal') {
+        window.location.href = '/';
+        return;
+      }
       T.setMode('gui');
       return;
     }
@@ -1582,7 +1587,7 @@
 
     if (!T.el.terminal) return;
 
-    if (T.el.toggleBtn) { T.el.toggleBtn.onclick = T.toggleMode; }
+    // Кнопка [>_ TTY] теперь ссылка на /terminal — onclick не нужен
 
     if (window.CURRENT_USERNAME && window.CURRENT_USERNAME !== 'guest') {
       T.username = window.CURRENT_USERNAME;
@@ -1627,9 +1632,10 @@
       T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">ls</span> to list contents, <span class="tp-cmd">feed</span> to view posts</span>');
     }
 
-    if (!cdNav && localStorage.getItem('rugram_mode') === 'tty' && sessionStorage.getItem('tty_session') === '1') {
-      T.setMode('tty');
-    }
+    // Больше не восстанавливаем TTY на каждой странице — отдельный /terminal
+    // Очищаем старые ключи localStorage, чтобы не мешали
+    localStorage.removeItem('rugram_mode');
+    sessionStorage.removeItem('tty_session');
 
     if (T.el.input) {
       T.el.input.addEventListener('keydown', T.onInputKey);
