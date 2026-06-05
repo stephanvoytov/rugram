@@ -236,9 +236,10 @@
 <script defer src="{{ url_for('static', filename='js/terminal-commands.js') }}?v={{ static_version }}"></script>
 <script defer src="{{ url_for('static', filename='js/main.js') }}?v={{ static_version }}"></script>
 <script>
-// Регистрация Service Worker для push-уведомлений
+// Регистрация Service Worker для push-уведомлений (scope = корень /)
 if ('serviceWorker' in navigator && window.isAuthenticated) {
-    navigator.serviceWorker.register('{{ url_for('static', filename='sw.js') }}?v={{ static_version }}')
+    var swUrl = '{{ url_for('service_worker') }}' + '?v={{ static_version }}';
+    navigator.serviceWorker.register(swUrl, {scope: '/'})
         .then(function(registration) {
             window.swRegistration = registration;
         })

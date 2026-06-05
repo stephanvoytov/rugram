@@ -75,12 +75,21 @@ def create_app():
         os.path.join(static_dir, 'css', 'style.css'),
         os.path.join(static_dir, 'js', 'main.js'),
         os.path.join(static_dir, 'js', 'terminal.js'),
+        os.path.join(static_dir, 'sw.js'),
     ]
     max_mtime = max(
         (os.path.getmtime(f) for f in static_files if os.path.exists(f)),
         default=time.time()
     )
     static_version = str(int(max_mtime))
+
+    # Service Worker на корневом scope (не /static/)
+    @app.route('/sw.js')
+    def service_worker():
+        resp = app.send_static_file('sw.js')
+        resp.headers['Service-Worker-Allowed'] = '/'
+        resp.headers['Cache-Control'] = 'no-cache'
+        return resp
 
     @app.before_request
     def detect_lang():
