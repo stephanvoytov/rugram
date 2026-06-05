@@ -20,6 +20,7 @@ class Config:
 
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'app', 'static', 'uploads')
     CHAT_UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'instance', 'uploads', 'chat')
+    OLD_CHAT_UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'app', 'static', 'uploads', 'chat')
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024
 
     # Auto-reload templates on every request (no need to restart after docker cp)

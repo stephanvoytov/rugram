@@ -678,12 +678,23 @@ def chat_send(chat_id: int) -> Response:
 @main_bp.route('/chat/<int:chat_id>/image/<filename>')
 @login_required
 def chat_image(chat_id: int, filename: str) -> Response:
-    """Serve a chat image — requires login + chat participation."""
+    """Serve a chat image — requires login + chat participation.
+
+    Tries new location (instance/uploads/chat/) first, then falls back
+    to old location (uploads/chat/) for pre-migration images.
+    """
     from config import Config as _Cfg
     participant, err = _require_chat_participant(chat_id)
     if err:
         return err
-    return send_from_directory(_Cfg.CHAT_UPLOAD_FOLDER, filename)
+    new_path = os.path.join(_Cfg.CHAT_UPLOAD_FOLDER, filename)
+    if os.path.exists(new_path):
+        return send_from_directory(_Cfg.CHAT_UPLOAD_FOLDER, filename)
+    # Fallback to old location for pre-migration images
+    old_path = os.path.join(_Cfg.OLD_CHAT_UPLOAD_FOLDER, filename)
+    if os.path.exists(old_path):
+        return send_from_directory(os.path.dirname(old_path), filename)
+    abort(404)
 
 
 @main_bp.route('/chat/<int:chat_id>/messages/<int:message_id>', methods=['PATCH'])
