@@ -75,7 +75,7 @@ The GUI is built on **Bootstrap 5.3** (grid, alerts, dark mode, dropdowns, icons
 Flash messages, empty states, forms, help pages, and terminal descriptions are translated — but commands stay in English and some interface elements are intentionally kept in English to preserve the terminal atmosphere.  
 Switch on the fly inside the terminal: `export LANG=ru_RU`.
 
-**Encrypted messenger** — real-time polling, online status, typing indicator, date separators, read receipts. All messages encrypted at rest (Fernet, key derived from `SECRET_KEY`).
+**Encrypted messenger** — real-time polling, online status, typing indicator, date separators, read receipts, **image upload**. All messages encrypted at rest (Fernet, key derived from `SECRET_KEY`).
 
 **Push notifications** — via Service Worker + Web Push API (VAPID). New messages, likes, comments, follows — arrive even when the site is closed.
 
