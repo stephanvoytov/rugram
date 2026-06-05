@@ -34,7 +34,9 @@
     } else if (msg.image) {
       T.addOutputLine(' <span class="tp-muted">[image]</span>  <span class="tp-muted">' + author + ' ' + time + '</span>');
       if (msg.image_url) {
-        T.imageToAscii(msg.image_url, 40, function(ascii) {
+        var chatClientW = T.el && T.el.output ? T.el.output.clientWidth : 640;
+        var chatImgWidth = Math.min(60, Math.max(20, Math.floor(chatClientW / 10)));
+        T.imageToAscii(msg.image_url, chatImgWidth, function(ascii) {
           T.addOutputLine(ascii);
         });
       }

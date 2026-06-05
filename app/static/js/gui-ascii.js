@@ -13,8 +13,8 @@
   function asciiWidth(img) {
     // Use CSS rendered width, not naturalWidth (avoids blowing up big images)
     var px = img.offsetWidth || img.getBoundingClientRect().width || img.width || 400;
-    // ~8px per character in monospace, floor at 4 chars (~32px), cap at 80
-    return Math.min(80, Math.max(4, Math.floor(px / 8)));
+    // ~5px per character = more detail in GUI, cap at 100
+    return Math.min(100, Math.max(4, Math.floor(px / 5)));
   }
 
   // ── Replace a single <img> with ASCII art ──

@@ -16,7 +16,7 @@
       var maxWidth = 22;
       var ratio = Math.min(maxWidth / img.width, 1);
       canvas.width = Math.floor(img.width * ratio);
-      canvas.height = Math.floor(img.height * ratio * 0.45);
+      canvas.height = Math.floor(img.height * ratio * 0.55);
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       var imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       var data = imgData.data;
@@ -57,7 +57,7 @@
       var h = img.height;
       var ratio = Math.min(maxWidth / w, 1);
       canvas.width = Math.floor(w * ratio);
-      canvas.height = Math.floor(h * ratio * 0.45);
+      canvas.height = Math.floor(h * ratio * 0.55);
 
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       var imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
