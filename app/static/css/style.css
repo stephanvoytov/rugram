@@ -165,6 +165,7 @@ a:hover { color: var(--blue); }
     display: flex; gap: 12px; margin-bottom: 16px; font-size: 0.78rem;
     border-bottom: 1px solid var(--overlay); padding-bottom: 8px;
 }
+.filter-spacer { flex: 1; min-width: 8px; }
 .filter-item { color: var(--subtle); cursor: pointer; transition: color 0.15s; background: none; border: none; font-family: var(--font); font-size: 0.78rem; padding: 0; }
 .filter-item:hover { color: var(--text); }
 .filter-item.active { color: var(--accent); }

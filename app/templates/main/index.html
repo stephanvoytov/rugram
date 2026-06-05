@@ -13,24 +13,43 @@
 
 {% block content %}
 <h1 class="sr-only">Rugram</h1>
-{% if current_user.is_authenticated %}
+
+<!-- Sort bar — всегда видна -->
 <div class="filter-line">
-    {% if tag_filter %}
-    <a href="{{ url_for('main.index') }}" class="filter-item">all</a>
-    <a href="{{ url_for('main.index', tag=tag_filter) }}" class="filter-item active">#{{ tag_filter }}</a>
+    {% if current_user.is_authenticated %}
+        {% if tag_filter %}
+        <a href="{{ url_for('main.index') }}" class="filter-item">all</a>
+        <a href="{{ url_for('main.index', tag=tag_filter, sort=sort_by) }}" class="filter-item active">#{{ tag_filter }}</a>
+        {% else %}
+        <a href="{{ url_for('main.index') }}" class="filter-item {% if not request.args.get('followed') %}active{% endif %}">all</a>
+        {% endif %}
+        <a href="{{ url_for('main.index', followed='1', sort=sort_by) }}" class="filter-item {% if request.args.get('followed') %}active{% endif %}">~subs</a>
     {% else %}
-    <a href="{{ url_for('main.index') }}" class="filter-item {% if not request.args.get('followed') %}active{% endif %}">all</a>
+        {% if tag_filter %}
+        <a href="{{ url_for('main.index') }}" class="filter-item">all</a>
+        <a href="{{ url_for('main.index', tag=tag_filter, sort=sort_by) }}" class="filter-item active">#{{ tag_filter }}</a>
+        {% endif %}
     {% endif %}
-    <a href="{{ url_for('main.index', followed='1') }}" class="filter-item {% if request.args.get('followed') %}active{% endif %}">~subs</a>
+
+    <span class="filter-spacer"></span>
+
+    <a href="{{ url_for('main.index', tag=tag_filter, sort='hot', followed=request.args.get('followed', '')) }}"
+       class="filter-item {% if sort_by == 'hot' %}active{% endif %}">hot</a>
+    <a href="{{ url_for('main.index', tag=tag_filter, sort='top', followed=request.args.get('followed', '')) }}"
+       class="filter-item {% if sort_by == 'top' %}active{% endif %}">top</a>
+    <a href="{{ url_for('main.index', tag=tag_filter, sort='new', followed=request.args.get('followed', '')) }}"
+       class="filter-item {% if sort_by == 'new' %}active{% endif %}">new</a>
+
+    {% if current_user.is_authenticated %}
     <a href="{{ url_for('posts.create_post') }}" class="filter-item" style="margin-left:auto">[+ create]</a>
+    {% endif %}
 </div>
-{% endif %}
 
 {# Trending tags #}
 {% if trending_tags %}
 <div class="trending-bar">
     {% for t in trending_tags %}
-    <a href="{{ url_for('main.index', tag=t.name) }}" class="trending-tag {% if tag_filter == t.name %}active{% endif %}">#{{ t.name }}<span class="trending-count">{{ t.post_count }}</span></a>
+    <a href="{{ url_for('main.index', tag=t.name, sort=sort_by) }}" class="trending-tag {% if tag_filter == t.name %}active{% endif %}">#{{ t.name }}<span class="trending-count">{{ t.post_count }}</span></a>
     {% endfor %}
 </div>
 {% endif %}
@@ -73,15 +92,16 @@
 
 <!-- Pagination -->
 {% if pagination.pages > 1 %}
+{% set _common_args = {'tag': tag_filter, 'sort': sort_by, 'followed': request.args.get('followed', '')} %}
 <div class="filter-line" style="justify-content:center;border-bottom:none">
     {% if pagination.has_prev %}
-    <a href="{{ url_for('main.index', page=pagination.prev_num, followed=request.args.get('followed', '')) }}" class="filter-item">[&lt;&lt; prev]</a>
+    <a href="{{ url_for('main.index', page=pagination.prev_num, **_common_args) }}" class="filter-item">[&lt;&lt; prev]</a>
     {% endif %}
     {% for p in range(1, pagination.pages + 1) %}
-    <a href="{{ url_for('main.index', page=p, followed=request.args.get('followed', '')) }}" class="filter-item {% if p == pagination.page %}active{% endif %}">#{{ p }}</a>
+    <a href="{{ url_for('main.index', page=p, **_common_args) }}" class="filter-item {% if p == pagination.page %}active{% endif %}">#{{ p }}</a>
     {% endfor %}
     {% if pagination.has_next %}
-    <a href="{{ url_for('main.index', page=pagination.next_num, followed=request.args.get('followed', '')) }}" class="filter-item">[next &gt;&gt;]</a>
+    <a href="{{ url_for('main.index', page=pagination.next_num, **_common_args) }}" class="filter-item">[next &gt;&gt;]</a>
     {% endif %}
 </div>
 {% endif %}
@@ -174,7 +194,14 @@ document.getElementById('posts-container')?.addEventListener('click', function(e
     const observer = new IntersectionObserver(function(entries) {
         if (entries[0].isIntersecting && !loading) {
             loading = true;
-            const url = nextBtn.href + (nextBtn.href.includes('?') ? '&' : '?') + 'ajax=1';
+            var sep = nextBtn.href.includes('?') ? '&' : '?';
+            var url = nextBtn.href + sep + 'ajax=1';
+            // preserve sort + tag for AJAX
+            var params = new URLSearchParams(window.location.search);
+            ['sort', 'tag', 'q'].forEach(function(k) {
+                var v = params.get(k);
+                if (v) url += '&' + k + '=' + encodeURIComponent(v);
+            });
             fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
                 .then(r => r.text())
                 .then(function(html) {
