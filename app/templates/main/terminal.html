@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex,nofollow">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>terminal · rugram</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ static_version }}">
+    <script>
+        window.isAuthenticated = {{ 'true' if current_user.is_authenticated else 'false' }};
+        window.LOGIN_URL = "{{ url_for('auth.login') }}";
+        window.VAPID_PUBLIC_KEY = "{{ vapid_public_key }}";
+        window.HOME_URL = "{{ url_for('main.index') }}";
+        window.API_ME_URL = "{{ url_for('auth.api_me') }}";
+        window.API_LOGIN_URL = "{{ url_for('auth.api_login') }}";
+        window.API_REGISTER_URL = "{{ url_for('auth.api_register') }}";
+        window.API_LOGOUT_URL = "{{ url_for('auth.api_logout') }}";
+        window.API_NOTIFICATIONS_URL = "{{ url_for('main.notifications_list') }}";
+        window.API_NOTIFICATIONS_UNREAD_URL = "{{ url_for('main.notifications_unread_count') }}";
+        window.API_USERS_SEARCH_URL = "{{ url_for('main.search_users') }}";
+        window.API_PUSH_SUBSCRIBE_URL = "{{ url_for('main.push_subscribe') }}";
+        window.API_FEED_URL = "{{ url_for('main.api_feed') }}";
+        window.API_CHAT_LIST_URL = "{{ url_for('main.chat_list') }}";
+        window.LIKE_URL = "{{ url_for('posts.like_post', post_id=0) }}";
+        window.COMMENT_URL = "{{ url_for('posts.add_comment', post_id=0) }}";
+        window.SAVE_URL = "{{ url_for('posts.toggle_save', post_id=0) }}";
+        window.REPOST_URL = "{{ url_for('posts.toggle_repost', post_id=0) }}";
+        window.DELETE_POST_URL = "{{ url_for('posts.delete_post', post_id=0) }}";
+        window.FOLLOW_URL = "{{ url_for('main.follow_toggle', username='') }}";
+        window.MARK_READ_URL = "{{ url_for('main.notification_mark_read', notification_id=0) }}";
+        window.MARK_ALL_READ_URL = "{{ url_for('main.notifications_mark_all_read') }}";
+        window.EDIT_COMMENT_URL = "{{ url_for('posts.edit_comment', comment_id=0) }}";
+        window.DELETE_COMMENT_URL = "{{ url_for('posts.delete_comment', comment_id=0) }}";
+        window.CHAT_START_URL = "{{ url_for('main.chat_start', username='') }}";
+        window.CHAT_SEND_URL = "{{ url_for('main.chat_send', chat_id=0) }}";
+        window.CHAT_MESSAGES_URL = "{{ url_for('main.chat_messages', chat_id=0) }}";
+        window.CHAT_TYPING_URL = "{{ url_for('main.chat_typing', chat_id=0) }}";
+        window.STATIC_PROFILE_IMAGES = "{{ url_for('static', filename='uploads/profile_images/') }}";
+        window.STATIC_DEFAULT_PROFILE = "{{ url_for('static', filename='default-profile.png') }}";
+        window.CURRENT_USER_ID = {{ current_user.id if current_user.is_authenticated else 0 }};
+        window.CURRENT_USERNAME = "{{ current_user.username if current_user.is_authenticated else 'guest' }}";
+        window.POST_URL = "{{ url_for('posts.get_post', post_id=0) }}";
+        window.PROFILE_URL = "{{ url_for('main.profile', user_id_or_username='') }}";
+        window.SETTINGS_URL = "{{ url_for('main.settings') }}";
+        window.SAVED_URL = "{{ url_for('main.saved_posts') }}";
+        window.CHAT_PAGE_URL = "{{ url_for('main.chat') }}";
+        window.CREATE_POST_URL = "{{ url_for('posts.create_post') }}";
+        window.EDIT_POST_URL = "{{ url_for('posts.edit_post', post_id=0) }}";
+        window.EDIT_PROFILE_URL = "{{ url_for('main.edit_profile') }}";
+        window.FOLLOWERS_URL = "{{ url_for('main.followers_page', username='') }}";
+        window.FOLLOWING_URL = "{{ url_for('main.following_page', username='') }}";
+    </script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--bg);
+            color: var(--fg);
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #terminal-mode {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 44px);
+            background: var(--bg);
+        }
+        #termOutput {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 12px;
+            font-size: 0.9rem;
+            line-height: 1.35;
+        }
+        #termOutput::-webkit-scrollbar { width: 4px; }
+        #termOutput::-webkit-scrollbar-track { background: transparent; }
+        #termOutput::-webkit-scrollbar-thumb { background: var(--surface2); }
+        #termBar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+        }
+        #termPrompt {
+            white-space: nowrap;
+            color: var(--green);
+            font-size: 0.9rem;
+        }
+        #termInput {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--fg);
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            font-size: 0.9rem;
+            outline: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="terminal-mode">
+        <div id="termOutput"></div>
+    </div>
+    <div id="termBar">
+        <span id="termPrompt">{{ current_user.username if current_user.is_authenticated else 'guest' }}@tty:~/$</span>
+        <input type="text" id="termInput" placeholder="type `help` for commands..." autocomplete="off" spellcheck="false">
+    </div>
+
+    <script src="{{ url_for('static', filename='js/terminal.js') }}?v={{ static_version }}"></script>
+    <script src="{{ url_for('static', filename='js/terminal-vfs.js') }}?v={{ static_version }}"></script>
+    <script src="{{ url_for('static', filename='js/terminal-nano.js') }}?v={{ static_version }}"></script>
+    <script src="{{ url_for('static', filename='js/terminal-chat.js') }}?v={{ static_version }}"></script>
+    <script src="{{ url_for('static', filename='js/terminal-help.js') }}?v={{ static_version }}"></script>
+    <script src="{{ url_for('static', filename='js/terminal-navigation.js') }}?v={{ static_version }}"></script>
+    <script src="{{ url_for('static', filename='js/terminal-commands.js') }}?v={{ static_version }}"></script>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var T = window.TERMINAL;
+        if (T && T.setMode) {
+            T.setMode('tty');
+            var inp = document.getElementById('termInput');
+            if (inp) setTimeout(function() { inp.focus(); }, 100);
+        }
+    });
+    </script>
+
+</body>
+</html>

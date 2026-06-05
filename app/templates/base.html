@@ -147,7 +147,7 @@
         <a href="{{ url_for('main.help') }}" class="status-item" title="Help">[?]</a>
     </div>
     <div class="status-right">
-        <button class="term-toggle-btn" id="termToggle" title="Toggle terminal mode">[>_ TTY]</button>
+        <a href="{{ url_for('main.terminal') }}" class="term-toggle-btn status-item" title="Open terminal">[>_ TTY]</a>
         <span class="status-sep" style="opacity:0.3">|</span>
         {% if current_user.is_authenticated %}
         <div class="dropdown" style="display:inline-block">

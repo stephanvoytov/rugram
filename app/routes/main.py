@@ -966,3 +966,9 @@ def about() -> Response:
 def help() -> Response:
     """Unified help page: about + commands + filesystem."""
     return render_template('main/help.html')
+
+
+@main_bp.route('/terminal')
+def terminal() -> Response:
+    """Full-page terminal mode — no GUI overlay, separate URL."""
+    return render_template('main/terminal.html')
