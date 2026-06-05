@@ -313,6 +313,7 @@ class Message(db.Model, SerializerMixin):
     created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
     is_read: Mapped[bool] = mapped_column(db.Boolean, default=False)
     read_at: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=True)
+    edited_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)
 
     chat: Mapped["Chat"] = relationship(back_populates="messages")
     author: Mapped["User"] = relationship(back_populates="messages")

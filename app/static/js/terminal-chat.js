@@ -88,7 +88,7 @@
             var chatUser = T.escapeHtml(T.currentChatUser);
             var author = isOwn ? 'me' : '@' + chatUser;
             var cls = isOwn ? 'tp-ok' : 'tp-cmd';
-            var textDisplay = msg.image ? '<span class="tp-muted">[img] ' + T.escapeHtml(msg.image) + '</span>' : T.escapeHtml(msg.text);
+            var textDisplay = msg.is_deleted ? '<span class="tp-muted">[deleted]</span>' : (msg.image ? '<span class="tp-muted">[img] ' + T.escapeHtml(msg.image) + '</span>' : T.escapeHtml(msg.text));
             T.addOutputLine(' <span class="' + cls + '">' + textDisplay + '</span>  <span class="tp-muted">' + author + ' ' + time + '</span>');
           });
           T.lastMessageId = msgs[msgs.length - 1].id;
@@ -106,7 +106,7 @@
                 var chatUser = T.escapeHtml(T.currentChatUser || '?');
                 var author = isOwn ? 'me' : '@' + chatUser;
                 var cls = isOwn ? 'tp-ok' : 'tp-cmd';
-                var textDisplay = msg.image ? '<span class="tp-muted">[img] ' + T.escapeHtml(msg.image) + '</span>' : T.escapeHtml(msg.text);
+                var textDisplay = msg.is_deleted ? '<span class="tp-muted">[deleted]</span>' : (msg.image ? '<span class="tp-muted">[img] ' + T.escapeHtml(msg.image) + '</span>' : T.escapeHtml(msg.text));
                 T.addOutputLine(' <span class="' + cls + '">' + textDisplay + '</span>  <span class="tp-muted">' + author + ' ' + time + '</span>');
               });
               T.lastMessageId = newMsgs[newMsgs.length - 1].id;

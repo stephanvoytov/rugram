@@ -579,7 +579,9 @@ def chat_messages(chat_id: int) -> Response:
             'image': msg.image,
             'image_url': url_for('main.chat_image', chat_id=chat_id, filename=msg.image) if msg.image else None,
             'created_date': msg.created_date.isoformat(),
+            'edited_at': msg.edited_at.isoformat() if msg.edited_at else None,
             'is_read': msg.is_read,
+            'is_deleted': msg.text == '' and msg.image is None,
             'author': {
                 'id': msg.author.id,
                 'username': msg.author.username,
@@ -662,6 +664,8 @@ def chat_send(chat_id: int) -> Response:
             'image_url': url_for('main.chat_image', chat_id=chat_id, filename=image_filename) if image_filename else None,
             'created_date': new_message.created_date.isoformat(),
             'is_read': new_message.is_read,
+            'edited_at': None,
+            'is_deleted': False,
             'author': {
                 'id': current_user.id,
                 'username': current_user.username,
@@ -680,6 +684,59 @@ def chat_image(chat_id: int, filename: str) -> Response:
     if err:
         return err
     return send_from_directory(_Cfg.CHAT_UPLOAD_FOLDER, filename)
+
+
+@main_bp.route('/chat/<int:chat_id>/messages/<int:message_id>', methods=['PATCH'])
+@login_required
+def chat_edit_message(chat_id: int, message_id: int) -> Response:
+    """Edit a message text (author only)."""
+    participant, err = _require_chat_participant(chat_id)
+    if err:
+        return err
+    msg = Message.query.filter_by(id=message_id, chat_id=chat_id).first_or_404()
+    if msg.author_id != current_user.id:
+        return jsonify({'error': _('Access denied')}), 403
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({'error': _('Invalid request')}), 400
+    text = data.get('text', '').strip()
+    if not text:
+        return jsonify({'error': _('Message cannot be empty')}), 400
+    msg.text = encrypt(text)
+    msg.edited_at = utcnow()
+    db.session.commit()
+    return jsonify({
+        'message': {
+            'id': msg.id,
+            'text': text,
+            'image': msg.image,
+            'image_url': url_for('main.chat_image', chat_id=chat_id, filename=msg.image) if msg.image else None,
+            'created_date': msg.created_date.isoformat(),
+            'edited_at': msg.edited_at.isoformat() if msg.edited_at else None,
+            'is_read': msg.is_read,
+            'author': {
+                'id': current_user.id,
+                'username': current_user.username,
+                'profile_image': current_user.profile_image
+            }
+        }
+    })
+
+
+@main_bp.route('/chat/<int:chat_id>/messages/<int:message_id>', methods=['DELETE'])
+@login_required
+def chat_delete_message(chat_id: int, message_id: int) -> Response:
+    """Delete a message (author only)."""
+    participant, err = _require_chat_participant(chat_id)
+    if err:
+        return err
+    msg = Message.query.filter_by(id=message_id, chat_id=chat_id).first_or_404()
+    if msg.author_id != current_user.id:
+        return jsonify({'error': _('Access denied')}), 403
+    msg.text = ''
+    msg.image = None
+    db.session.commit()
+    return jsonify({'status': 'deleted'})
 
 
 @main_bp.route('/chat/<int:chat_id>/typing', methods=['POST'])

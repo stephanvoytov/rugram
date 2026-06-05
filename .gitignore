@@ -41,6 +41,7 @@ node_modules/
 
 # Coverage / debug
 .coverage
+.mypy_cache/
 tests/_debug.js
 tests/_debug2.js
 
