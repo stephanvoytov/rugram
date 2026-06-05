@@ -10,7 +10,8 @@ from flask_login import login_required, current_user
 from sqlalchemy import func
 
 from app.translations import _
-from app.models import User, Post, Tag, Like, Comment, Follow, utcnow
+from app.models import User, Post, Tag, Like, Comment, Follow, SystemEvent, utcnow
+from app.routes.helpers import log_system_event
 from extensions import db
 
 logger = logging.getLogger(__name__)
@@ -252,3 +253,52 @@ def delete_tag(tag_id):
     db.session.commit()
     flash(f'Tag #{name} deleted', 'success')
     return redirect(url_for('admin.tags', page=request.args.get('page', 1)))
+
+
+# ── System Events ──
+
+@admin_bp.route('/events')
+@admin_required
+def events():
+    page = request.args.get('page', 1, type=int)
+    level = request.args.get('level', '')
+    category = request.args.get('category', '')
+    per_page = 50
+
+    query = SystemEvent.query
+    if level:
+        query = query.filter(SystemEvent.level == level)
+    if category:
+        query = query.filter(SystemEvent.category == category)
+    pagination = query.order_by(SystemEvent.created_date.desc()).paginate(page=page, per_page=per_page)
+
+    # Counts for filter badges
+    total = SystemEvent.query.count()
+    unread = SystemEvent.query.filter(SystemEvent.is_read == False).count()
+    critical = SystemEvent.query.filter(SystemEvent.level == 'critical').count()
+    errors = SystemEvent.query.filter(SystemEvent.level == 'error').count()
+
+    return render_template('admin/events.html',
+                           events=pagination.items, pagination=pagination,
+                           level=level, category=category,
+                           total=total, unread=unread, critical=critical, errors=errors)
+
+
+@admin_bp.route('/events/<int:event_id>/read', methods=['POST'])
+@admin_required
+def mark_event_read(event_id):
+    event = db.session.get(SystemEvent, event_id)
+    if not event:
+        abort(404)
+    event.is_read = True
+    db.session.commit()
+    return jsonify({'status': 'ok'})
+
+
+@admin_bp.route('/events/read-all', methods=['POST'])
+@admin_required
+def mark_all_events_read():
+    SystemEvent.query.filter(SystemEvent.is_read == False).update({'is_read': True})
+    db.session.commit()
+    flash('All events marked as read', 'success')
+    return redirect(url_for('admin.events'))

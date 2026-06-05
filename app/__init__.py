@@ -10,6 +10,7 @@ from app.models import User
 from app.filters import filters_bp
 from app.resources import post_resources
 from app.routes import main_bp, auth_bp, posts_bp, admin_bp
+from app.routes.helpers import log_system_event
 from app.translations import _
 from app.limiter import limiter
 from extensions import db, csrf
@@ -156,6 +157,15 @@ def create_app():
     for code in ERROR_MESSAGES:
         @app.errorhandler(code)
         def handle_error(e, code=code):
+            # Log 500+ errors to system events
+            if code >= 500:
+                import traceback
+                log_system_event(
+                    level='error' if code != 503 else 'warning',
+                    category='system',
+                    message=f'HTTP {code}: {ERROR_MESSAGES[code]}',
+                    details=traceback.format_exc() if hasattr(e, '__traceback__') and e.__traceback__ else None
+                )
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return jsonify({'error': ERROR_MESSAGES[code]}), code
             return render_template(

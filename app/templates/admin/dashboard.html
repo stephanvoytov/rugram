@@ -9,10 +9,11 @@
 {% block content %}
 <h1 style="margin-bottom:4px">[*] admin</h1>
 <p class="text-secondary" style="font-size:0.85rem;margin-bottom:20px">
-  dashboard ·
+   dashboard ·
   <a href="{{ url_for('admin.users') }}">users</a> ·
   <a href="{{ url_for('admin.posts') }}">posts</a> ·
-  <a href="{{ url_for('admin.tags') }}">tags</a>
+  <a href="{{ url_for('admin.tags') }}">tags</a> ·
+  <a href="{{ url_for('admin.events') }}">events</a>
 </p>
 
 <!-- Stats cards -->

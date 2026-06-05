@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}events · rugram admin{% endblock %}
+{% block robots %}noindex,nofollow{% endblock %}
+
+{% block content %}
+<h1 style="margin-bottom:4px">[*] system events</h1>
+<p class="text-secondary" style="font-size:0.85rem;margin-bottom:20px">
+  <a href="{{ url_for('admin.dashboard') }}">dashboard</a> ·
+  <a href="{{ url_for('admin.users') }}">users</a> ·
+  <a href="{{ url_for('admin.posts') }}">posts</a> ·
+  <a href="{{ url_for('admin.tags') }}">tags</a> ·
+  events
+</p>
+
+<!-- Summary badges -->
+<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+  <span class="ev-badge ev-all">{{ total }} total</span>
+  <span class="ev-badge ev-unread" style="{% if unread == 0 %}opacity:0.3{% endif %}">{{ unread }} unread</span>
+  <span class="ev-badge ev-critical" style="{% if critical == 0 %}opacity:0.3{% endif %}">{{ critical }} critical</span>
+  <span class="ev-badge ev-error" style="{% if errors == 0 %}opacity:0.3{% endif %}">{{ errors }} errors</span>
+  {% if unread > 0 %}
+  <form method="POST" action="{{ url_for('admin.mark_all_events_read') }}" style="display:inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn-term" style="font-size:0.72rem">[mark all read]</button>
+  </form>
+  {% endif %}
+</div>
+
+<!-- Filters -->
+<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+  <a href="{{ url_for('admin.events') }}" class="ev-filter {% if not level and not category %}active{% endif %}">all</a>
+  <a href="{{ url_for('admin.events', level='critical') }}" class="ev-filter ev-f-critical {% if level == 'critical' %}active{% endif %}">critical</a>
+  <a href="{{ url_for('admin.events', level='error') }}" class="ev-filter ev-f-error {% if level == 'error' %}active{% endif %}">error</a>
+  <a href="{{ url_for('admin.events', level='warning') }}" class="ev-filter ev-f-warning {% if level == 'warning' %}active{% endif %}">warning</a>
+  <a href="{{ url_for('admin.events', level='info') }}" class="ev-filter ev-f-info {% if level == 'info' %}active{% endif %}">info</a>
+  <span style="color:var(--subtle);font-size:0.72rem;margin:0 4px">|</span>
+  <a href="{{ url_for('admin.events', category='push') }}" class="ev-filter {% if category == 'push' %}active{% endif %}">push</a>
+  <a href="{{ url_for('admin.events', category='upload') }}" class="ev-filter {% if category == 'upload' %}active{% endif %}">upload</a>
+  <a href="{{ url_for('admin.events', category='chat') }}" class="ev-filter {% if category == 'chat' %}active{% endif %}">chat</a>
+  <a href="{{ url_for('admin.events', category='auth') }}" class="ev-filter {% if category == 'auth' %}active{% endif %}">auth</a>
+  <a href="{{ url_for('admin.events', category='db') }}" class="ev-filter {% if category == 'db' %}active{% endif %}">db</a>
+  <a href="{{ url_for('admin.events', category='system') }}" class="ev-filter {% if category == 'system' %}active{% endif %}">system</a>
+</div>
+
+<!-- Events table -->
+<div class="ev-table">
+  <div class="ev-header">
+    <span class="ev-col ev-col-level">level</span>
+    <span class="ev-col ev-col-cat">category</span>
+    <span class="ev-col ev-col-msg">message</span>
+    <span class="ev-col ev-col-time">time</span>
+    <span class="ev-col ev-col-action"></span>
+  </div>
+  {% for event in events %}
+  <div class="ev-row {% if not event.is_read %}ev-unread-row{% endif %}">
+    <span class="ev-col ev-col-level">
+      <span class="ev-level ev-{{ event.level }}">{{ event.level }}</span>
+    </span>
+    <span class="ev-col ev-col-cat">
+      <span class="ev-cat">{{ event.category }}</span>
+    </span>
+    <span class="ev-col ev-col-msg">
+      <span class="ev-msg">{{ event.message }}</span>
+      {% if event.details %}
+      <button class="ev-details-btn" onclick="toggleDetails(this)" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:0.65rem;padding:0 4px">[details]</button>
+      <pre class="ev-details" style="display:none;font-size:0.65rem;color:var(--subtle);margin-top:4px;white-space:pre-wrap;max-height:200px;overflow-y:auto">{{ event.details }}</pre>
+      {% endif %}
+    </span>
+    <span class="ev-col ev-col-time">{{ event.created_date.strftime('%H:%M %d.%m') }}</span>
+    <span class="ev-col ev-col-action">
+      {% if not event.is_read %}
+      <form method="POST" action="{{ url_for('admin.mark_event_read', event_id=event.id) }}" style="display:inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn-term" style="font-size:0.65rem;padding:2px 6px">[read]</button>
+      </form>
+      {% endif %}
+    </span>
+  </div>
+  {% else %}
+  <div class="ev-empty">no events found</div>
+  {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if pagination.pages > 1 %}
+<div class="ev-pagination">
+  {% if pagination.has_prev %}
+  <a href="{{ url_for('admin.events', page=pagination.prev_num, level=level, category=category) }}" class="btn-term" style="font-size:0.72rem">[prev]</a>
+  {% endif %}
+  <span style="color:var(--subtle);font-size:0.72rem;margin:0 8px">page {{ pagination.page }} / {{ pagination.pages }}</span>
+  {% if pagination.has_next %}
+  <a href="{{ url_for('admin.events', page=pagination.next_num, level=level, category=category) }}" class="btn-term" style="font-size:0.72rem">[next]</a>
+  {% endif %}
+</div>
+{% endif %}
+
+<script>
+function toggleDetails(btn) {
+  var pre = btn.nextElementSibling;
+  if (pre && pre.tagName === 'PRE') {
+    pre.style.display = pre.style.display === 'none' ? 'block' : 'none';
+  }
+}
+</script>
+
+<style>
+.ev-badge {
+  font-size:0.72rem; padding:3px 10px; border-radius:4px;
+  border:1px solid var(--border); font-family:var(--font);
+}
+.ev-all { color:var(--fg); border-color:var(--border); }
+.ev-unread { color:var(--accent); border-color:var(--accent); }
+.ev-critical { color:var(--red); border-color:var(--red); }
+.ev-error { color:var(--peach); border-color:var(--peach); }
+
+.ev-filter {
+  font-size:0.72rem; color:var(--subtle); padding:2px 8px;
+  border:1px solid transparent; text-decoration:none; transition:all 0.1s;
+}
+.ev-filter:hover { color:var(--fg); border-color:var(--border); }
+.ev-filter.active { color:var(--accent); border-color:var(--accent); }
+.ev-filter.ev-f-critical.active { color:var(--red); border-color:var(--red); }
+.ev-filter.ev-f-error.active { color:var(--peach); border-color:var(--peach); }
+.ev-filter.ev-f-warning.active { color:var(--yellow); border-color:var(--yellow); }
+.ev-filter.ev-f-info.active { color:var(--green); border-color:var(--green); }
+
+.ev-table {
+  border:1px solid var(--border); font-family:var(--font); font-size:0.82rem;
+}
+.ev-header {
+  display:flex; align-items:center; padding:6px 12px;
+  background:var(--surface); border-bottom:1px solid var(--border);
+  color:var(--subtle); font-size:0.65rem; text-transform:uppercase; letter-spacing:0.05em;
+}
+.ev-row {
+  display:flex; align-items:flex-start; padding:8px 12px;
+  border-bottom:1px solid var(--border); transition:background 0.1s;
+}
+.ev-row:last-child { border-bottom:none; }
+.ev-row:hover { background:var(--surface); }
+.ev-unread-row { border-left:2px solid var(--accent); }
+.ev-col { padding:0 8px; }
+.ev-col-level { width:70px; flex-shrink:0; }
+.ev-col-cat { width:80px; flex-shrink:0; }
+.ev-col-msg { flex:1; min-width:0; }
+.ev-col-time { width:80px; flex-shrink:0; text-align:right; color:var(--subtle); font-size:0.72rem; }
+.ev-col-action { width:50px; flex-shrink:0; text-align:right; }
+
+.ev-level { font-size:0.65rem; padding:1px 6px; border-radius:3px; text-transform:uppercase; font-weight:600; }
+.ev-critical { background:rgba(243,139,168,0.15); color:var(--red); }
+.ev-error { background:rgba(250,179,135,0.15); color:var(--peach); }
+.ev-warning { background:rgba(249,226,175,0.15); color:var(--yellow); }
+.ev-info { background:rgba(166,227,161,0.15); color:var(--green); }
+
+.ev-cat { font-size:0.72rem; color:var(--subtle); }
+.ev-msg { color:var(--fg); word-break:break-word; }
+.ev-empty { padding:24px; text-align:center; color:var(--subtle); font-size:0.82rem; }
+
+.ev-pagination { display:flex; align-items:center; justify-content:center; margin-top:12px; }
+</style>
+{% endblock %}

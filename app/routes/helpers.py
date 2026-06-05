@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 from config import Config
 from app.translations import _
-from app.models import Notification, ChatParticipant, Tag, PostTag, utcnow
+from app.models import Notification, ChatParticipant, Tag, PostTag, SystemEvent, utcnow
 from extensions import db
 
 
@@ -69,6 +69,7 @@ def process_avatar(image_file: FileStorage) -> Optional[str]:
         return filename
     except Exception:
         logger.exception('process_avatar failed')
+        log_system_event('error', 'upload', f'Avatar processing failed for user {current_user.id}')
         return None
 
 
@@ -105,6 +106,7 @@ def process_post_image(image_file: FileStorage, filename: str) -> Optional[str]:
         return filename
     except Exception:
         logger.exception('process_post_image failed')
+        log_system_event('error', 'upload', f'Post image processing failed: {filename}')
         return None
 
 
@@ -131,6 +133,7 @@ def process_chat_image(image_file: FileStorage) -> Optional[str]:
         return filename
     except Exception:
         logger.exception('process_chat_image failed')
+        log_system_event('error', 'upload', 'Chat image processing failed')
         return None
 
 
@@ -188,3 +191,20 @@ def sync_post_tags(post_id: int, tag_names: list[str]) -> None:
         Tag.query.filter(~Tag.id.in_(active_ids)).update({'post_count': 0})
     else:
         Tag.query.update({'post_count': 0})
+
+
+def log_system_event(level, category, message, details=None):
+    """Записать системное событие в БД (для панели администратора).
+
+    Args:
+        level: 'critical' | 'error' | 'warning' | 'info'
+        category: 'push' | 'db' | 'auth' | 'chat' | 'upload' | 'system'
+        message: Краткое описание
+        details: Опциональный JSON с деталями (stack trace и т.д.)
+    """
+    try:
+        event = SystemEvent(level=level, category=category, message=message, details=details)
+        db.session.add(event)
+        db.session.commit()
+    except Exception:
+        logger.exception('Failed to log system event')
