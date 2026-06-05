@@ -1,5 +1,6 @@
 import os
 import logging
+from datetime import datetime
 
 from flask import render_template, flash, redirect, url_for, Blueprint, request, jsonify, abort, current_app, Response, send_from_directory
 from flask_login import login_required, current_user, logout_user
@@ -502,6 +503,7 @@ def chat_messages(chat_id: int) -> Response:
 
     after = request.args.get('after', 0, type=int)
     before = request.args.get('before', 0, type=int)
+    ts = request.args.get('ts', '', type=str)
     limit = min(request.args.get('limit', 50, type=int) or 50, 200)
 
     # Отмечаем чужие непрочитанные сообщения как прочитанные (только первая загрузка, не пагинация)
@@ -540,6 +542,21 @@ def chat_messages(chat_id: int) -> Response:
         messages.reverse()
     elif not after and not before:
         messages.reverse()
+
+    # ── Updates: edits/deletes to already-known messages ──
+    updates = []
+    if ts and after:
+        try:
+            ts_dt = datetime.fromisoformat(ts)
+            if ts_dt.tzinfo:
+                ts_dt = ts_dt.replace(tzinfo=None)
+            updates = Message.query.filter(
+                Message.chat_id == chat_id,
+                Message.id <= after,
+                Message.updated_at > ts_dt
+            ).order_by(Message.created_date.asc()).all()
+        except ValueError:
+            pass
 
     # Обновляем время последнего чтения и онлайн-статус (только при загрузке первых сообщений)
     # last_seen обновляется не чаще 30 секунд — write throttle
@@ -588,6 +605,22 @@ def chat_messages(chat_id: int) -> Response:
                 'profile_image': msg.author.profile_image
             }
         } for msg in messages],
+        'updates': [{
+            'id': msg.id,
+            'author_id': msg.author.id,
+            'text': decrypt(msg.text) if msg.text else '',
+            'image': msg.image,
+            'image_url': url_for('main.chat_image', chat_id=chat_id, filename=msg.image) if msg.image else None,
+            'created_date': msg.created_date.isoformat(),
+            'edited_at': msg.edited_at.isoformat() if msg.edited_at else None,
+            'is_read': msg.is_read,
+            'is_deleted': msg.text == '' and msg.image is None,
+            'author': {
+                'id': msg.author.id,
+                'username': msg.author.username,
+                'profile_image': msg.author.profile_image
+            }
+        } for msg in updates],
         'other_user': other_user_info,
         'is_typing': is_other_typing,
         'has_more': has_more
@@ -715,6 +748,7 @@ def chat_edit_message(chat_id: int, message_id: int) -> Response:
         return jsonify({'error': _('Message cannot be empty')}), 400
     msg.text = encrypt(text)
     msg.edited_at = utcnow()
+    msg.updated_at = utcnow()
     db.session.commit()
     return jsonify({
         'message': {
@@ -746,9 +780,9 @@ def chat_delete_message(chat_id: int, message_id: int) -> Response:
         return jsonify({'error': _('Access denied')}), 403
     msg.text = ''
     msg.image = None
+    msg.updated_at = utcnow()
     db.session.commit()
     return jsonify({'status': 'deleted'})
-
 
 @main_bp.route('/chat/<int:chat_id>/typing', methods=['POST'])
 @login_required
