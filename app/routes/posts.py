@@ -10,6 +10,7 @@ from config import Config
 from app.translations import _
 from app.forms import PostForm
 from app.models import User, Post, Like, Comment, Follow, Notification, SavedPost, Repost, utcnow
+from app.limiter import limiter
 from app.push import send_notification_push
 from extensions import db, csrf
 from app.routes.helpers import logger, process_post_image, _create_notification_and_push
@@ -19,6 +20,7 @@ posts_bp = Blueprint('posts', __name__, template_folder='../templates')
 
 @posts_bp.route('/create', methods=['GET', 'POST'])
 @login_required
+@limiter.limit("10/minute", methods=["POST"])
 def create_post() -> Response:
     form = PostForm()
     if form.validate_on_submit():
@@ -93,6 +95,7 @@ def get_post(post_id: int) -> Response:
 
 @posts_bp.route('/post/<int:post_id>/like', methods=['POST'])
 @login_required
+@limiter.limit("20/minute")
 def like_post(post_id: int) -> Response:
     if not request.is_json:
         return jsonify({'error': 'Request must be JSON'}), 400
@@ -221,6 +224,7 @@ def toggle_save(post_id: int) -> Response:
 
 @posts_bp.route('/post/<int:post_id>/comment', methods=['POST'])
 @login_required
+@limiter.limit("10/minute")
 def add_comment(post_id: int) -> Response:
     post = Post.query.filter(Post.id == post_id, Post.is_deleted == False).first()
     if not post:

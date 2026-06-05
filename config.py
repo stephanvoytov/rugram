@@ -25,6 +25,13 @@ class Config:
     # Enabled only when FLASK_DEBUG is set (local dev)
     TEMPLATES_AUTO_RELOAD = os.environ.get('FLASK_DEBUG', '').lower() in ('1', 'true')
 
+    # Rate limiting
+    RATELIMIT_ENABLED = os.environ.get('RATELIMIT_ENABLED', 'true').lower() in ('1', 'true')
+    RATELIMIT_STORAGE_URI = 'memory://'
+    RATELIMIT_STRATEGY = 'moving-window'
+    RATELIMIT_DEFAULT = '60/minute'
+    RATELIMIT_HEADERS_ENABLED = True
+
     # Pagination defaults
     POSTS_PER_PAGE = 15
     NOTIFICATIONS_PER_PAGE = 10
