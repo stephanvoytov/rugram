@@ -29,11 +29,11 @@
 }
 .emoji-picker span:hover { background: var(--overlay); }
 .chat-input-area { position: relative; }
-.chat-img { width:100%; max-height:400px; border-radius:10px; display:block; cursor:pointer; object-fit:cover; }
+.chat-img { width:100%; max-height:400px; display:block; cursor:pointer; object-fit:cover; }
 .chat-img:hover { filter: brightness(0.9); }
 .msg-bubble.own .chat-img { border-bottom-right-radius:4px; }
 .msg-bubble.other .chat-img { border-bottom-left-radius:4px; }
-.msg-img-wrap { position:relative; display:inline-block; width:100%; min-width:200px; }
+.msg-img-wrap { position:relative; display:inline-block; width:100%; min-width:200px; overflow:hidden; }
 .msg-img-overlay { position:absolute; bottom:0; left:0; right:0; background:linear-gradient(transparent,rgba(0,0,0,0.55)); padding:16px 8px 4px 8px; display:flex; justify-content:flex-end; align-items:flex-end; gap:3px; border-radius:0 0 10px 10px; pointer-events:none; }
 .msg-img-overlay time { color:#fff; font-size:0.65rem; line-height:1; }
 .msg-img-overlay .read-status { font-size:0.6rem; line-height:1; }
@@ -41,8 +41,8 @@
 .msg-img-overlay .read-status.other { color:var(--subtle); }
 .msg-caption { display:block; padding:8px 12px 4px; width:100%; }
 .msg-bubble-img { padding:0 !important; overflow:hidden; }
-.msg-bubble:hover .msg-actions-btn { opacity:1 !important; }
 .msg-actions-menu button:hover { background:var(--overlay) !important; }
+.msg-bubble.own { position:relative; }
 </style>
 {% endblock %}
 
@@ -398,7 +398,7 @@ function createMessageElement(message) {
 
     // ── Actions menu (own messages only) ──
     const actionsBtn = isOwn
-        ? '<button class="msg-actions-btn" data-msg-id="' + message.id + '" onclick="toggleMsgMenu(event, ' + message.id + ')" style="background:none;border:none;color:var(--subtle);cursor:pointer;font-size:1rem;line-height:1;padding:0 4px;opacity:0;transition:opacity 0.15s">⋮</button>'
+        ? '<button class="msg-actions-btn" data-msg-id="' + message.id + '" onclick="toggleMsgMenu(event, ' + message.id + ')" style="background:none;border:none;color:var(--subtle);cursor:pointer;font-size:1rem;line-height:1;padding:0 4px;transition:opacity 0.15s">⋮</button>'
         : '';
     const actionsMenu = isOwn
         ? '<div class="msg-actions-menu" id="msgMenu-' + message.id + '" style="display:none;position:absolute;top:100%;right:0;background:var(--surface);border:1px solid var(--border);border-radius:6px;z-index:100;min-width:100px;box-shadow:0 4px 12px rgba(0,0,0,0.2)">'

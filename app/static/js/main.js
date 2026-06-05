@@ -71,6 +71,34 @@
     setInterval(updateBadge, 10000);
 })();
 
+// ── Toast helper (Bootstrap-independent) ──
+window.showToast = function(title, message, type) {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    const id = 'toast-' + Date.now();
+    const colors = {
+        danger: 'var(--red)',
+        success: 'var(--green)',
+        info: 'var(--blue)',
+    };
+    const border = colors[type] || 'var(--border)';
+    const html = `
+        <div id="${id}" style="background:var(--bg);border:1px solid ${border};border-radius:4px;padding:8px 12px;margin-bottom:6px;font-family:var(--font);max-width:360px;box-shadow:0 2px 8px rgba(0,0,0,0.3);pointer-events:auto;">
+            <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
+                <div>
+                    <strong style="color:${border}">${escapeHtml(title)}</strong><br>
+                    <small style="color:var(--fg)">${escapeHtml(message)}</small>
+                </div>
+                <button onclick="this.parentElement.parentElement.remove()" style="background:none;border:none;color:var(--fg);cursor:pointer;font-size:1.2em">&times;</button>
+            </div>
+        </div>`;
+    container.insertAdjacentHTML('beforeend', html);
+    setTimeout(() => {
+        const el = document.getElementById(id);
+        if (el) el.remove();
+    }, 5000);
+};
+
 // ── Notification request banner ──
 (function() {
     if (!window.isAuthenticated) return;
@@ -249,34 +277,6 @@ function escapeHtml(str) {
     if (typeof str !== 'string') return '';
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
-
-// ── Toast helper (Bootstrap-independent) ──
-window.showToast = function(title, message, type) {
-    const container = document.getElementById('toastContainer');
-    if (!container) return;
-    const id = 'toast-' + Date.now();
-    const colors = {
-        danger: 'var(--red)',
-        success: 'var(--green)',
-        info: 'var(--blue)',
-    };
-    const border = colors[type] || 'var(--border)';
-    const html = `
-        <div id="${id}" style="background:var(--bg);border:1px solid ${border};border-radius:4px;padding:8px 12px;margin-bottom:6px;font-family:var(--font);max-width:360px;box-shadow:0 2px 8px rgba(0,0,0,0.3);pointer-events:auto;">
-            <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
-                <div>
-                    <strong style="color:${border}">${escapeHtml(title)}</strong><br>
-                    <small style="color:var(--fg)">${escapeHtml(message)}</small>
-                </div>
-                <button onclick="this.parentElement.parentElement.remove()" style="background:none;border:none;color:var(--fg);cursor:pointer;font-size:1.2em">&times;</button>
-            </div>
-        </div>`;
-    container.insertAdjacentHTML('beforeend', html);
-    setTimeout(() => {
-        const el = document.getElementById(id);
-        if (el) el.remove();
-    }, 5000);
-};
 
 // Global notification function for chat
 window.showBrowserNotification = function(title, body) {
