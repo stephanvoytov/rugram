@@ -117,6 +117,12 @@
                 ('head', '[-n N]', _('Show first N posts'), 'head -n 10'),
                 ('tail', '[-n N]', _('Show last N posts'), 'tail -n 5'),
               ]),
+              ('Chat', [
+                ('chat', '[&lt;id&gt; | @user]', _('List or open conversations'), 'chat / chat @bob'),
+                ('say', '&lt;text&gt;', _('Send a message in the current chat'), 'say hello!'),
+                ('write', '@&lt;user&gt; &lt;text&gt;', _('Send a direct message'), 'write @alice hey!'),
+                ('start', '@&lt;user&gt;', _('Start a chat with a user'), 'start @alice'),
+              ]),
               ('System', [
                 ('clear', '', _('Clear terminal screen'), 'clear'),
                 ('gui / exit', '', _('Switch back to GUI mode'), 'gui'),
@@ -132,8 +138,6 @@
                 ('watch', '[-n N] &lt;cmd&gt;', _('Execute command repeatedly'), 'watch -n 5 feed'),
                 ('top', '', _('Live activity feed'), 'top'),
                 ('nano', '&lt;file&gt;', _('Edit a post or profile'), 'nano 42.txt / nano description.txt'),
-                ('say', '&lt;text&gt;', _('Send a message in the current chat'), 'say hello!'),
-                ('start', '@&lt;user&gt;', _('Start a chat with a user'), 'start @alice'),
               ]),
             ] -%}
 

@@ -10,6 +10,39 @@
     }
   };
 
+  // ── Resolve chatId from current cwd (supports chat/5 and chat/@user) ──
+  T._resolveChatId = function() {
+    var idMatch = T.cwd.match(/^chat\/(\d+)$/);
+    if (idMatch) return parseInt(idMatch[1], 10);
+    var userMatch = T.cwd.match(/^chat\/@(\w+)$/);
+    if (userMatch && T.chatContext && T.chatContext.username === userMatch[1]) {
+      return T.chatContext.chatId;
+    }
+    return null;
+  };
+
+  // ── Render a single message line (handles text, image->ASCII, deleted) ──
+  T._appendChatMsg = function(msg) {
+    var isOwn = msg.author_id === T.currentUserId;
+    var time = msg.created_date ? T.relTime(msg.created_date) : '';
+    var chatUser = T.escapeHtml(T.currentChatUser);
+    var author = isOwn ? 'me' : '@' + chatUser;
+    var cls = isOwn ? 'tp-ok' : 'tp-cmd';
+
+    if (msg.is_deleted) {
+      T.addOutputLine(' <span class="tp-muted">[deleted]</span>  <span class="tp-muted">' + author + ' ' + time + '</span>');
+    } else if (msg.image) {
+      T.addOutputLine(' <span class="tp-muted">[image]</span>  <span class="tp-muted">' + author + ' ' + time + '</span>');
+      if (msg.image_url) {
+        T.imageToAscii(msg.image_url, 40, function(ascii) {
+          T.addOutputLine(ascii);
+        });
+      }
+    } else {
+      T.addOutputLine(' <span class="' + cls + '">' + T.escapeHtml(msg.text) + '</span>  <span class="tp-muted">' + author + ' ' + time + '</span>');
+    }
+  };
+
   // ── Render chat list (program view) ──
   T.renderChatList = function() {
     if (!T.isLoggedIn) {
@@ -46,7 +79,9 @@
         });
         T.enterLessMode(items, T._('Диалоги', 'Conversations') + ' (' + items.length + ')', function(item) {
           T._exitLessMode();
-          T.cwd = 'chat/' + item.chat_id;
+          T.cwd = 'chat/@' + item.username;
+          T.chatContext = { chatId: item.chat_id, username: item.username };
+          T.currentChatUser = item.username;
           T.updatePrompt();
           T.loadChatMessages(item.chat_id);
         });
@@ -74,7 +109,15 @@
       .then(function(r) { return r.json(); })
       .then(function(data) {
         T.clearOutput();
-        T.currentChatUser = data.other_user?.username || 'unknown';
+        var otherUser = data.other_user;
+        T.currentChatUser = otherUser ? otherUser.username : 'unknown';
+        T.chatContext = { chatId: chatId, username: T.currentChatUser };
+        // Auto-convert numeric cwd (chat/5) to @username form (chat/@user)
+        var cwdNum = T.cwd ? T.cwd.match(/^chat\/(\d+)$/) : null;
+        if (cwdNum && parseInt(cwdNum[1], 10) === chatId) {
+          T.cwd = 'chat/@' + T.currentChatUser;
+          T.updatePrompt();
+        }
         T.addOutputLine('<span class="tp-section">' + T._('Чат с @', 'Chat with @') + T.escapeHtml(T.currentChatUser) + '</span>');
         T.addOutputLine('<span class="tp-desc">  # <span class="tp-cmd">say &lt;text&gt;</span> ' + T._('отправить', 'to send') + '  ·  q ' + T._('выйти', 'quit') + '</span>');
 
@@ -82,15 +125,7 @@
         if (!msgs.length) {
           T.addOutputLine('<span class="tp-muted">  ' + T._('нет сообщений', 'no messages yet') + '</span>');
         } else {
-          msgs.forEach(function(msg) {
-            var isOwn = msg.author_id === T.currentUserId;
-            var time = msg.created_date ? T.relTime(msg.created_date) : '';
-            var chatUser = T.escapeHtml(T.currentChatUser);
-            var author = isOwn ? 'me' : '@' + chatUser;
-            var cls = isOwn ? 'tp-ok' : 'tp-cmd';
-            var textDisplay = msg.is_deleted ? '<span class="tp-muted">[deleted]</span>' : (msg.image ? '<span class="tp-muted">[img] ' + T.escapeHtml(msg.image) + '</span>' : T.escapeHtml(msg.text));
-            T.addOutputLine(' <span class="' + cls + '">' + textDisplay + '</span>  <span class="tp-muted">' + author + ' ' + time + '</span>');
-          });
+          msgs.forEach(function(msg) { T._appendChatMsg(msg); });
           T.lastMessageId = msgs[msgs.length - 1].id;
         }
 
@@ -100,15 +135,7 @@
             .then(function(pollData) {
               var newMsgs = pollData.messages || [];
               if (!newMsgs.length) return;
-              newMsgs.forEach(function(msg) {
-                var isOwn = msg.author_id === T.currentUserId;
-                var time = msg.created_date ? T.relTime(msg.created_date) : '';
-                var chatUser = T.escapeHtml(T.currentChatUser || '?');
-                var author = isOwn ? 'me' : '@' + chatUser;
-                var cls = isOwn ? 'tp-ok' : 'tp-cmd';
-                var textDisplay = msg.is_deleted ? '<span class="tp-muted">[deleted]</span>' : (msg.image ? '<span class="tp-muted">[img] ' + T.escapeHtml(msg.image) + '</span>' : T.escapeHtml(msg.text));
-                T.addOutputLine(' <span class="' + cls + '">' + textDisplay + '</span>  <span class="tp-muted">' + author + ' ' + time + '</span>');
-              });
+              newMsgs.forEach(function(msg) { T._appendChatMsg(msg); });
               T.lastMessageId = newMsgs[newMsgs.length - 1].id;
             })
             .catch(function() { /* silent */ });
@@ -129,6 +156,47 @@
       });
   };
 
+  // ── Helper: resolve @username to chatId via API, then send message ──
+  T._resolveAndSend = function(username, text) {
+    if (!text) {
+      T.addOutputLine('<span class="tp-err">say: message text required</span>');
+      return;
+    }
+    T.showLoading(T._('Поиск чата...', 'Finding chat...'));
+    fetch('/chat/start/' + encodeURIComponent(username), {
+      method: 'POST',
+      headers: { 'X-CSRFToken': T.csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin'
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.chat_id) {
+        T.hideLoading();
+        T.addOutputLine('<span class="tp-err">say: could not find chat with @' + T.escapeHtml(username) + '</span>');
+        return;
+      }
+      // Cache context for future use
+      T.chatContext = { chatId: data.chat_id, username: username };
+      T.currentChatUser = username;
+      fetch('/chat/' + data.chat_id + '/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': T.csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify({ text: text }),
+        credentials: 'same-origin'
+      })
+      .then(function(r2) { return r2.json(); })
+      .then(function() {
+        T.hideLoading();
+        T.addOutputLine(' <span class="tp-ok">' + T.escapeHtml(text) + '</span>  <span class="tp-muted">me now</span>');
+      })
+      .catch(function() { T.hideLoading(); T.addOutputLine('<span class="tp-err">say: could not send message</span>'); });
+    })
+    .catch(function() {
+      T.hideLoading();
+      T.addOutputLine('<span class="tp-err">say: could not reach @' + T.escapeHtml(username) + '</span>');
+    });
+  };
+
   // ── COMMAND: say ──
   T.cmdSay = function(text) {
     if (!T.isLoggedIn) {
@@ -136,33 +204,35 @@
       T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
       return;
     }
-    var chatMatch = T.cwd.match(/^chat\/(\d+)$/);
-    if (!chatMatch) {
-      T.addOutputLine('<span class="tp-err">say: not in a chat. Use <span class="tp-cmd">cd chat &lt;id&gt;</span> first</span>');
-      return;
-    }
-    var chatId = parseInt(chatMatch[1], 10);
     if (!text) {
       T.addOutputLine('<span class="tp-err">say: message text required</span>');
       return;
     }
-    fetch('/chat/' + chatId + '/send', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': T.csrfToken(),
-        'X-Requested-With': 'XMLHttpRequest'
-      },
-      body: JSON.stringify({ text: text }),
-      credentials: 'same-origin'
-    })
-    .then(function(r) { return r.json(); })
-    .then(function() {
-      T.addOutputLine(' <span class="tp-ok">' + T.escapeHtml(text) + '</span>  <span class="tp-muted">me now</span>');
-    })
-    .catch(function() {
-      T.addOutputLine('<span class="tp-err">say: could not send message</span>');
-    });
+    var chatId = T._resolveChatId();
+    if (chatId) {
+      // Have a chat ID directly — send immediately
+      fetch('/chat/' + chatId + '/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': T.csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify({ text: text }),
+        credentials: 'same-origin'
+      })
+      .then(function(r) { return r.json(); })
+      .then(function() {
+        T.addOutputLine(' <span class="tp-ok">' + T.escapeHtml(text) + '</span>  <span class="tp-muted">me now</span>');
+      })
+      .catch(function() {
+        T.addOutputLine('<span class="tp-err">say: could not send message</span>');
+      });
+    } else {
+      // No cached chatId — try to auto-resolve from @username in cwd
+      var userMatch = T.cwd.match(/^chat\/@(\w+)$/);
+      if (userMatch) {
+        T._resolveAndSend(userMatch[1], text);
+      } else {
+        T.addOutputLine('<span class="tp-err">say: not in a chat. Use <span class="tp-cmd">chat @user</span> or <span class="tp-cmd">start @user</span> first</span>');
+      }
+    }
   };
 
   // ── Start chat with user ──
@@ -189,7 +259,9 @@
     .then(function(data) {
       if (data.chat_id) {
         if (shouldEnter) {
-          T.cwd = 'chat/' + data.chat_id;
+          T.cwd = 'chat/@' + username;
+          T.chatContext = { chatId: data.chat_id, username: username };
+          T.currentChatUser = username;
           T.updatePrompt();
           T.loadChatMessages(data.chat_id);
         } else {
@@ -245,11 +317,20 @@
   };
 
   // ── Registry ──
-  // chat = list conversations, chat <id> = open conversation
+  // chat = list conversations, chat <id> = open by id, chat @user = open by username
   T.register('chat', { handler: function(args) {
-    var m = (args || '').trim().match(/^(\d+)$/);
-    if (m) { T.cwd = 'chat/' + m[1]; T.updatePrompt(); T.loadChatMessages(parseInt(m[1],10)); }
-    else { T.renderChatList(); }
+    var a = (args || '').trim();
+    var numMatch = a.match(/^(\d+)$/);
+    var userMatch = a.match(/^@?(\w+)$/);
+    if (numMatch) {
+      T.cwd = 'chat/' + numMatch[1];
+      T.updatePrompt();
+      T.loadChatMessages(parseInt(numMatch[1],10));
+    } else if (userMatch) {
+      T.startChatWithUser(userMatch[1], true);
+    } else {
+      T.renderChatList();
+    }
   }, auth: true, category: 'chat', match: 'prefix' });
   T.register('say',  { handler: T.cmdSay, auth: true, category: 'chat', match: 'prefix' });
   T.register('write',{ handler: T.cmdWrite, auth: true, category: 'chat', match: 'prefix' });
