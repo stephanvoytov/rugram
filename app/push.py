@@ -13,6 +13,7 @@ from py_vapid import Vapid
 from pywebpush import webpush, WebPushException
 
 from app.models import PushSubscription, User, utcnow
+from app.routes.helpers import log_system_event
 from extensions import db
 
 logger = logging.getLogger(__name__)
@@ -152,8 +153,11 @@ def send_push_to_user(user_id, title, body, url='/', tag=None, chat_id=None, not
                 db.session.commit()
             else:
                 logger.warning(f'Push send failed for user {user_id}: {e}')
+                log_system_event('warning', 'push', f'Push send failed for user {user_id}: {e}')
         except Exception as e:
             logger.error(f'Unexpected push error for user {user_id}: {e}')
+            log_system_event('error', 'push', f'Unexpected push error for user {user_id}: {e}',
+                             details=str(e)[:500])
 
     return sent_any
 

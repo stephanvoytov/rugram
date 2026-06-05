@@ -7,7 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy_serializer import SerializerMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from sqlalchemy import DateTime, event, UniqueConstraint, Index
+from sqlalchemy import DateTime, event, UniqueConstraint, Index, Text
 from sqlalchemy.engine import Engine
 from extensions import db
 from app.translations import _
@@ -218,6 +218,19 @@ class Comment(db.Model, SerializerMixin):
 
     author: Mapped["User"] = relationship(back_populates="comments")
     post: Mapped["Post"] = relationship(back_populates="comments")
+
+
+class SystemEvent(db.Model, SerializerMixin):
+    """Системное событие: ошибки, алерты, важные уведомления для админа."""
+    __tablename__ = 'system_events'
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    level: Mapped[str] = mapped_column(default='info')  # critical / error / warning / info
+    category: Mapped[str] = mapped_column(default='system')  # push / db / auth / chat / upload / system
+    message: Mapped[str] = mapped_column()
+    details: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
+    is_read: Mapped[bool] = mapped_column(default=False)
 
 
 class Notification(db.Model, SerializerMixin):
