@@ -34,7 +34,7 @@ function createDOM() {
     '<div id="termBar"><div style="display:flex"><span id="termPrompt">guest@tty:~$</span><input type="text" id="termInput"></div></div>' +
     '<div id="top-body"></div><div id="top-meta"></div>' +
     '</body></html>';
-  return new JSDOM(html, { url: 'http://localhost:5000', pretendToBeVisual: true, runScripts: 'dangerously' });
+  return new JSDOM(html, { url: 'http://localhost:5000', runScripts: 'dangerously' });
 }
 
 function setupGlobals(dom) {
@@ -195,7 +195,7 @@ async function test_login(dom) {
   dom.window.fetch.__mockPrefix('/api/v1/posts', { posts: [] });
 
   runCommand(dom, 'login testuser pass123');
-  await nextTick(); await wait(50);
+  await nextTick(); await wait(15);
 
   check(T.isLoggedIn === true, 'login sets isLoggedIn');
   check(T.username === 'testuser', 'login sets username');
@@ -208,7 +208,7 @@ async function test_login_error(dom) {
   dom.window.fetch.__mock('/auth/api/login', { ok: false, error: 'Invalid credentials' });
 
   runCommand(dom, 'login baduser wrong');
-  await nextTick(); await wait(50);
+  await nextTick(); await wait(15);
 
   check(T.isLoggedIn !== true, 'login error does NOT set isLoggedIn');
   hasOutput(dom, 'Invalid credentials', 'login shows error');
@@ -220,7 +220,7 @@ async function test_register(dom) {
   dom.window.fetch.__mockPrefix('/api/v1/posts', { posts: [] });
 
   runCommand(dom, 'register newuser new@mail.com secret');
-  await nextTick(); await wait(50);
+  await nextTick(); await wait(15);
 
   check(T.isLoggedIn === true, 'register sets isLoggedIn');
   check(T.username === 'newuser', 'register sets username');
@@ -233,7 +233,7 @@ async function test_logout(dom) {
   dom.window.fetch.__mock('/auth/api/logout', { ok: true });
 
   runCommand(dom, 'logout');
-  await nextTick(); await wait(50);
+  await nextTick(); await wait(15);
 
   check(T.isLoggedIn === false, 'logout clears isLoggedIn');
   check(T.username === 'guest', 'logout resets username to guest');
@@ -250,7 +250,7 @@ async function test_like(dom) {
   dom.window.fetch.__mock('/like/1/', { status: 'liked', likes_count: 6 });
 
   runCommand(dom, 'like 1');
-  await nextTick(); await wait(50);
+  await nextTick(); await wait(15);
 
   hasOutput(dom, '+ Post #1 — 6 likes', 'like shows result');
 }
@@ -261,7 +261,7 @@ async function test_like_unliked(dom) {
   dom.window.fetch.__mock('/like/1/', { status: 'unliked', likes_count: 4 });
 
   runCommand(dom, 'like 1');
-  await nextTick(); await wait(50);
+  await nextTick(); await wait(15);
 
   hasOutput(dom, '- Post #1 — 4 likes', 'unlike shows result');
 }
@@ -272,7 +272,7 @@ async function test_comment(dom) {
   dom.window.fetch.__mock('/comment/1/', { ok: true });
 
   runCommand(dom, 'comment 1 "Nice post!"');
-  await nextTick(); await wait(50);
+  await nextTick(); await wait(15);
 
   hasOutput(dom, 'Comment added to post #1', 'comment shows result');
 }
@@ -283,7 +283,7 @@ async function test_bookmark(dom) {
   dom.window.fetch.__mock('/save/1/', { is_saved: true });
 
   runCommand(dom, 'bookmark 1');
-  await nextTick(); await wait(50);
+  await nextTick(); await wait(15);
 
   hasOutput(dom, '* Post #1 saved', 'bookmark shows result');
 }
@@ -294,7 +294,7 @@ async function test_bookmark_unsave(dom) {
   dom.window.fetch.__mock('/save/2/', { is_saved: false });
 
   runCommand(dom, 'bookmark 2');
-  await nextTick(); await wait(50);
+  await nextTick(); await wait(15);
 
   hasOutput(dom, '# Post #2 unsaved', 'unbookmark shows result');
 }
@@ -303,7 +303,7 @@ async function test_create_shows_nano(dom) {
   const T = dom.window.TERMINAL;
   setupLoggedIn(dom);
   runCommand(dom, 'create');
-  await nextTick(); await wait(50);
+  await nextTick(); await wait(15);
   check(T.nanoOverlay !== null, 'create opens nano editor');
   if (T.nanoOverlay) { T.nanoOverlay.remove(); T.nanoOverlay = null; }
 }
@@ -314,7 +314,7 @@ async function test_cat_by_path(dom) {
   T.cwd = 'posts';
   dom.window.fetch.__mock('/api/v1/posts/5', { post: makePost(5, { text: 'Post content for cat test' }) });
   runCommand(dom, 'cat 5');
-  await nextTick(); await wait(50);
+  await nextTick(); await wait(15);
   hasOutput(dom, 'Post content for cat test', 'cat post shows content');
   hasOutput(dom, '#5', 'cat shows post id');
 }
@@ -324,7 +324,7 @@ async function test_cat_not_found(dom) {
   T.cwd = 'posts';
   dom.window.fetch.__mock('/api/v1/posts/999', { post: { is_deleted: true } });
   runCommand(dom, 'cat 999');
-  await nextTick(); await wait(50);
+  await nextTick(); await wait(15);
   hasOutput(dom, 'not found', 'cat unknown shows error');
 }
 
@@ -332,7 +332,7 @@ async function test_less(dom) {
   const T = dom.window.TERMINAL;
   T.feedData = [makePost(1), makePost(2), makePost(3)];
   runCommand(dom, 'less feed');
-  await nextTick(); await wait(50);
+  await nextTick(); await wait(15);
   check(T._lessActive === true, 'less opens pager');
   check(T._lessType === 'feed', 'less type is feed');
   T._exitLessMode();
@@ -342,7 +342,7 @@ async function test_less_by_number(dom) {
   const T = dom.window.TERMINAL;
   T.feedData = [makePost(42, { text: 'Less by number' })];
   runCommand(dom, 'less 42');
-  await nextTick(); await wait(50);
+  await nextTick(); await wait(15);
   check(T._lessActive === true, 'less by id opens pager');
   hasOutput(dom, '#42', 'less by id shows post');
   T._exitLessMode();
@@ -356,7 +356,7 @@ async function test_rm_post(dom) {
   dom.window.fetch.__mock('/delete/1', { ok: true });
 
   runCommand(dom, 'rm -f 1');
-  await nextTick(); await wait(50);
+  await nextTick(); await wait(15);
 
   hasOutput(dom, 'Post #1 permanently deleted', 'rm -f deletes post');
 }
@@ -367,7 +367,7 @@ async function test_rm_comment(dom) {
   dom.window.fetch.__mock('/comment/123', { ok: true });
 
   runCommand(dom, 'rm comment 123');
-  await nextTick(); await wait(50);
+  await nextTick(); await wait(15);
 
   hasOutput(dom, 'Comment #123 deleted', 'rm comment deletes comment');
 }
@@ -389,7 +389,7 @@ async function test_follow(dom) {
   dom.window.fetch.__mock('/follow/alice', { status: 'followed', followers_count: 42 });
 
   runCommand(dom, 'follow alice');
-  await nextTick(); await wait(50);
+  await nextTick(); await wait(15);
 
   hasOutput(dom, '@alice', 'follow shows result');
 }
@@ -408,7 +408,7 @@ async function test_follow_error(dom) {
   };
 
   runCommand(dom, 'follow nouser');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
 
   hasOutput(dom, 'not found', 'follow error shows message');
   dom.window.fetch = origFetch;
@@ -420,7 +420,7 @@ async function test_unfollow(dom) {
   dom.window.fetch.__mock('/follow/testuser2', { status: 'unfollowed', followers_count: 10 });
 
   runCommand(dom, 'unfollow testuser2');
-  await nextTick(); await wait(50);
+  await nextTick(); await wait(15);
 
   hasOutput(dom, 'followers', 'unfollow shows result');
 }
@@ -434,7 +434,7 @@ async function test_followers_inline(dom) {
   ]});
 
   runCommand(dom, 'followers --inline');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
 
   hasOutput(dom, 'fan1', 'followers inline shows fan1');
   hasOutput(dom, 'fan2', 'followers inline shows fan2');
@@ -449,7 +449,7 @@ async function test_following_inline(dom) {
   ]});
 
   runCommand(dom, 'following --inline');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
 
   hasOutput(dom, 'hero1', 'following inline shows hero1');
   hasOutput(dom, 'hero2', 'following inline shows hero2');
@@ -463,7 +463,7 @@ async function test_followers_less(dom) {
   ]});
 
   runCommand(dom, 'followers --less');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
 
   check(T._lessActive === true, 'followers --less opens pager');
   T._exitLessMode();
@@ -475,7 +475,7 @@ async function test_followers_empty(dom) {
   dom.window.fetch.__mockPrefix('/api/followers/', { users: [] });
 
   runCommand(dom, 'followers --inline');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
 
   hasOutput(dom, 'No followers', 'followers empty shows message');
 }
@@ -486,7 +486,7 @@ async function test_following_empty(dom) {
   dom.window.fetch.__mockPrefix('/api/following/', { users: [] });
 
   runCommand(dom, 'following --inline');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
 
   hasOutput(dom, 'Not following', 'following empty shows message');
 }
@@ -498,7 +498,7 @@ async function test_neofetch(dom) {
   ]});
 
   runCommand(dom, 'neofetch alice');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
 
   hasOutput(dom, 'User:', 'neofetch shows header');
   hasOutput(dom, '@alice', 'neofetch shows username');
@@ -509,7 +509,7 @@ async function test_neofetch_not_found(dom) {
   dom.window.fetch.__mock('/api/users/search?q=nobody', { users: [] });
 
   runCommand(dom, 'neofetch nobody');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
 
   hasOutput(dom, 'user not found', 'neofetch missing user shows error');
 }
@@ -533,7 +533,7 @@ async function test_feed_program(dom) {
   const T = dom.window.TERMINAL;
   T.feedData = [makePost(42, { text: 'Program view post' })];
   runCommand(dom, 'feed');
-  await nextTick(); await wait(50);
+  await nextTick(); await wait(15);
   check(T._lessActive === true, 'feed program opens less mode');
   hasOutput(dom, '#42', 'feed program shows #42');
   hasOutput(dom, 'Program view post', 'feed program shows text');
@@ -579,7 +579,7 @@ async function test_feed_empty(dom) {
   T.feedData = [];
   dom.window.fetch.__mockPrefix('/api/v1/posts', { posts: [] });
   runCommand(dom, 'feed --inline');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
   hasOutput(dom, 'no posts', 'feed empty shows message');
 }
 
@@ -592,7 +592,7 @@ async function test_saved(dom) {
   ]});
 
   runCommand(dom, 'saved --inline');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
 
   hasOutput(dom, '#10', 'saved shows #10');
   hasOutput(dom, 'Saved first', 'saved shows first text');
@@ -605,7 +605,7 @@ async function test_saved_empty(dom) {
   dom.window.fetch.__mock('/api/saved', { posts: [] });
 
   runCommand(dom, 'saved --inline');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
 
   hasOutput(dom, 'No saved', 'saved empty shows message');
 }
@@ -619,7 +619,7 @@ async function test_saved_search(dom) {
   ]});
 
   runCommand(dom, 'saved --inline --search Cats');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
 
   hasOutput(dom, 'Cats', 'saved search shows match');
   notOutput(dom, 'Dogs', 'saved search hides non-match');
@@ -634,7 +634,7 @@ async function test_notifications(dom) {
   ]});
 
   runCommand(dom, 'notifications --inline --unread');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
 
   hasOutput(dom, 'alice', 'notifications shows alice');
   notOutput(dom, 'bob', 'notifications unread hides bob');
@@ -646,7 +646,7 @@ async function test_notifications_empty(dom) {
   dom.window.fetch.__mock('/api/notifications', { notifications: [] });
 
   runCommand(dom, 'notifications --inline');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
 
   hasOutput(dom, 'No notifications', 'notifications empty shows message');
 }
@@ -1038,7 +1038,7 @@ async function test_watch_stop(dom) {
 
 async function test_ping_local(dom) {
   runCommand(dom, 'ping');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
   hasOutput(dom, 'PING 127.0.0.1', 'ping localhost shows header');
   hasOutput(dom, 'icmp_seq=1', 'ping localhost shows seq starting at 1');
   hasOutput(dom, '56(84) bytes of data', 'ping shows unix-style header');
@@ -1049,14 +1049,14 @@ async function test_ping_user(dom) {
     { username: 'alice', is_online: true },
   ]});
   runCommand(dom, 'ping alice');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
   hasOutput(dom, 'PING @alice', 'ping user shows header');
 }
 
 async function test_ping_unreachable(dom) {
   dom.window.fetch.__mock('/api/users/search?q=ghost', { users: [] });
   runCommand(dom, 'ping ghost');
-  await nextTick(); await wait(600);
+  await nextTick(); await wait(500);
   hasOutput(dom, 'packet loss', 'ping unreachable shows loss');
 }
 
@@ -1166,7 +1166,7 @@ async function test_less_feed(dom) {
   const T = dom.window.TERMINAL;
   T.feedData = [makePost(1), makePost(2), makePost(3)];
   runCommand(dom, 'less feed');
-  await nextTick(); await wait(50);
+  await nextTick(); await wait(15);
   check(T._lessActive === true, 'less feed activates');
   check(T._lessType === 'feed', 'less feed type');
   T._exitLessMode();
@@ -1400,7 +1400,7 @@ async function test_feed_less(dom) {
   const T = dom.window.TERMINAL;
   T.feedData = [makePost(1), makePost(2)];
   runCommand(dom, 'feed --less');
-  await nextTick(); await wait(50);
+  await nextTick(); await wait(15);
   hasOutput(dom, 'Feed', 'feed --less shows feed title');
   hasOutput(dom, '2 items', 'feed --less shows count');
 }
@@ -1410,7 +1410,7 @@ async function test_saved_inline(dom) {
   setupLoggedIn(dom);
   dom.window.fetch.__mock('/api/saved', { posts: [makePost(10, { text: 'inline saved post' })] });
   runCommand(dom, 'saved --inline');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
   hasOutput(dom, '10', 'saved --inline shows post id');
   hasOutput(dom, 'inline saved', 'saved --inline shows text');
 }
@@ -1441,7 +1441,7 @@ async function test_sudo_repeat_after_cmd(dom) {
   T.username = 'testuser';
   T.feedData = [makePost(1)];
   runCommand(dom, 'echo hello');
-  await nextTick(); await wait(50);
+  await nextTick(); await wait(15);
   T.clearOutput();
   T.isLoggedIn = false; // to not get auth error for any command
   runCommand(dom, 'sudo !!');
@@ -1450,7 +1450,7 @@ async function test_sudo_repeat_after_cmd(dom) {
 
 async function test_ping_numeric(dom) {
   runCommand(dom, 'ping 127.0.0.1');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
   hasOutput(dom, 'PING', 'ping numeric IP shows PING');
 }
 
@@ -1474,7 +1474,7 @@ async function test_followers_inline_of(dom) {
     { username: 'fan2', is_online: false },
   ]});
   runCommand(dom, 'followers --inline --of @alice');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
   hasOutput(dom, 'fan1', 'followers --of shows user');
   hasOutput(dom, 'fan2', 'followers --of shows second user');
 }
@@ -1484,14 +1484,14 @@ async function test_following_inline_of(dom) {
     { username: 'hero1', is_online: true },
   ]});
   runCommand(dom, 'following --inline --of @bob');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
   hasOutput(dom, 'hero1', 'following --of shows user');
 }
 
 async function test_followers_empty_of(dom) {
   dom.window.fetch.__mockPrefix('/api/followers/', { users: [] });
   runCommand(dom, 'followers --inline --of @nobody');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
   hasOutput(dom, 'No followers', 'followers empty --of shows msg');
 }
 
@@ -1502,7 +1502,7 @@ async function test_notifications_inline(dom) {
       is_read: false, created_date: '2026-06-03T12:00:00' },
   ]});
   runCommand(dom, 'notifications --inline');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
   hasOutput(dom, 'alice', 'notifications --inline shows actor');
   hasOutput(dom, 'liked', 'notifications --inline shows type');
 }
@@ -1516,7 +1516,7 @@ async function test_notifications_inline_unread(dom) {
       is_read: true, created_date: '2026-06-03T11:00:00' },
   ]});
   runCommand(dom, 'notifications --inline --unread');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
   hasOutput(dom, 'bob', 'unread shows bob');
   notOutput(dom, 'carol', 'unread filters out read');
 }
@@ -1527,7 +1527,7 @@ async function test_head_fetched(dom) {
   // Mock returns posts so fetchFeedFromAPI breaks the recursion
   dom.window.fetch.__mockPrefix('/api/v1/posts', { posts: [makePost(1), makePost(2)] });
   runCommand(dom, 'head');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
   hasOutput(dom, '#1', 'head fetches and shows posts');
 }
 
@@ -1536,7 +1536,7 @@ async function test_tail_fetched(dom) {
   T.feedData = [];
   dom.window.fetch.__mockPrefix('/api/v1/posts', { posts: [makePost(1), makePost(2)] });
   runCommand(dom, 'tail');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
   hasOutput(dom, '#2', 'tail fetches and shows last posts');
 }
 
@@ -1546,7 +1546,7 @@ async function test_grep_empty_feed(dom) {
   // Mock returns SOME posts so fetchFeedFromAPI doesn't recurse infinitely
   dom.window.fetch.__mockPrefix('/api/v1/posts', { posts: [makePost(1, { text: 'hello world' })] });
   runCommand(dom, 'grep "hello"');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
   hasOutput(dom, '#1', 'grep fetches and finds match');
 }
 
@@ -1569,7 +1569,7 @@ async function test_nano_edit_file(dom) {
   const T = dom.window.TERMINAL;
   setupLoggedIn(dom);
   runCommand(dom, 'nano posts/1.post');
-  await nextTick(); await wait(50);
+  await nextTick(); await wait(15);
   // Should resolve VFS path and open editor — just check no error
   check(T.nanoOverlay !== null || outputHTML(dom).includes('No such file') === false,
     'nano path resolves without error');
@@ -1585,7 +1585,7 @@ async function test_chat_list(dom) {
       last_message_time: '2026-06-03T10:00:00Z', last_message: 'hi', unread_count: 0 },
   ]});
   runCommand(dom, 'chat');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
   const txt = outputText(dom);
   const ok = txt.includes('alice');
   check(ok, 'chat list shows conversations');
@@ -1597,7 +1597,7 @@ async function test_write_message(dom) {
   dom.window.fetch.__mockPrefix('/chat/start/', { chat_id: 5 });
   dom.window.fetch.__mock('/chat/5/send', { ok: true });
   runCommand(dom, 'write @alice hello!');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
   hasOutput(dom, 'alice', 'write sends to user');
 }
 
@@ -1607,7 +1607,7 @@ async function test_start_valid(dom) {
   dom.window.fetch.__mock('/chat/start/bob', { chat_id: 5 });
   dom.window.fetch.__mockPrefix('/chat/5/messages', { messages: [], other_user: { username: 'bob' } });
   runCommand(dom, 'start @bob');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
   // start → startChatWithUser → loadChatMessages which clears output and shows chat
   const txt = outputText(dom);
   check(txt.includes('bob'), 'start shows chat with bob');
@@ -1622,7 +1622,7 @@ async function test_watch_with_interval(dom) {
   const T = dom.window.TERMINAL;
   T.feedData = [makePost(1)];
   runCommand(dom, 'watch -n 1 echo interval_test');
-  await nextTick(); await wait(50);
+  await nextTick(); await wait(15);
   hasOutput(dom, 'watch:', 'watch -n shows banner');
   hasOutput(dom, 'interval_test', 'watch -n runs command');
   if (T.watchInterval) { clearInterval(T.watchInterval); T.watchInterval = null; }
@@ -1647,7 +1647,7 @@ async function test_saved_less(dom) {
   setupLoggedIn(dom);
   dom.window.fetch.__mock('/api/saved', { posts: [makePost(10)] });
   runCommand(dom, 'saved --less');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
   check(T._lessActive === true, 'saved --less opens pager');
   check(T._lessTitle.indexOf('Saved') >= 0, 'saved --less shows Saved title');
   if (T._lessActive) { T._exitLessMode(); T.exitProgramView(); }
@@ -1658,7 +1658,7 @@ async function test_saved_tail(dom) {
   setupLoggedIn(dom);
   dom.window.fetch.__mock('/api/saved', { posts: [makePost(1), makePost(2), makePost(3)] });
   runCommand(dom, 'saved --tail 1');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
   hasOutput(dom, '#3', 'saved --tail 1 shows last post');
   check(outputHTML(dom).indexOf('#1') < 0 && outputHTML(dom).indexOf('#2') < 0,
     'saved --tail 1 hides earlier posts');
@@ -1674,7 +1674,7 @@ async function test_notifications_less(dom) {
     ]
   });
   runCommand(dom, 'notifications --less');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
   check(T._lessActive === true, 'notifications --less opens pager');
   check(T._lessTitle.indexOf('Notifications') >= 0, 'notifications --less shows Notifications title');
   if (T._lessActive) { T._exitLessMode(); T.exitProgramView(); }
@@ -1694,7 +1694,7 @@ async function test_notifications_tail(dom) {
     ]
   });
   runCommand(dom, 'notifications --tail 2');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
   hasOutput(dom, '@b', 'notifications --tail 2 shows second item');
   hasOutput(dom, '@c', 'notifications --tail 2 shows third item');
   check(outputHTML(dom).indexOf('@a') < 0, 'notifications --tail 2 hides first item');
@@ -1708,7 +1708,7 @@ async function test_following_less(dom) {
     { username: 'bob', is_online: false },
   ]});
   runCommand(dom, 'following --less');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
   check(T._lessActive === true, 'following --less opens pager');
   check(T._lessTitle.indexOf('Following') >= 0, 'following --less shows Following title');
   if (T._lessActive) { T._exitLessMode(); T.exitProgramView(); }
@@ -1720,7 +1720,7 @@ async function test_feed_page(dom) {
   for (let i = 1; i <= 12; i++) T.feedData.push(makePost(i, { text: 'post ' + i }));
   T.isLoggedIn = true;
   runCommand(dom, 'feed --inline --page 1');
-  await nextTick(); await wait(50);
+  await nextTick(); await wait(15);
   hasOutput(dom, '#1', 'feed --page 1 shows first post');
   hasOutput(dom, '#10', 'feed --page 1 shows tenth post');
   check(outputHTML(dom).indexOf('#11') < 0, 'feed --page 1 hides 11th post');
@@ -1745,7 +1745,7 @@ async function test_say_in_chat(dom) {
   T.cwd = 'chat/5';
   dom.window.fetch.__mock('/chat/5/send', { ok: true });
   runCommand(dom, 'say hello from terminal');
-  await nextTick(); await wait(100);
+  await nextTick(); await wait(30);
   hasOutput(dom, 'hello from terminal', 'say in chat shows message text');
   hasOutput(dom, 'me now', 'say shows timestamp');
 }
@@ -1772,7 +1772,7 @@ async function test_rm_trash(dom) {
   T.cwd = 'posts';
   T.feedData = [makePost(1, { author: 'testuser' })];
   runCommand(dom, 'rm 1');
-  await nextTick(); await wait(50);
+  await nextTick(); await wait(15);
   hasOutput(dom, 'moved to trash', 'rm 1 moves own post to trash');
   hasOutput(dom, 'Restore', 'rm shows restore hint');
 }
@@ -1784,7 +1784,7 @@ async function test_rm_other_post(dom) {
   T.cwd = 'posts';
   T.feedData = [makePost(1, { author: 'otheruser' })];
   runCommand(dom, 'rm 1');
-  await nextTick(); await wait(50);
+  await nextTick(); await wait(15);
   hasOutput(dom, 'cannot delete', 'rm other user post shows permission error');
 }
 
@@ -2295,6 +2295,7 @@ async function run() {
     process.exit(1);
   }
   console.log('  All passed!');
+  process.exit(0);
 }
 
 run().catch(e => { console.error('FATAL:', e); process.exit(1); });
