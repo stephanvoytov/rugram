@@ -41,6 +41,8 @@
 .msg-img-overlay .read-status.other { color:var(--subtle); }
 .msg-caption { display:block; padding:8px 12px 4px; width:100%; }
 .msg-bubble-img { padding:0 !important; overflow:hidden; }
+.msg-bubble:hover .msg-actions-btn { opacity:1 !important; }
+.msg-actions-menu button:hover { background:var(--overlay) !important; }
 </style>
 {% endblock %}
 
@@ -379,48 +381,161 @@ function createDateDivider(text) {
 function createMessageElement(message) {
     const div = document.createElement('div');
     const isOwn = message.author.id === currentUser;
+    const isDeleted = message.is_deleted;
     div.className = 'message-item ' + (isOwn ? 'own' : 'other');
     div.dataset.messageId = message.id;
     div.dataset.messageDate = message.created_date;
     const time = formatTime(message.created_date);
+    const editedLabel = message.edited_at ? ' <span style="font-size:0.6rem;opacity:0.6">(edited)</span>' : '';
 
-    // Read status icon
-    const readIcon = isOwn ? (message.is_read
-        ? '<span style="color:var(--accent);font-size:0.6rem">✓✓</span>'
-        : '<span style="color:var(--subtle);font-size:0.6rem">✓</span>')
+    // ── Deleted message placeholder ──
+    if (isDeleted) {
+        div.innerHTML = '<div class="msg-bubble ' + (isOwn ? 'own' : 'other') + '" style="opacity:0.4;font-style:italic;font-size:0.85rem;padding:8px 14px">'
+            + '<span>message deleted</span>'
+            + '</div>';
+        return div;
+    }
+
+    // ── Actions menu (own messages only) ──
+    const actionsBtn = isOwn
+        ? '<button class="msg-actions-btn" data-msg-id="' + message.id + '" onclick="toggleMsgMenu(event, ' + message.id + ')" style="background:none;border:none;color:var(--subtle);cursor:pointer;font-size:1rem;line-height:1;padding:0 4px;opacity:0;transition:opacity 0.15s">⋮</button>'
+        : '';
+    const actionsMenu = isOwn
+        ? '<div class="msg-actions-menu" id="msgMenu-' + message.id + '" style="display:none;position:absolute;top:100%;right:0;background:var(--surface);border:1px solid var(--border);border-radius:6px;z-index:100;min-width:100px;box-shadow:0 4px 12px rgba(0,0,0,0.2)">'
+            + '<button onclick="editMessage(' + message.id + ')" style="display:block;width:100%;background:none;border:none;padding:6px 12px;text-align:left;cursor:pointer;color:var(--fg);font-size:0.85rem">Edit</button>'
+            + '<button onclick="deleteMessage(' + message.id + ')" style="display:block;width:100%;background:none;border:none;padding:6px 12px;text-align:left;cursor:pointer;color:var(--red);font-size:0.85rem">Delete</button>'
+            + '</div>'
         : '';
 
-    // Image message: overlay time+status on image, caption below
+    // ── Image message ──
     if (message.image_url) {
+        const img = '<img src="' + message.image_url + '" alt="chat image" class="chat-img post-img-clickable" data-full-img="' + message.image_url + '">';
         const overlay = '<div class="msg-img-overlay">'
-            + '<time>' + time + '</time>'
+            + '<time>' + time + editedLabel + '</time>'
             + (isOwn ? '<span class="read-status own">' + (message.is_read ? '✓✓' : '✓') + '</span>' : '')
             + '</div>';
-        const img = '<img src="' + message.image_url + '" alt="chat image" class="chat-img post-img-clickable" data-full-img="' + message.image_url + '">';
         const caption = message.text
             ? '<span class="msg-caption">' + escapeHtml(message.text) + '</span>'
             : '';
-        div.innerHTML = '<div class="msg-bubble ' + (isOwn ? 'own' : 'other') + ' msg-bubble-img">'
+        div.innerHTML = '<div class="msg-bubble ' + (isOwn ? 'own' : 'other') + ' msg-bubble-img" style="position:relative">'
+            + actionsBtn + actionsMenu
             + '<div class="msg-img-wrap">' + img + overlay + '</div>'
             + caption
             + '</div>';
         return div;
     }
 
-    // Text-only message
-    const readIconHtml = isOwn
-        ? '<span class="read-status ' + (isOwn ? 'own' : 'other') + '">'
-            + (message.is_read ? '✓✓' : '✓')
-            + '</span>'
-        : '';
-    div.innerHTML = '<div class="msg-bubble ' + (isOwn ? 'own' : 'other') + '">'
-        + '<span>' + escapeHtml(message.text) + '</span>'
+    // ── Text-only message ──
+    div.innerHTML = '<div class="msg-bubble ' + (isOwn ? 'own' : 'other') + '" style="position:relative">'
+        + actionsBtn + actionsMenu
+        + '<span id="msgText-' + message.id + '">' + escapeHtml(message.text) + editedLabel + '</span>'
         + '<div style="display:flex;align-items:center;gap:2px;flex-shrink:0;align-self:flex-end">'
         + '<small style="opacity:0.6;font-size:0.65rem;white-space:nowrap">' + time + '</small>'
-        + readIconHtml
+        + (isOwn ? '<span style="' + (message.is_read ? 'color:var(--accent)' : 'color:var(--subtle)') + ';font-size:0.6rem">' + (message.is_read ? '✓✓' : '✓') + '</span>' : '')
         + '</div>'
         + '</div>';
     return div;
+}
+
+// ── Message actions: menu toggle, edit, delete ──
+let activeMsgMenu = null;
+
+function toggleMsgMenu(e, msgId) {
+    e.stopPropagation();
+    const menu = document.getElementById('msgMenu-' + msgId);
+    if (!menu) return;
+    const isOpen = menu.style.display === 'block';
+    // Close any open menu
+    if (activeMsgMenu && activeMsgMenu !== menu) {
+        activeMsgMenu.style.display = 'none';
+    }
+    menu.style.display = isOpen ? 'none' : 'block';
+    activeMsgMenu = isOpen ? null : menu;
+}
+
+// Close menu on outside click
+document.addEventListener('click', function() {
+    if (activeMsgMenu) {
+        activeMsgMenu.style.display = 'none';
+        activeMsgMenu = null;
+    }
+});
+
+function editMessage(msgId) {
+    // Close menu
+    if (activeMsgMenu) { activeMsgMenu.style.display = 'none'; activeMsgMenu = null; }
+    const span = document.getElementById('msgText-' + msgId);
+    if (!span) return;
+    const currentText = span.textContent.replace(/\(edited\)\s*$/, '').trim();
+    const bubble = span.closest('.msg-bubble');
+    // Replace span with input
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = currentText;
+    input.className = 'chat-input';
+    input.style.cssText = 'flex:1;min-width:60px;font-size:0.95rem';
+    input.dataset.msgId = msgId;
+    span.replaceWith(input);
+    input.focus();
+    input.select();
+
+    // Save on Enter
+    input.addEventListener('keydown', function(ev) {
+        if (ev.key === 'Enter') { saveEdit(ev); }
+        if (ev.key === 'Escape') { cancelEdit(ev); }
+    });
+    // Save on blur (with small delay to allow click on other elements)
+    input.addEventListener('blur', function(ev) {
+        setTimeout(function() { saveEdit(ev); }, 200);
+    });
+}
+
+function cancelEdit(e) {
+    const input = e.target;
+    const msgId = input.dataset.msgId;
+    // Restore original text by reloading messages
+    loadMessages();
+}
+
+function saveEdit(e) {
+    const input = e.target;
+    const msgId = input.dataset.msgId;
+    const text = input.value.trim();
+    if (!text || !currentChatId) return;
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+    const url = '{{ url_for('main.chat_edit_message', chat_id=0, message_id=0) }}';
+    const finalUrl = url.replace('/0/', '/' + currentChatId + '/').replace('/0/', '/' + msgId + '/');
+    fetch(finalUrl, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+        body: JSON.stringify({ text: text })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.message) { loadMessages(); }
+    })
+    .catch(function() { loadMessages(); });
+}
+
+function deleteMessage(msgId) {
+    if (!confirm('Delete this message?')) {
+        if (activeMsgMenu) { activeMsgMenu.style.display = 'none'; activeMsgMenu = null; }
+        return;
+    }
+    if (activeMsgMenu) { activeMsgMenu.style.display = 'none'; activeMsgMenu = null; }
+    if (!currentChatId) return;
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+    const url = '{{ url_for('main.chat_delete_message', chat_id=0, message_id=0) }}';
+    const finalUrl = url.replace('/0/', '/' + currentChatId + '/').replace('/0/', '/' + msgId + '/');
+    fetch(finalUrl, {
+        method: 'DELETE',
+        headers: { 'X-CSRFToken': csrfToken }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.status === 'deleted') { loadMessages(); }
+    })
+    .catch(function() { loadMessages(); });
 }
 
 async function sendMessage(e) {

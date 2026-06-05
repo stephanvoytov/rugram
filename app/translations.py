@@ -301,6 +301,7 @@ RU: dict[str, str] = {
     # ── Chat image support ──
     'Failed to process image': 'Не удалось обработать изображение',
     'Invalid file type':       'Недопустимый тип файла',
+    'Invalid request':         'Недопустимый запрос',
     'Message cannot be empty': 'Сообщение не может быть пустым',
 }
 
