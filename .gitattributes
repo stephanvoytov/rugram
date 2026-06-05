@@ -1,0 +1,27 @@
+* text=auto
+
+# Explicitly mark these as text (normalize to LF in repo)
+*.py    text diff=python
+*.js    text
+*.css   text
+*.html  text
+*.json  text
+*.yml   text
+*.yaml  text
+*.md    text
+*.sh    text eol=lf
+*.bat   text eol=crlf
+*.ps1   text eol=crlf
+Dockerfile text
+
+# Binary files — never touch
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.woff2 binary
+*.woff  binary
+*.ttf   binary
+*.eot   binary
+*.svg   text
