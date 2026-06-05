@@ -930,6 +930,7 @@ def settings() -> Response:
 
     # Pre-populate form with current user data
     form.new_username.data = current_user.username
+    form.new_email.data = current_user.email
     form.language.data = session.get('lang', 'en')
     form.notifications_enabled.data = current_user.notifications_enabled
     form.notify_on_like.data = current_user.notify_on_like
@@ -1020,7 +1021,7 @@ def settings() -> Response:
                 flash(_('Account deleted'), 'success')
                 return redirect(url_for('auth.login'))
 
-            return redirect(url_for('main.settings'))
+            return redirect(url_for('main.settings', saved='1'))
 
         except Exception:
             db.session.rollback()

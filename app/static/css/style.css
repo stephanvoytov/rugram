@@ -432,6 +432,68 @@ code, .inline-code {
 .danger-zone h5 { color: var(--red); }
 .settings-help { font-size: 0.72rem; color: var(--subtle); margin-top: 4px; }
 
+/* Settings tabs */
+.settings-tabs {
+    display: flex;
+    border-bottom: 2px solid var(--border);
+    background: var(--surface);
+    font-family: var(--font);
+    font-size: 0.88rem;
+    user-select: none;
+}
+.st-tab {
+    flex: 1;
+    padding: 10px 8px;
+    background: none;
+    border: none;
+    color: var(--subtle);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: inherit;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+    position: relative;
+}
+.st-tab:hover {
+    color: var(--fg);
+    background: rgba(128,128,128,0.05);
+}
+.st-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    background: rgba(128,128,128,0.08);
+}
+
+/* Settings panels */
+.st-panel {
+    border-left: 2px solid transparent;
+    padding-left: 4px;
+    transition: border-color 0.2s;
+}
+
+/* Button selectors (theme, font-size) */
+.theme-btn, .fs-btn {
+    flex: 1;
+    padding: 10px;
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    color: var(--fg);
+    font-family: var(--font);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.theme-btn:hover, .fs-btn:hover {
+    border-color: var(--subtle);
+    background: rgba(128,128,128,0.05);
+}
+.theme-btn.selected, .fs-btn.selected {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
 /* ── Utility ── */
 .object-fit-cover { object-fit: cover; }
 .mt-5 { margin-top: 1.5rem !important; }
