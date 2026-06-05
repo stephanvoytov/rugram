@@ -18,12 +18,21 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _column_exists(table: str, column: str) -> bool:
+    """Check if a column exists in the table (SQLite)."""
+    conn = op.get_bind()
+    rows = conn.execute(sa.text(f'PRAGMA table_info({table})')).fetchall()
+    return any(row[1] == column for row in rows)
+
+
 def upgrade() -> None:
+    """Add notify_on_* columns to users (idempotent)."""
     for col in ('notify_on_like', 'notify_on_comment', 'notify_on_follow', 'notify_on_message'):
-        op.add_column('users', sa.Column(col, sa.Boolean(), nullable=True))
-        op.execute(f'UPDATE users SET {col} = 1 WHERE {col} IS NULL')
-        with op.batch_alter_table('users') as batch_op:
-            batch_op.alter_column(col, nullable=False)
+        if not _column_exists('users', col):
+            op.add_column('users', sa.Column(col, sa.Boolean(), nullable=True))
+            op.execute(f'UPDATE users SET {col} = 1 WHERE {col} IS NULL')
+            with op.batch_alter_table('users') as batch_op:
+                batch_op.alter_column(col, nullable=False)
 
 
 def downgrade() -> None:

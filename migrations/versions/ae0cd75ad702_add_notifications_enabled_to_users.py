@@ -17,11 +17,20 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _column_exists(table: str, column: str) -> bool:
+    """Check if a column exists in the table (SQLite)."""
+    conn = op.get_bind()
+    rows = conn.execute(sa.text(f'PRAGMA table_info({table})')).fetchall()
+    return any(row[1] == column for row in rows)
+
+
 def upgrade() -> None:
-    op.add_column('users', sa.Column('notifications_enabled', sa.Boolean(), nullable=True))
-    op.execute('UPDATE users SET notifications_enabled = 1 WHERE notifications_enabled IS NULL')
-    with op.batch_alter_table('users') as batch_op:
-        batch_op.alter_column('notifications_enabled', nullable=False)
+    """Add notifications_enabled to users (idempotent)."""
+    if not _column_exists('users', 'notifications_enabled'):
+        op.add_column('users', sa.Column('notifications_enabled', sa.Boolean(), nullable=True))
+        op.execute('UPDATE users SET notifications_enabled = 1 WHERE notifications_enabled IS NULL')
+        with op.batch_alter_table('users') as batch_op:
+            batch_op.alter_column('notifications_enabled', nullable=False)
 
 
 def downgrade() -> None:
