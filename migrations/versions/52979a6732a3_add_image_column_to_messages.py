@@ -18,16 +18,25 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _column_exists(table: str, column: str) -> bool:
+    """Check if a column exists in the table (SQLite)."""
+    conn = op.get_bind()
+    rows = conn.execute(sa.text(f'PRAGMA table_info({table})')).fetchall()
+    return any(row[1] == column for row in rows)
+
+
 def upgrade() -> None:
-    """Add image column to messages table."""
-    op.add_column('messages', sa.Column('image', sa.String(), nullable=True))
+    """Add image column to messages table (idempotent)."""
+    if not _column_exists('messages', 'image'):
+        op.add_column('messages', sa.Column('image', sa.String(), nullable=True))
+
+    # text became nullable in this migration
     op.alter_column('messages', 'text',
                     existing_type=sa.String(),
-                    nullable=True)  # text became nullable in this migration
+                    nullable=True)
 
 
 def downgrade() -> None:
-    """Remove image column from messages table."""
     op.alter_column('messages', 'text',
                     existing_type=sa.String(),
                     nullable=False)
