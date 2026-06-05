@@ -100,13 +100,31 @@ def get_vapid_claims():
     return current_app.config.get('VAPID_CLAIMS', {'sub': 'mailto:admin@rugram.app'})
 
 
-def send_push_to_user(user_id, title, body, url='/', tag=None, chat_id=None, notification_id=None):
-    """Отправить push-уведомление всем подпискам пользователя."""
-    # Проверяем, включены ли уведомления у пользователя
+def send_push_to_user(user_id, title, body, url='/', tag=None, chat_id=None, notification_id=None, category=None):
+    """Отправить push-уведомление всем подпискам пользователя.
+
+    Args:
+        category: Notification subtype ('like', 'comment', 'follow', 'message', or None).
+                  If set, the user's notify_on_<category> flag is checked.
+    """
     user = User.query.get(user_id)
-    if user and not user.notifications_enabled:
+    if not user:
+        return False
+    if not user.notifications_enabled:
         logger.debug(f'Push notifications disabled for user {user_id}')
         return False
+    # Per-type check
+    if category:
+        flag_map = {
+            'like':    user.notify_on_like,
+            'comment': user.notify_on_comment,
+            'follow':  user.notify_on_follow,
+            'message': user.notify_on_message,
+        }
+        flag = flag_map.get(category, True)
+        if not flag:
+            logger.debug(f'Push category "{category}" disabled for user {user_id}')
+            return False
 
     subscriptions = PushSubscription.query.filter_by(user_id=user_id).all()
     if not subscriptions:
@@ -172,6 +190,7 @@ def send_message_push(chat_id, recipient_id, sender_username, message_preview):
         url=url,
         tag=f'chat-{chat_id}',
         chat_id=chat_id,
+        category='message',
     )
 
 
@@ -192,4 +211,5 @@ def send_notification_push(user_id, actor_username, notification_type, post_id=N
         body=body,
         url=url,
         tag=f'notification-{notification_type}',
+        category=notification_type,
     )

@@ -42,6 +42,10 @@ class User(db.Model, UserMixin, SerializerMixin):
     description: Mapped[str] = mapped_column(nullable=True)
     last_seen: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=True)
     notifications_enabled: Mapped[bool] = mapped_column(default=True)
+    notify_on_like: Mapped[bool] = mapped_column(default=True)
+    notify_on_comment: Mapped[bool] = mapped_column(default=True)
+    notify_on_follow: Mapped[bool] = mapped_column(default=True)
+    notify_on_message: Mapped[bool] = mapped_column(default=True)
     is_admin: Mapped[bool] = mapped_column(default=False)
     is_moderator: Mapped[bool] = mapped_column(default=False)
 

@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="{{ 'ru' if current_lang == 'ru' else 'en' }}">
 <head>
+    <script>/* Anti-FOUC: apply theme before render */
+    (function(){var t=localStorage.getItem('gui_theme')||'dark';document.documentElement.setAttribute('data-bs-theme',t);var f=localStorage.getItem('gui_font_size')||'14px';document.documentElement.style.setProperty('--tp-font-size',f);})();
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="{% block meta_description %}Rugram — a minimalist social platform. Share posts, follow friends, chat.{% endblock %}">
@@ -257,6 +260,7 @@
 <script defer src="{{ url_for('static', filename='js/terminal-help.js') }}?v={{ static_version }}"></script>
 <script defer src="{{ url_for('static', filename='js/terminal-navigation.js') }}?v={{ static_version }}"></script>
 <script defer src="{{ url_for('static', filename='js/terminal-commands.js') }}?v={{ static_version }}"></script>
+<script defer src="{{ url_for('static', filename='js/gui-theme.js') }}?v={{ static_version }}"></script>
 <script defer src="{{ url_for('static', filename='js/main.js') }}?v={{ static_version }}"></script>
 <script defer src="{{ url_for('static', filename='js/gui-ascii.js') }}?v={{ static_version }}"></script>
 <script>

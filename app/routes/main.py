@@ -2,7 +2,7 @@ import os
 import logging
 from datetime import datetime
 
-from flask import render_template, flash, redirect, url_for, Blueprint, request, jsonify, abort, current_app, Response, send_from_directory
+from flask import render_template, flash, redirect, url_for, Blueprint, request, jsonify, abort, current_app, Response, send_from_directory, session
 from flask_login import login_required, current_user, logout_user
 from sqlalchemy.orm import joinedload, load_only
 
@@ -930,7 +930,12 @@ def settings() -> Response:
 
     # Pre-populate form with current user data
     form.new_username.data = current_user.username
+    form.language.data = session.get('lang', 'en')
     form.notifications_enabled.data = current_user.notifications_enabled
+    form.notify_on_like.data = current_user.notify_on_like
+    form.notify_on_comment.data = current_user.notify_on_comment
+    form.notify_on_follow.data = current_user.notify_on_follow
+    form.notify_on_message.data = current_user.notify_on_message
 
     if form.validate_on_submit():
         try:
@@ -964,6 +969,11 @@ def settings() -> Response:
                 current_user.set_password(form.new_password.data)
                 flash(_('Password changed'), 'success')
 
+            # Обновление языка
+            lang = form.language.data
+            if lang in ('en', 'ru'):
+                session['lang'] = lang
+
             # Обновление настроек уведомлений
             new_value = form.notifications_enabled.data
             old_value = current_user.notifications_enabled
@@ -976,6 +986,12 @@ def settings() -> Response:
                     # Отключаем уведомления — удаляем все push-подписки пользователя
                     PushSubscription.query.filter_by(user_id=current_user.id).delete()
                     flash(_('Notifications disabled'), 'info')
+
+            # Обновление типов уведомлений
+            current_user.notify_on_like = form.notify_on_like.data
+            current_user.notify_on_comment = form.notify_on_comment.data
+            current_user.notify_on_follow = form.notify_on_follow.data
+            current_user.notify_on_message = form.notify_on_message.data
 
             db.session.commit()
 
