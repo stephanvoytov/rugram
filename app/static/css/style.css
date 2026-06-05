@@ -91,6 +91,7 @@ a:hover { color: var(--blue); }
     color: var(--subtext); cursor: pointer; padding: 4px 10px; transition: all 0.15s;
     background: none; border: none; font-family: var(--font); font-size: 0.85rem;
     border-radius: 4px;
+    text-decoration: none;
 }
 .status-item:hover { color: var(--text); background: var(--surface2); }
 .status-item.active { color: var(--accent); background: var(--surface2); }
@@ -601,6 +602,7 @@ code, .inline-code {
     padding: 6px 14px;
     border-radius: 6px;
     position: relative;
+    text-decoration: none;
 }
 .term-toggle-btn:hover {
     background: color-mix(in srgb, var(--accent) 12%, transparent);
