@@ -624,7 +624,7 @@ def chat_send(chat_id: int) -> Response:
     if not text and not image_filename:
         return jsonify({'error': _('Message cannot be empty')}), 400
 
-    encrypted_text = encrypt(text) if text else None
+    encrypted_text = encrypt(text) if text else ''
 
     new_message = Message(
         chat_id=chat_id,
