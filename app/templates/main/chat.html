@@ -436,8 +436,19 @@ let ctxMenu = null;
 function showContextMenu(e, msgId) {
     e.preventDefault();
     hideContextMenu();
-    const item = e.target.closest('.message-item.own');
+    var item = e.target.closest('.message-item.own');
     if (!item) return;
+    // Get text content for Copy
+    var msgText = '';
+    var textSpan = document.getElementById('msgText-' + msgId);
+    if (textSpan) {
+        msgText = textSpan.textContent.replace(/\(edited\)\s*$/, '').trim();
+    } else {
+        // Image message — get caption text
+        var caption = item.querySelector('.msg-caption');
+        if (caption) msgText = caption.textContent.trim();
+    }
+
     // Get message bubble position for Telegram-style anchor
     var bubble = item.querySelector('.msg-bubble');
     if (!bubble) return;
@@ -447,20 +458,33 @@ function showContextMenu(e, msgId) {
     var menu = document.createElement('div');
     menu.className = 'ctx-menu';
     menu.style.cssText = 'position:fixed;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.3)';
-    menu.innerHTML = '<div class="ctx-item" data-action="edit" data-msg-id="' + msgId + '">[Edit]</div>'
-        + '<div class="ctx-item ctx-danger" data-action="delete" data-msg-id="' + msgId + '">[Delete]</div>';
+
+    // Build items with direct onclick handlers
+    var items = [];
+    if (msgText) items.push({ label: '[Copy]', cls: '', fn: function() { copyMsgText(msgText); } });
+    items.push({ label: '[Edit]', cls: '', fn: function() { editMessage(msgId); } });
+    items.push({ label: '[Delete]', cls: 'ctx-danger', fn: function() { deleteMessage(msgId); } });
+
+    menu.innerHTML = items.map(function(it) {
+        return '<div class="ctx-item' + (it.cls ? ' ' + it.cls : '') + '">' + it.label + '</div>';
+    }).join('');
+
+    // Attach click handlers directly
+    var divs = menu.children;
+    for (var i = 0; i < items.length; i++) {
+        divs[i].onclick = items[i].fn;
+    }
 
     // Position anchored to right edge of bubble (Telegram-style)
     var left = rect.right + MARGIN;
     var top = rect.top;
-    var menuW = 130;
-    var menuH = 68;
+    var menuW = 110;
+    var menuH = items.length * 32 + 2;
 
     // If menu would overflow right edge, flip to left side of bubble
     if (left + menuW > window.innerWidth - MARGIN) {
         left = rect.left - menuW - MARGIN;
     }
-    // If still overflows (tiny screen), clamp
     if (left < MARGIN) left = MARGIN;
     if (left + menuW > window.innerWidth - MARGIN) {
         left = window.innerWidth - menuW - MARGIN;
@@ -476,6 +500,23 @@ function showContextMenu(e, msgId) {
     menu.style.top = top + 'px';
     document.body.appendChild(menu);
     ctxMenu = menu;
+}
+
+function copyMsgText(text) {
+    hideContextMenu();
+    try {
+        navigator.clipboard.writeText(text);
+    } catch (e) {
+        // Fallback
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+    }
 }
 
 function hideContextMenu() {
