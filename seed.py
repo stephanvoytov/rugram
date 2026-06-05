@@ -26,6 +26,7 @@ with app.app_context():
         alice.set_password('pass123')
         alice.description = 'Python developer & terminal enthusiast. Building the future of social networks.'
         alice.name = 'Alice'
+        alice.is_admin = True
         db.session.add(alice)
 
     bob = User.query.filter_by(username='bob').first()
