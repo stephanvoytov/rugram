@@ -25,7 +25,7 @@ if os.path.exists(db):
 "
 
 echo "==> Running migrations..."
-alembic upgrade head
+python3 scripts/migrate.py
 
 echo "==> Starting gunicorn..."
 exec gunicorn -w 4 --preload -b 0.0.0.0:8000 wsgi:app
