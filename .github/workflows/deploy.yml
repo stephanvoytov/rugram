@@ -31,6 +31,14 @@ jobs:
         env:
           SECRET_KEY: ci-secret-key-for-testing
 
+      - name: Test migrations (fresh DB)
+        run: |
+          alembic upgrade head
+          rm -f test_migration_ci.sqlite
+        env:
+          DATABASE_URL: sqlite:///test_migration_ci.sqlite
+          SECRET_KEY: ci-secret-key-for-testing
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
