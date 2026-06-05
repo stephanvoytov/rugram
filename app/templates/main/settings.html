@@ -10,11 +10,11 @@
     </div>
 
     {# ── Tab headers ── #}
-    <div class="settings-tabs" style="display:flex;border-bottom:2px solid var(--border);background:var(--surface);font-family:var(--font);font-size:0.88rem;user-select:none">
-        <button class="st-tab active" data-tab="account" style="flex:1;padding:10px 8px;background:none;border:none;color:var(--subtle);cursor:pointer;font-family:inherit;font-size:inherit;border-bottom:2px solid transparent;margin-bottom:-2px;transition:color 0.15s,border-color 0.15s">[account]</button>
-        <button class="st-tab" data-tab="appearance" style="flex:1;padding:10px 8px;background:none;border:none;color:var(--subtle);cursor:pointer;font-family:inherit;font-size:inherit;border-bottom:2px solid transparent;margin-bottom:-2px;transition:color 0.15s,border-color 0.15s">[appearance]</button>
-        <button class="st-tab" data-tab="notifications" style="flex:1;padding:10px 8px;background:none;border:none;color:var(--subtle);cursor:pointer;font-family:inherit;font-size:inherit;border-bottom:2px solid transparent;margin-bottom:-2px;transition:color 0.15s,border-color 0.15s">[notifications]</button>
-        <button class="st-tab" data-tab="danger" style="flex:1;padding:10px 8px;background:none;border:none;color:var(--subtle);cursor:pointer;font-family:inherit;font-size:inherit;border-bottom:2px solid transparent;margin-bottom:-2px;transition:color 0.15s,border-color 0.15s">[danger]</button>
+    <div class="settings-tabs">
+        <button class="st-tab active" data-tab="account">[account]</button>
+        <button class="st-tab" data-tab="appearance">[appearance]</button>
+        <button class="st-tab" data-tab="notifications">[notifications]</button>
+        <button class="st-tab" data-tab="danger">[danger]</button>
     </div>
 
     <form method="POST" enctype="multipart/form-data" style="padding:24px">
@@ -37,7 +37,8 @@
                 <label for="{{ form.new_email.id }}" class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] email</label>
                 <input type="email" class="field-input" id="{{ form.new_email.id }}" name="{{ form.new_email.name }}"
                        placeholder="new email" autocomplete="new-email"
-                       style="padding:10px 14px;font-size:0.9rem;width:100%">
+                       style="padding:10px 14px;font-size:0.9rem;width:100%"
+                       value="{{ current_user.email }}">
                 {% if form.new_email.errors %}{% for e in form.new_email.errors %}<div class="field-msg error">{{ e }}</div>{% endfor %}{% endif %}
                 <div style="color:var(--subtle);font-size:0.78rem;margin-top:4px">current: <b>{{ current_user.email }}</b>. leave empty to keep.</div>
             </div>
@@ -80,11 +81,11 @@
             <div class="auth-field" style="margin-bottom:20px">
                 <span class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] theme</span>
                 <div style="display:flex;gap:8px">
-                    <button type="button" class="theme-btn" data-theme="dark" style="flex:1;padding:10px;background:var(--surface);border:2px solid var(--border);border-radius:6px;color:var(--fg);font-family:var(--font);font-size:0.85rem;cursor:pointer;transition:border-color 0.15s">
+                    <button type="button" class="theme-btn" data-theme="dark">
                         <span style="display:block;font-size:1.2rem;margin-bottom:4px">🌙</span>
                         dark
                     </button>
-                    <button type="button" class="theme-btn" data-theme="light" style="flex:1;padding:10px;background:var(--surface);border:2px solid var(--border);border-radius:6px;color:var(--fg);font-family:var(--font);font-size:0.85rem;cursor:pointer;transition:border-color 0.15s">
+                    <button type="button" class="theme-btn" data-theme="light">
                         <span style="display:block;font-size:1.2rem;margin-bottom:4px">☀️</span>
                         light
                     </button>
@@ -94,13 +95,13 @@
             <div class="auth-field" style="margin-bottom:20px">
                 <label class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] terminal font size</label>
                 <div style="display:flex;gap:6px;flex-wrap:wrap">
-                    <button type="button" class="fs-btn" data-size="12px" style="flex:1;min-width:50px;padding:8px 4px;background:var(--surface);border:2px solid var(--border);border-radius:6px;color:var(--fg);font-family:var(--font);font-size:0.75rem;cursor:pointer;transition:border-color 0.15s">12px</button>
-                    <button type="button" class="fs-btn" data-size="13px" style="flex:1;min-width:50px;padding:8px 4px;background:var(--surface);border:2px solid var(--border);border-radius:6px;color:var(--fg);font-family:var(--font);font-size:0.8rem;cursor:pointer;transition:border-color 0.15s">13px</button>
-                    <button type="button" class="fs-btn" data-size="14px" style="flex:1;min-width:50px;padding:8px 4px;background:var(--surface);border:2px solid var(--border);border-radius:6px;color:var(--fg);font-family:var(--font);font-size:0.85rem;cursor:pointer;transition:border-color 0.15s">14px</button>
-                    <button type="button" class="fs-btn" data-size="15px" style="flex:1;min-width:50px;padding:8px 4px;background:var(--surface);border:2px solid var(--border);border-radius:6px;color:var(--fg);font-family:var(--font);font-size:0.9rem;cursor:pointer;transition:border-color 0.15s">15px</button>
-                    <button type="button" class="fs-btn" data-size="16px" style="flex:1;min-width:50px;padding:8px 4px;background:var(--surface);border:2px solid var(--border);border-radius:6px;color:var(--fg);font-family:var(--font);font-size:0.95rem;cursor:pointer;transition:border-color 0.15s">16px</button>
-                    <button type="button" class="fs-btn" data-size="18px" style="flex:1;min-width:50px;padding:8px 4px;background:var(--surface);border:2px solid var(--border);border-radius:6px;color:var(--fg);font-family:var(--font);font-size:1rem;cursor:pointer;transition:border-color 0.15s">18px</button>
-                    <button type="button" class="fs-btn" data-size="20px" style="flex:1;min-width:50px;padding:8px 4px;background:var(--surface);border:2px solid var(--border);border-radius:6px;color:var(--fg);font-family:var(--font);font-size:1.05rem;cursor:pointer;transition:border-color 0.15s">20px</button>
+                    <button type="button" class="fs-btn" data-size="12px" style="font-size:0.75rem">12px</button>
+                    <button type="button" class="fs-btn" data-size="13px" style="font-size:0.8rem">13px</button>
+                    <button type="button" class="fs-btn" data-size="14px" style="font-size:0.85rem">14px</button>
+                    <button type="button" class="fs-btn" data-size="15px" style="font-size:0.9rem">15px</button>
+                    <button type="button" class="fs-btn" data-size="16px" style="font-size:0.95rem">16px</button>
+                    <button type="button" class="fs-btn" data-size="18px" style="font-size:1rem">18px</button>
+                    <button type="button" class="fs-btn" data-size="20px" style="font-size:1.05rem">20px</button>
                 </div>
             </div>
         </div>
@@ -195,6 +196,18 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // ════════════ TOAST ON SAVE ════════════
+    var params = new URLSearchParams(window.location.search);
+    if (params.get('saved') === '1') {
+        // Clean URL (remove ?saved=1) without page reload
+        var url = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, '', url);
+        // Show toast
+        if (typeof window.showToast === 'function') {
+            window.showToast('[*] settings', 'settings saved', 'success');
+        }
+    }
+
     // ════════════ TAB SWITCHING ════════════
     var tabs = document.querySelectorAll('.st-tab');
     var panels = {
@@ -207,8 +220,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function switchTab(tabId) {
         tabs.forEach(function(t) {
             var active = t.dataset.tab === tabId;
-            t.style.color = active ? 'var(--accent)' : 'var(--subtle)';
-            t.style.borderColor = active ? 'var(--accent)' : 'transparent';
+            t.classList.toggle('active', active);
         });
         Object.keys(panels).forEach(function(k) {
             panels[k].style.display = k === tabId ? '' : 'none';
@@ -251,18 +263,15 @@ document.addEventListener('DOMContentLoaded', function() {
         var currentTheme = GUI_THEME.getTheme();
         document.querySelectorAll('.theme-btn').forEach(function(btn) {
             if (btn.dataset.theme === currentTheme) {
-                btn.style.borderColor = 'var(--accent)';
-                btn.style.color = 'var(--accent)';
+                btn.classList.add('selected');
             }
             btn.addEventListener('click', function() {
                 var t = this.dataset.theme;
                 GUI_THEME.setTheme(t);
                 document.querySelectorAll('.theme-btn').forEach(function(b) {
-                    b.style.borderColor = 'var(--border)';
-                    b.style.color = 'var(--fg)';
+                    b.classList.remove('selected');
                 });
-                this.style.borderColor = 'var(--accent)';
-                this.style.color = 'var(--accent)';
+                this.classList.add('selected');
             });
         });
     }
@@ -272,18 +281,15 @@ document.addEventListener('DOMContentLoaded', function() {
         var currentSize = GUI_THEME.getFontSize();
         document.querySelectorAll('.fs-btn').forEach(function(btn) {
             if (btn.dataset.size === currentSize) {
-                btn.style.borderColor = 'var(--accent)';
-                btn.style.color = 'var(--accent)';
+                btn.classList.add('selected');
             }
             btn.addEventListener('click', function() {
                 var s = this.dataset.size;
                 GUI_THEME.setFontSize(s);
                 document.querySelectorAll('.fs-btn').forEach(function(b) {
-                    b.style.borderColor = 'var(--border)';
-                    b.style.color = 'var(--fg)';
+                    b.classList.remove('selected');
                 });
-                this.style.borderColor = 'var(--accent)';
-                this.style.color = 'var(--accent)';
+                this.classList.add('selected');
             });
         });
     }
@@ -296,12 +302,6 @@ document.addEventListener('DOMContentLoaded', function() {
         else cp.setCustomValidity('');
     }
     if (np && cp) { np.addEventListener('input', validate); cp.addEventListener('input', validate); }
-
-    // ════════════ LANGUAGE SELECTOR ════════════
-    var langSel = document.getElementById('{{ form.language.id }}');
-    if (langSel && window.GUI_THEME) {
-        // Handled by form submission (POST saves session['lang'])
-    }
 
     // ════════════ NOTIFICATION STATUS ════════════
     if ('Notification' in window) {
