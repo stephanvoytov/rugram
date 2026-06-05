@@ -9,6 +9,7 @@ from app.translations import _
 from app.forms import ProfileForm, SettingsForm
 from app.models import User, Post, Like, Comment, Follow, Notification, PushSubscription, Chat, ChatParticipant, Message, SavedPost, Repost, utcnow
 from app.crypto import encrypt, decrypt
+from app.limiter import limiter
 from app.push import send_message_push, send_notification_push
 from extensions import db
 from app.routes.helpers import logger, process_avatar, _create_notification_and_push, _require_chat_participant
@@ -105,6 +106,7 @@ def edit_profile() -> Response:
 
 @main_bp.route('/follow/<username>', methods=['POST'])
 @login_required
+@limiter.limit("20/minute")
 def follow_toggle(username: str) -> Response:
     target = User.query.filter(User.username == username).first()
     if not target:
@@ -561,6 +563,7 @@ def chat_messages(chat_id: int) -> Response:
 
 @main_bp.route('/chat/<int:chat_id>/send', methods=['POST'])
 @login_required
+@limiter.limit("60/minute")
 def chat_send(chat_id: int) -> Response:
     chat = Chat.query.get_or_404(chat_id)
 
@@ -598,8 +601,7 @@ def chat_send(chat_id: int) -> Response:
                 message_preview=text
             )
     except Exception as e:
-        # Push-уведомления не должны ломать отправку сообщения
-        pass
+        logger.warning('Push notification failed in chat_send: %s', e)
 
     return jsonify({
         'message': {

@@ -11,6 +11,7 @@ from app.filters import filters_bp
 from app.resources import post_resources
 from app.routes import main_bp, auth_bp, posts_bp
 from app.translations import _
+from app.limiter import limiter
 from extensions import db, csrf
 from config import Config
 
@@ -48,6 +49,8 @@ def create_app():
     db.init_app(app)
 
     login_manager.init_app(app)
+
+    limiter.init_app(app)
 
     # Директория instance должна существовать до db.create_all(),
     # иначе SQLite не сможет создать файл БД

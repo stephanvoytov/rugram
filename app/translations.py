@@ -211,6 +211,14 @@ RU: dict[str, str] = {
     'Send a message in the current chat': 'Отправить сообщение в текущем чате',
     'Start a chat with a user': 'Начать чат с пользователем',
 
+    # ── last_seen_str() ──
+    'never': 'никогда',
+    'online': 'онлайн',
+    'yesterday': 'вчера',
+    '%(minutes)s min ago': '%(minutes)s мин назад',
+    '%(hours)s h ago': '%(hours)s ч назад',
+    '%(days)s days ago': '%(days)s дн назад',
+
     # ── Audit fixes ──
     'Error updating profile':  'Ошибка при обновлении профиля',
     'Error updating post':     'Ошибка при обновлении поста',

@@ -9,6 +9,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import DateTime, event, UniqueConstraint, Index
 from sqlalchemy.engine import Engine
 from extensions import db
+from app.translations import _
 
 
 @event.listens_for(Engine, "connect")
@@ -97,20 +98,20 @@ class User(db.Model, UserMixin, SerializerMixin):
 
     def last_seen_str(self):
         if not self.last_seen:
-            return 'никогда'
+            return _('never')
         if self.is_online:
-            return 'онлайн'
+            return _('online')
         delta = utcnow() - self.last_seen
         minutes = int(delta.total_seconds() / 60)
         if minutes < 60:
-            return f'был(а) {minutes} мин назад'
+            return _('%(minutes)s min ago') % {'minutes': minutes}
         hours = int(minutes / 60)
         if hours < 24:
-            return f'был(а) {hours} ч назад'
+            return _('%(hours)s h ago') % {'hours': hours}
         days = int(hours / 24)
         if days == 1:
-            return 'был(а) вчера'
-        return f'был(а) {days} дн назад'
+            return _('yesterday')
+        return _('%(days)s days ago') % {'days': days}
 
 
 class Post(db.Model, SerializerMixin):

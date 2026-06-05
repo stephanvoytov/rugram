@@ -7,6 +7,7 @@ from flask_login import login_user, login_required, logout_user, current_user
 from app.translations import _
 from app.forms import LoginForm, RegistrationForm
 from app.models import User
+from app.limiter import limiter
 from extensions import db, csrf
 from app.routes.helpers import logger
 
@@ -14,6 +15,7 @@ auth_bp = Blueprint('auth', __name__, template_folder='../templates')
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
+@limiter.limit("10/minute", methods=["POST"])
 def login() -> Response:
     form = LoginForm()
     if form.validate_on_submit():
@@ -41,6 +43,7 @@ def logout() -> Response:
 
 # -- JSON API для терминала --
 @auth_bp.route('/auth/api/login', methods=['POST'])
+@limiter.limit("10/minute")
 def api_login() -> Response:
     data = request.get_json(force=True, silent=True)
     if not data:
@@ -68,6 +71,7 @@ def api_login() -> Response:
 
 
 @auth_bp.route('/auth/api/register', methods=['POST'])
+@limiter.limit("5/minute")
 def api_register() -> Response:
     data = request.get_json(force=True, silent=True)
     if not data:
@@ -133,6 +137,7 @@ def api_me() -> Response:
 
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
+@limiter.limit("5/minute", methods=["POST"])
 def register() -> Response:
     form = RegistrationForm()
     if form.validate_on_submit():
