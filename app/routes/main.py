@@ -3,7 +3,7 @@ import logging
 
 from flask import render_template, flash, redirect, url_for, Blueprint, request, jsonify, abort, current_app, Response
 from flask_login import login_required, current_user, logout_user
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, load_only
 
 from app.translations import _
 from app.forms import ProfileForm, SettingsForm
@@ -12,7 +12,7 @@ from app.crypto import encrypt, decrypt
 from app.limiter import limiter
 from app.push import send_message_push, send_notification_push
 from extensions import db
-from app.routes.helpers import logger, process_avatar, _create_notification_and_push, _require_chat_participant
+from app.routes.helpers import logger, process_avatar, process_chat_image, is_allowed_image, _create_notification_and_push, _require_chat_participant
 
 main_bp = Blueprint('main', __name__, template_folder='../templates')
 
@@ -28,7 +28,7 @@ def index() -> Response:
     per_page = current_app.config.get('POSTS_PER_PAGE', 15)
     followed_only = request.args.get('followed') == '1'
 
-    base_query = Post.query.filter(Post.is_deleted == False)
+    base_query = Post.query.options(joinedload(Post.author)).filter(Post.is_deleted == False)
 
     if followed_only and current_user.is_authenticated:
         followed_sub = db.session.query(Follow.followed_id).filter(
@@ -276,7 +276,7 @@ def api_saved_posts() -> Response:
 @main_bp.route('/api/feed')
 def api_feed() -> Response:
     page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 20, type=int)
+    per_page = min(request.args.get('per_page', 20, type=int) or 20, 100)
     pagination = Post.query.filter(Post.is_deleted == False)\
         .options(joinedload(Post.author))\
         .order_by(Post.id.desc())\
@@ -502,7 +502,7 @@ def chat_messages(chat_id: int) -> Response:
 
     after = request.args.get('after', 0, type=int)
     before = request.args.get('before', 0, type=int)
-    limit = request.args.get('limit', 50, type=int)
+    limit = min(request.args.get('limit', 50, type=int) or 50, 200)
 
     # Отмечаем чужие непрочитанные сообщения как прочитанные (только первая загрузка, не пагинация)
     if not before and not after:
@@ -542,9 +542,12 @@ def chat_messages(chat_id: int) -> Response:
         messages.reverse()
 
     # Обновляем время последнего чтения и онлайн-статус (только при загрузке первых сообщений)
+    # last_seen обновляется не чаще 30 секунд — write throttle
     if not before and not after:
         participant.last_read_at = utcnow()
-        current_user.last_seen = utcnow()
+        now = utcnow()
+        if not current_user.last_seen or (now - current_user.last_seen).total_seconds() > 30:
+            current_user.last_seen = now
         db.session.commit()
 
     # Информация о собеседнике
@@ -571,7 +574,10 @@ def chat_messages(chat_id: int) -> Response:
     return jsonify({
         'messages': [{
             'id': msg.id,
-            'text': decrypt(msg.text),
+            'author_id': msg.author.id,
+            'text': decrypt(msg.text) if msg.text else '',
+            'image': msg.image,
+            'image_url': url_for('static', filename=f'uploads/chat/{msg.image}') if msg.image else None,
             'created_date': msg.created_date.isoformat(),
             'is_read': msg.is_read,
             'author': {
@@ -596,16 +602,35 @@ def chat_send(chat_id: int) -> Response:
     if err:
         return err
 
-    data = request.get_json()
-    text = data.get('text', '').strip()
+    text = None
+    image_filename = None
 
-    if not text:
-        return jsonify({'error': 'Сообщение не может быть пустым'}), 400
+    if request.content_type and 'multipart/form-data' in request.content_type:
+        # Multipart: может быть текст + файл
+        text = request.form.get('text', '').strip()
+        image_file = request.files.get('image')
+        if image_file and image_file.filename:
+            if not is_allowed_image(image_file.filename):
+                return jsonify({'error': _('Invalid file type')}), 400
+            image_filename = process_chat_image(image_file)
+            if not image_filename:
+                return jsonify({'error': _('Failed to process image')}), 400
+    else:
+        # JSON: только текст
+        data = request.get_json(silent=True)
+        if data:
+            text = data.get('text', '').strip()
+
+    if not text and not image_filename:
+        return jsonify({'error': _('Message cannot be empty')}), 400
+
+    encrypted_text = encrypt(text) if text else None
 
     new_message = Message(
         chat_id=chat_id,
         author_id=current_user.id,
-        text=encrypt(text)
+        text=encrypted_text,
+        image=image_filename
     )
 
     current_user.last_seen = utcnow()
@@ -619,11 +644,12 @@ def chat_send(chat_id: int) -> Response:
             ChatParticipant.user_id != current_user.id
         ).first()
         if other_participant:
+            preview = text or '[image]'
             send_message_push(
                 chat_id=chat_id,
                 recipient_id=other_participant.user_id,
                 sender_username=current_user.username,
-                message_preview=text
+                message_preview=preview
             )
     except Exception as e:
         logger.warning('Push notification failed in chat_send: %s', e)
@@ -631,7 +657,9 @@ def chat_send(chat_id: int) -> Response:
     return jsonify({
         'message': {
             'id': new_message.id,
-            'text': text,  # исходный (незашифрованный) текст
+            'text': text or '',
+            'image': image_filename,
+            'image_url': url_for('static', filename=f'uploads/chat/{image_filename}') if image_filename else None,
             'created_date': new_message.created_date.isoformat(),
             'is_read': new_message.is_read,
             'author': {
@@ -719,7 +747,11 @@ def chat_list() -> Response:
                     'is_online': other_user.is_online,
                     'last_seen': other_user.last_seen_str()
                 },
-                'last_message': decrypt(last_message.text) if last_message else None,
+                'last_message': (
+                    decrypt(last_message.text) if last_message and last_message.text
+                    else '[image]' if last_message and last_message.image
+                    else None
+                ),
                 'last_message_date': last_message.created_date.isoformat() if last_message else None,
                 'unread_count': unread_count
             })
@@ -838,8 +870,10 @@ def settings() -> Response:
 
             # Удаление аккаунта
             if form.delete_account.data:
-                # Явно удаляем связанные записи (для совместимости с SQLite без CASCADE)
                 uid = current_user.id
+                # Bulk-delete связанных записей перед удалением пользователя.
+                # Все FK имеют ondelete='CASCADE' в БД + PRAGMA foreign_keys=ON,
+                # но bulk .delete() эффективнее ORM-каскадов (не загружает объекты в память).
                 Like.query.filter(Like.user_id == uid).delete()
                 Comment.query.filter(Comment.author_id == uid).delete()
                 Follow.query.filter((Follow.follower_id == uid) | (Follow.followed_id == uid)).delete()
@@ -849,7 +883,6 @@ def settings() -> Response:
                 Repost.query.filter(Repost.user_id == uid).delete()
                 SavedPost.query.filter(SavedPost.user_id == uid).delete()
                 PushSubscription.query.filter(PushSubscription.user_id == uid).delete()
-                # Удаляем посты (каскадом удаляет лайки/комментарии к этим постам)
                 for post in current_user.posts:
                     db.session.delete(post)
                 db.session.delete(current_user)
@@ -865,6 +898,12 @@ def settings() -> Response:
             flash(_('Error updating settings'), 'danger')
 
     return render_template('main/settings.html', form=form)
+
+
+@main_bp.route('/health')
+def health() -> Response:
+    """Лёгкий healthcheck для Docker — не грузит БД, возвращает 200."""
+    return jsonify({'status': 'ok'}), 200
 
 
 @main_bp.route('/robots.txt')

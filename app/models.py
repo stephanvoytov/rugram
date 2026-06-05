@@ -1,5 +1,6 @@
 import datetime
 from datetime import timezone
+from typing import Optional
 
 from flask_login import UserMixin
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -135,13 +136,13 @@ class Post(db.Model, SerializerMixin):
     likes_count: Mapped[int] = mapped_column(default=0)
     comments_count: Mapped[int] = mapped_column(default=0)
     reposts_count: Mapped[int] = mapped_column(default=0)
-    is_deleted: Mapped[bool] = mapped_column(default=False)
+    is_deleted: Mapped[bool] = mapped_column(default=False, index=True)
 
     author_id: Mapped[int] = mapped_column(db.ForeignKey('users.id', ondelete='CASCADE'))
     author: Mapped["User"] = relationship(back_populates='posts')
 
-    likes: Mapped[list['Like']] = relationship(back_populates='post', cascade='all, delete-orphan')
-    comments: Mapped[list['Comment']] = relationship(back_populates='post', cascade='all, delete-orphan')
+    likes: Mapped[list['Like']] = relationship(back_populates='post', cascade='all, delete-orphan', lazy='dynamic')
+    comments: Mapped[list['Comment']] = relationship(back_populates='post', cascade='all, delete-orphan', lazy='dynamic')
     reposted_by: Mapped[list['Repost']] = relationship(back_populates='post')
     saved_by: Mapped[list['SavedPost']] = relationship(back_populates='post')
     post_tags: Mapped[list['PostTag']] = relationship(back_populates='post', cascade='all, delete-orphan')
@@ -307,7 +308,8 @@ class Message(db.Model, SerializerMixin):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     chat_id: Mapped[int] = mapped_column(db.ForeignKey('chats.id', ondelete='CASCADE'))
     author_id: Mapped[int] = mapped_column(db.ForeignKey('users.id', ondelete='CASCADE'))
-    text: Mapped[str] = mapped_column()
+    text: Mapped[Optional[str]] = mapped_column(nullable=True)  # nullable: сообщение может быть только с картинкой
+    image: Mapped[Optional[str]] = mapped_column(nullable=True)
     created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
     is_read: Mapped[bool] = mapped_column(db.Boolean, default=False)
     read_at: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=True)
