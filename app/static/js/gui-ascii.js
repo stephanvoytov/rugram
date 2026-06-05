@@ -9,11 +9,12 @@
     return localStorage.getItem(ENABLED_KEY) === 'true';
   }
 
-  // ── Calculate ASCII width from image dimensions ──
+  // ── Calculate ASCII width from displayed image dimensions ──
   function asciiWidth(img) {
-    var px = img.naturalWidth || img.width || 400;
-    // ~8px per character in monospace, cap at 80 chars
-    return Math.max(20, Math.min(80, Math.floor(px / 8)));
+    // Use CSS rendered width, not naturalWidth (avoids blowing up big images)
+    var px = img.offsetWidth || img.getBoundingClientRect().width || img.width || 400;
+    // ~8px per character in monospace, floor at 4 chars (~32px), cap at 80
+    return Math.min(80, Math.max(4, Math.floor(px / 8)));
   }
 
   // ── Replace a single <img> with ASCII art ──
@@ -23,11 +24,10 @@
 
     var src = img.currentSrc || img.src;
     if (!src || src === '' || src.startsWith('data:')) return;
-    
-    // Skip tiny icons / profile images under 32px rendered
-    if (img.offsetWidth < 32 && img.offsetHeight < 32) return;
 
     var width = asciiWidth(img);
+    // Don't try on tiny images (< 4 chars wide)
+    if (width < 4) return;
 
     if (window.TERMINAL && typeof TERMINAL.imageToAscii === 'function') {
       TERMINAL.imageToAscii(src, width, function(asciiHtml) {
@@ -69,7 +69,7 @@
   // ── Scan DOM for images ──
   function processImages() {
     if (!isEnabled()) return;
-    var imgs = document.querySelectorAll('img[src*="uploads"], .post-card img, #postContent img, .chat-message img, .comment img');
+    var imgs = document.querySelectorAll('img[src*="uploads"], .post-card img, #postContent img, .chat-img, #messagesContainer img, .msg-bubble img, .comment img');
     imgs.forEach(replaceImg);
   }
 
