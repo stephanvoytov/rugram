@@ -47,6 +47,15 @@
         </div>
 
         <div class="auth-field" style="margin-bottom:20px;padding-top:16px;border-top:1px solid var(--border)">
+            <span class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] display</span>
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:6px">
+                <input type="checkbox" id="ascii_art" style="width:18px;height:18px;cursor:pointer">
+                <label for="ascii_art" style="cursor:pointer;color:var(--fg);font-size:0.88rem;flex:1">ASCII art instead of images</label>
+                <span style="color:var(--subtle);font-size:0.75rem">posts · chat · avatars</span>
+            </div>
+        </div>
+
+        <div class="auth-field" style="margin-bottom:20px;padding-top:16px;border-top:1px solid var(--border)">
             <span class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] notifications</span>
             <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:6px">
                 {{ form.notifications_enabled(style="width:18px;height:18px;cursor:pointer") }}
@@ -124,6 +133,17 @@ document.addEventListener('DOMContentLoaded', function() {
     modal.addEventListener('click', function(e) {
         if (e.target === this) { this.classList.add('d-none'); deleteCheckbox.checked = false; }
     });
+
+    // ── ASCII art toggle ──
+    var asciiCheck = document.getElementById('ascii_art');
+    if (asciiCheck) {
+        if (window.GUI_ASCII) {
+            asciiCheck.checked = GUI_ASCII.isEnabled();
+            asciiCheck.addEventListener('change', function() {
+                GUI_ASCII.setEnabled(this.checked);
+            });
+        }
+    }
 
     var np = document.getElementById('{{ form.new_password.id }}');
     var cp = document.getElementById('{{ form.confirm_password.id }}');
