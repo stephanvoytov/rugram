@@ -4,6 +4,8 @@
 ![Stars](https://img.shields.io/github/stars/stephanvoytov/rugram)
 [![Site](https://img.shields.io/badge/demo-rugram.mooo.com-89b4fa)](https://rugram.mooo.com)
 
+[← English version](README.md)
+
 # Rugram — социальная сеть внутри терминала
 
 **Соцсеть, в которой всё делается с клавиатуры.**  

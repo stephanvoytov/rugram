@@ -4,6 +4,8 @@
 ![Stars](https://img.shields.io/github/stars/stephanvoytov/rugram)
 [![Site](https://img.shields.io/badge/demo-rugram.mooo.com-89b4fa)](https://rugram.mooo.com)
 
+[Русская версия →](README.ru.md)
+
 # Rugram — social network inside a terminal
 
 **A social network you drive from the command line.**  
