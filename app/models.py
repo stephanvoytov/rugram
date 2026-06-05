@@ -308,7 +308,7 @@ class Message(db.Model, SerializerMixin):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     chat_id: Mapped[int] = mapped_column(db.ForeignKey('chats.id', ondelete='CASCADE'))
     author_id: Mapped[int] = mapped_column(db.ForeignKey('users.id', ondelete='CASCADE'))
-    text: Mapped[Optional[str]] = mapped_column(nullable=True)  # nullable: сообщение может быть только с картинкой
+    text: Mapped[str] = mapped_column()  # пустая строка '' если сообщение только с картинкой
     image: Mapped[Optional[str]] = mapped_column(nullable=True)
     created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
     is_read: Mapped[bool] = mapped_column(db.Boolean, default=False)

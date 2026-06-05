@@ -30,14 +30,6 @@ def upgrade() -> None:
     if not _column_exists('messages', 'image'):
         op.add_column('messages', sa.Column('image', sa.String(), nullable=True))
 
-    # text became nullable in this migration
-    op.alter_column('messages', 'text',
-                    existing_type=sa.String(),
-                    nullable=True)
-
 
 def downgrade() -> None:
-    op.alter_column('messages', 'text',
-                    existing_type=sa.String(),
-                    nullable=False)
     op.drop_column('messages', 'image')
