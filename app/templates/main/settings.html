@@ -5,83 +5,161 @@
 {% block content %}
 <h1 class="sr-only">Settings</h1>
 <div class="terminal-box" style="max-width:720px;margin:24px auto">
-    <div class="auth-header" style="padding:16px 24px">
+    <div class="auth-header" style="padding:14px 24px">
         <span class="auth-title" style="font-size:1rem">[settings]</span>
-        <span class="auth-subtitle">account management</span>
+    </div>
+
+    {# ── Tab headers ── #}
+    <div class="settings-tabs" style="display:flex;border-bottom:2px solid var(--border);background:var(--surface);font-family:var(--font);font-size:0.88rem;user-select:none">
+        <button class="st-tab active" data-tab="account" style="flex:1;padding:10px 8px;background:none;border:none;color:var(--subtle);cursor:pointer;font-family:inherit;font-size:inherit;border-bottom:2px solid transparent;margin-bottom:-2px;transition:color 0.15s,border-color 0.15s">[account]</button>
+        <button class="st-tab" data-tab="appearance" style="flex:1;padding:10px 8px;background:none;border:none;color:var(--subtle);cursor:pointer;font-family:inherit;font-size:inherit;border-bottom:2px solid transparent;margin-bottom:-2px;transition:color 0.15s,border-color 0.15s">[appearance]</button>
+        <button class="st-tab" data-tab="notifications" style="flex:1;padding:10px 8px;background:none;border:none;color:var(--subtle);cursor:pointer;font-family:inherit;font-size:inherit;border-bottom:2px solid transparent;margin-bottom:-2px;transition:color 0.15s,border-color 0.15s">[notifications]</button>
+        <button class="st-tab" data-tab="danger" style="flex:1;padding:10px 8px;background:none;border:none;color:var(--subtle);cursor:pointer;font-family:inherit;font-size:inherit;border-bottom:2px solid transparent;margin-bottom:-2px;transition:color 0.15s,border-color 0.15s">[danger]</button>
     </div>
 
     <form method="POST" enctype="multipart/form-data" style="padding:24px">
         {{ form.hidden_tag() }}
 
-        <div class="auth-field" style="margin-bottom:20px">
-            <label for="{{ form.new_username.id }}" class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] username</label>
-            <input type="text" class="field-input" id="{{ form.new_username.id }}" name="{{ form.new_username.name }}"
-                   placeholder="new username" value="{{ current_user.username }}" autocomplete="off"
-                   style="padding:10px 14px;font-size:0.9rem;width:100%"
-                   pattern="[a-z0-9_]+" title="Only Latin letters (a-z), digits (0-9), and underscore (_)"
-                   oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9_]/g,'')">
-            {% if form.new_username.errors %}{% for e in form.new_username.errors %}<div class="field-msg error">{{ e }}</div>{% endfor %}{% endif %}
-            <div style="color:var(--subtle);font-size:0.78rem;margin-top:4px">current: <b>{{ current_user.username }}</b>. leave empty to keep.</div>
-        </div>
-
-        <div class="auth-field" style="margin-bottom:20px">
-            <label for="{{ form.new_email.id }}" class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] email</label>
-            <input type="email" class="field-input" id="{{ form.new_email.id }}" name="{{ form.new_email.name }}"
-                   placeholder="new email" autocomplete="new-email"
-                   style="padding:10px 14px;font-size:0.9rem;width:100%">
-            {% if form.new_email.errors %}{% for e in form.new_email.errors %}<div class="field-msg error">{{ e }}</div>{% endfor %}{% endif %}
-            <div style="color:var(--subtle);font-size:0.78rem;margin-top:4px">current: <b>{{ current_user.email }}</b>. leave empty to keep.</div>
-        </div>
-
-        <div class="auth-field" style="margin-bottom:20px;padding-top:16px;border-top:1px solid var(--border)">
-            <label class="field-label" style="font-size:0.9rem;margin-bottom:8px;display:block">[*] change password</label>
-            <div style="display:flex;flex-wrap:wrap;gap:6px">
-                {{ form.current_password(class="field-input", placeholder="current password", autocomplete="current-password", style="padding:10px 14px;font-size:0.9rem;flex:1;min-width:160px") }}
-                {{ form.new_password(class="field-input", placeholder="new password", autocomplete="new-password", style="padding:10px 14px;font-size:0.9rem;flex:1;min-width:160px") }}
-                {{ form.confirm_password(class="field-input", placeholder="confirm", style="padding:10px 14px;font-size:0.9rem;flex:1;min-width:160px") }}
+        {# ════════════ ACCOUNT ════════════ #}
+        <div class="st-panel" id="panel-account">
+            <div class="auth-field" style="margin-bottom:20px">
+                <label for="{{ form.new_username.id }}" class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] username</label>
+                <input type="text" class="field-input" id="{{ form.new_username.id }}" name="{{ form.new_username.name }}"
+                       placeholder="new username" value="{{ current_user.username }}" autocomplete="off"
+                       style="padding:10px 14px;font-size:0.9rem;width:100%"
+                       pattern="[a-z0-9_]+" title="Only Latin letters (a-z), digits (0-9), and underscore (_)"
+                       oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9_]/g,'')">
+                {% if form.new_username.errors %}{% for e in form.new_username.errors %}<div class="field-msg error">{{ e }}</div>{% endfor %}{% endif %}
+                <div style="color:var(--subtle);font-size:0.78rem;margin-top:4px">current: <b>{{ current_user.username }}</b>. leave empty to keep.</div>
             </div>
-            {% if form.current_password.errors %}{% for e in form.current_password.errors %}<div class="field-msg error">{{ e }}</div>{% endfor %}{% endif %}
-            {% if form.new_password.errors %}{% for e in form.new_password.errors %}<div class="field-msg error">{{ e }}</div>{% endfor %}{% endif %}
-            {% if form.confirm_password.errors %}{% for e in form.confirm_password.errors %}<div class="field-msg error">{{ e }}</div>{% endfor %}{% endif %}
-            <div style="color:var(--subtle);font-size:0.78rem;margin-top:4px">min 6 chars. leave empty to keep current.</div>
-        </div>
 
-        <div class="auth-field" style="margin-bottom:20px;padding-top:16px;border-top:1px solid var(--border)">
-            <span class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] display</span>
-            <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:6px">
-                <input type="checkbox" id="ascii_art" style="width:18px;height:18px;cursor:pointer">
-                <label for="ascii_art" style="cursor:pointer;color:var(--fg);font-size:0.88rem;flex:1">ASCII art instead of images</label>
-                <span style="color:var(--subtle);font-size:0.75rem">posts · chat · avatars</span>
+            <div class="auth-field" style="margin-bottom:20px">
+                <label for="{{ form.new_email.id }}" class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] email</label>
+                <input type="email" class="field-input" id="{{ form.new_email.id }}" name="{{ form.new_email.name }}"
+                       placeholder="new email" autocomplete="new-email"
+                       style="padding:10px 14px;font-size:0.9rem;width:100%">
+                {% if form.new_email.errors %}{% for e in form.new_email.errors %}<div class="field-msg error">{{ e }}</div>{% endfor %}{% endif %}
+                <div style="color:var(--subtle);font-size:0.78rem;margin-top:4px">current: <b>{{ current_user.email }}</b>. leave empty to keep.</div>
             </div>
-        </div>
 
-        <div class="auth-field" style="margin-bottom:20px;padding-top:16px;border-top:1px solid var(--border)">
-            <span class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] notifications</span>
-            <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:6px">
-                {{ form.notifications_enabled(style="width:18px;height:18px;cursor:pointer") }}
-                <label for="{{ form.notifications_enabled.id }}" style="cursor:pointer;color:var(--fg);font-size:0.88rem;flex:1">push notifications</label>
-                <span style="color:var(--subtle);font-size:0.75rem">likes · comments · follows</span>
+            <div class="auth-field" style="margin-bottom:20px">
+                <label class="field-label" style="font-size:0.9rem;margin-bottom:8px;display:block">[*] change password</label>
+                <div style="display:flex;flex-wrap:wrap;gap:6px">
+                    {{ form.current_password(class="field-input", placeholder="current password", autocomplete="current-password", style="padding:10px 14px;font-size:0.9rem;flex:1;min-width:160px") }}
+                    {{ form.new_password(class="field-input", placeholder="new password", autocomplete="new-password", style="padding:10px 14px;font-size:0.9rem;flex:1;min-width:160px") }}
+                    {{ form.confirm_password(class="field-input", placeholder="confirm", style="padding:10px 14px;font-size:0.9rem;flex:1;min-width:160px") }}
+                </div>
+                {% if form.current_password.errors %}{% for e in form.current_password.errors %}<div class="field-msg error">{{ e }}</div>{% endfor %}{% endif %}
+                {% if form.new_password.errors %}{% for e in form.new_password.errors %}<div class="field-msg error">{{ e }}</div>{% endfor %}{% endif %}
+                {% if form.confirm_password.errors %}{% for e in form.confirm_password.errors %}<div class="field-msg error">{{ e }}</div>{% endfor %}{% endif %}
+                <div style="color:var(--subtle);font-size:0.78rem;margin-top:4px">min 6 chars. leave empty to keep current.</div>
             </div>
-            <div style="margin-top:6px;padding:4px 14px;font-size:0.82rem" id="notifStatus">checking...</div>
-            <div style="margin-top:2px;padding:0 14px;font-size:0.72rem;color:var(--subtle)" id="vapidStatus"></div>
-        </div>
 
-        <div class="auth-field" style="margin-bottom:20px;padding-top:16px;border-top:1px solid var(--red)">
-            <span class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block;color:var(--red)">[!] danger zone</span>
-            <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--red);border-radius:6px">
-                {{ form.delete_account(style="width:18px;height:18px;cursor:pointer") }}
-                <label for="{{ form.delete_account.id }}" style="cursor:pointer;color:var(--red);font-size:0.88rem;flex:1">delete account (irreversible)</label>
-                <span style="color:var(--subtle);font-size:0.75rem">all data will be lost</span>
+            <div class="auth-field" style="margin-bottom:20px;padding-top:16px;border-top:1px solid var(--border)">
+                <label for="{{ form.language.id }}" class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] language</label>
+                <select id="{{ form.language.id }}" name="{{ form.language.name }}"
+                        class="field-input" style="padding:10px 14px;font-size:0.9rem;width:100%;cursor:pointer;appearance:auto">
+                    <option value="en">English</option>
+                    <option value="ru">Русский</option>
+                </select>
+                <div style="color:var(--subtle);font-size:0.78rem;margin-top:4px">interface language. saved to session.</div>
             </div>
         </div>
 
+        {# ════════════ APPEARANCE ════════════ #}
+        <div class="st-panel" id="panel-appearance" style="display:none">
+            <div class="auth-field" style="margin-bottom:20px">
+                <span class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] images</span>
+                <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:6px">
+                    <input type="checkbox" id="ascii_art" style="width:18px;height:18px;cursor:pointer">
+                    <label for="ascii_art" style="cursor:pointer;color:var(--fg);font-size:0.88rem;flex:1">ASCII art instead of images</label>
+                    <span style="color:var(--subtle);font-size:0.75rem">posts · chat · avatars</span>
+                </div>
+            </div>
+
+            <div class="auth-field" style="margin-bottom:20px">
+                <span class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] theme</span>
+                <div style="display:flex;gap:8px">
+                    <button type="button" class="theme-btn" data-theme="dark" style="flex:1;padding:10px;background:var(--surface);border:2px solid var(--border);border-radius:6px;color:var(--fg);font-family:var(--font);font-size:0.85rem;cursor:pointer;transition:border-color 0.15s">
+                        <span style="display:block;font-size:1.2rem;margin-bottom:4px">🌙</span>
+                        dark
+                    </button>
+                    <button type="button" class="theme-btn" data-theme="light" style="flex:1;padding:10px;background:var(--surface);border:2px solid var(--border);border-radius:6px;color:var(--fg);font-family:var(--font);font-size:0.85rem;cursor:pointer;transition:border-color 0.15s">
+                        <span style="display:block;font-size:1.2rem;margin-bottom:4px">☀️</span>
+                        light
+                    </button>
+                </div>
+            </div>
+
+            <div class="auth-field" style="margin-bottom:20px">
+                <label class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] terminal font size</label>
+                <div style="display:flex;gap:6px;flex-wrap:wrap">
+                    <button type="button" class="fs-btn" data-size="12px" style="flex:1;min-width:50px;padding:8px 4px;background:var(--surface);border:2px solid var(--border);border-radius:6px;color:var(--fg);font-family:var(--font);font-size:0.75rem;cursor:pointer;transition:border-color 0.15s">12px</button>
+                    <button type="button" class="fs-btn" data-size="13px" style="flex:1;min-width:50px;padding:8px 4px;background:var(--surface);border:2px solid var(--border);border-radius:6px;color:var(--fg);font-family:var(--font);font-size:0.8rem;cursor:pointer;transition:border-color 0.15s">13px</button>
+                    <button type="button" class="fs-btn" data-size="14px" style="flex:1;min-width:50px;padding:8px 4px;background:var(--surface);border:2px solid var(--border);border-radius:6px;color:var(--fg);font-family:var(--font);font-size:0.85rem;cursor:pointer;transition:border-color 0.15s">14px</button>
+                    <button type="button" class="fs-btn" data-size="15px" style="flex:1;min-width:50px;padding:8px 4px;background:var(--surface);border:2px solid var(--border);border-radius:6px;color:var(--fg);font-family:var(--font);font-size:0.9rem;cursor:pointer;transition:border-color 0.15s">15px</button>
+                    <button type="button" class="fs-btn" data-size="16px" style="flex:1;min-width:50px;padding:8px 4px;background:var(--surface);border:2px solid var(--border);border-radius:6px;color:var(--fg);font-family:var(--font);font-size:0.95rem;cursor:pointer;transition:border-color 0.15s">16px</button>
+                    <button type="button" class="fs-btn" data-size="18px" style="flex:1;min-width:50px;padding:8px 4px;background:var(--surface);border:2px solid var(--border);border-radius:6px;color:var(--fg);font-family:var(--font);font-size:1rem;cursor:pointer;transition:border-color 0.15s">18px</button>
+                    <button type="button" class="fs-btn" data-size="20px" style="flex:1;min-width:50px;padding:8px 4px;background:var(--surface);border:2px solid var(--border);border-radius:6px;color:var(--fg);font-family:var(--font);font-size:1.05rem;cursor:pointer;transition:border-color 0.15s">20px</button>
+                </div>
+            </div>
+        </div>
+
+        {# ════════════ NOTIFICATIONS ════════════ #}
+        <div class="st-panel" id="panel-notifications" style="display:none">
+            <div class="auth-field" style="margin-bottom:20px">
+                <span class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] push notifications</span>
+                <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:6px">
+                    {{ form.notifications_enabled(style="width:18px;height:18px;cursor:pointer") }}
+                    <label for="{{ form.notifications_enabled.id }}" style="cursor:pointer;color:var(--fg);font-size:0.88rem;flex:1">receive push notifications</label>
+                    <span style="color:var(--subtle);font-size:0.75rem">browser</span>
+                </div>
+                <div style="margin-top:6px;padding:4px 14px;font-size:0.82rem" id="notifStatus">checking...</div>
+            </div>
+
+            <div class="auth-field" style="margin-bottom:20px">
+                <span class="field-label" style="font-size:0.9rem;margin-bottom:8px;display:block">[*] notify me about</span>
+                <div style="display:flex;flex-direction:column;gap:6px">
+                    <label style="display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer">
+                        {{ form.notify_on_like(style="width:16px;height:16px;cursor:pointer") }}
+                        <span style="flex:1;color:var(--fg);font-size:0.85rem">likes</span>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer">
+                        {{ form.notify_on_comment(style="width:16px;height:16px;cursor:pointer") }}
+                        <span style="flex:1;color:var(--fg);font-size:0.85rem">comments</span>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer">
+                        {{ form.notify_on_follow(style="width:16px;height:16px;cursor:pointer") }}
+                        <span style="flex:1;color:var(--fg);font-size:0.85rem">follows</span>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer">
+                        {{ form.notify_on_message(style="width:16px;height:16px;cursor:pointer") }}
+                        <span style="flex:1;color:var(--fg);font-size:0.85rem">messages</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        {# ════════════ DANGER ════════════ #}
+        <div class="st-panel" id="panel-danger" style="display:none">
+            <div class="auth-field" style="margin-bottom:20px;padding:16px;border:2px solid var(--red);border-radius:6px;background:var(--surface)">
+                <span class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block;color:var(--red)">[!] delete account</span>
+                <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg);border:1px solid var(--red);border-radius:6px">
+                    {{ form.delete_account(style="width:18px;height:18px;cursor:pointer") }}
+                    <label for="{{ form.delete_account.id }}" style="cursor:pointer;color:var(--red);font-size:0.88rem;flex:1">I understand — delete my account and all data</label>
+                </div>
+                <div style="color:var(--subtle);font-size:0.78rem;margin-top:8px">This will permanently remove your profile, posts, comments, likes, chats, and all associated data. This action cannot be undone.</div>
+            </div>
+        </div>
+
+        {# ── Action buttons ── #}
         <div style="display:flex;gap:8px;margin-top:24px;padding-top:16px;border-top:1px solid var(--border)">
             <button type="submit" class="btn-term primary" style="flex:1;padding:10px 20px;font-size:0.9rem;display:flex;justify-content:center">[>> save]</button>
             <a href="{{ url_for('main.index') }}" class="btn-term" style="flex:1;padding:10px 20px;font-size:0.9rem;display:flex;justify-content:center;text-decoration:none">[cancel]</a>
         </div>
     </form>
 
-    <div style="border-top:1px solid var(--border);padding:16px 24px;font-size:0.85rem;color:var(--subtle);display:grid;grid-template-columns:1fr 1fr;gap:6px">
+    <div style="border-top:1px solid var(--border);padding:12px 24px;font-size:0.82rem;color:var(--subtle);display:grid;grid-template-columns:1fr 1fr;gap:4px">
         <span>username: <b style="color:var(--fg)">{{ current_user.username }}</b></span>
         <span>email: <b style="color:var(--fg)">{{ current_user.email }}</b></span>
         <span>joined: <b style="color:var(--fg)">{{ current_user.created_date.strftime('%Y-%m-%d') if current_user.created_date else '?' }}</b></span>
@@ -117,6 +195,31 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // ════════════ TAB SWITCHING ════════════
+    var tabs = document.querySelectorAll('.st-tab');
+    var panels = {
+        account:      document.getElementById('panel-account'),
+        appearance:   document.getElementById('panel-appearance'),
+        notifications: document.getElementById('panel-notifications'),
+        danger:       document.getElementById('panel-danger'),
+    };
+
+    function switchTab(tabId) {
+        tabs.forEach(function(t) {
+            var active = t.dataset.tab === tabId;
+            t.style.color = active ? 'var(--accent)' : 'var(--subtle)';
+            t.style.borderColor = active ? 'var(--accent)' : 'transparent';
+        });
+        Object.keys(panels).forEach(function(k) {
+            panels[k].style.display = k === tabId ? '' : 'none';
+        });
+    }
+
+    tabs.forEach(function(tab) {
+        tab.addEventListener('click', function() { switchTab(tab.dataset.tab); });
+    });
+
+    // ════════════ DELETE ACCOUNT MODAL ════════════
     var deleteCheckbox = document.getElementById('delete_account');
     var modal = document.getElementById('deleteAccountModal');
     var confirmBtn = document.getElementById('confirmDeleteBtn');
@@ -131,20 +234,61 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     modal.addEventListener('click', function(e) {
-        if (e.target === this) { this.classList.add('d-none'); deleteCheckbox.checked = false; }
+        if (e.target === modal) { this.classList.add('d-none'); deleteCheckbox.checked = false; }
     });
 
-    // ── ASCII art toggle ──
+    // ════════════ ASCII ART TOGGLE ════════════
     var asciiCheck = document.getElementById('ascii_art');
-    if (asciiCheck) {
-        if (window.GUI_ASCII) {
-            asciiCheck.checked = GUI_ASCII.isEnabled();
-            asciiCheck.addEventListener('change', function() {
-                GUI_ASCII.setEnabled(this.checked);
-            });
-        }
+    if (asciiCheck && window.GUI_ASCII) {
+        asciiCheck.checked = GUI_ASCII.isEnabled();
+        asciiCheck.addEventListener('change', function() {
+            GUI_ASCII.setEnabled(this.checked);
+        });
     }
 
+    // ════════════ THEME TOGGLE ════════════
+    if (window.GUI_THEME) {
+        var currentTheme = GUI_THEME.getTheme();
+        document.querySelectorAll('.theme-btn').forEach(function(btn) {
+            if (btn.dataset.theme === currentTheme) {
+                btn.style.borderColor = 'var(--accent)';
+                btn.style.color = 'var(--accent)';
+            }
+            btn.addEventListener('click', function() {
+                var t = this.dataset.theme;
+                GUI_THEME.setTheme(t);
+                document.querySelectorAll('.theme-btn').forEach(function(b) {
+                    b.style.borderColor = 'var(--border)';
+                    b.style.color = 'var(--fg)';
+                });
+                this.style.borderColor = 'var(--accent)';
+                this.style.color = 'var(--accent)';
+            });
+        });
+    }
+
+    // ════════════ FONT SIZE ════════════
+    if (window.GUI_THEME) {
+        var currentSize = GUI_THEME.getFontSize();
+        document.querySelectorAll('.fs-btn').forEach(function(btn) {
+            if (btn.dataset.size === currentSize) {
+                btn.style.borderColor = 'var(--accent)';
+                btn.style.color = 'var(--accent)';
+            }
+            btn.addEventListener('click', function() {
+                var s = this.dataset.size;
+                GUI_THEME.setFontSize(s);
+                document.querySelectorAll('.fs-btn').forEach(function(b) {
+                    b.style.borderColor = 'var(--border)';
+                    b.style.color = 'var(--fg)';
+                });
+                this.style.borderColor = 'var(--accent)';
+                this.style.color = 'var(--accent)';
+            });
+        });
+    }
+
+    // ════════════ PASSWORD VALIDATION ════════════
     var np = document.getElementById('{{ form.new_password.id }}');
     var cp = document.getElementById('{{ form.confirm_password.id }}');
     function validate() {
@@ -153,32 +297,26 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     if (np && cp) { np.addEventListener('input', validate); cp.addEventListener('input', validate); }
 
-    // ── Notification permission + VAPID status ──
+    // ════════════ LANGUAGE SELECTOR ════════════
+    var langSel = document.getElementById('{{ form.language.id }}');
+    if (langSel && window.GUI_THEME) {
+        // Handled by form submission (POST saves session['lang'])
+    }
+
+    // ════════════ NOTIFICATION STATUS ════════════
     if ('Notification' in window) {
         var statusDiv = document.getElementById('notifStatus');
-        var vapidDiv = document.getElementById('vapidStatus');
         if (statusDiv) {
             var perm = Notification.permission;
             var html = '';
             if (perm === 'granted') {
                 html = '<span style="color:var(--green)">[+] active in browser</span>';
             } else if (perm === 'denied') {
-                html = '<span style="color:var(--red)">[x] blocked in browser</span> <small style="color:var(--subtle);font-size:0.72rem">— click lock icon in URL bar -> Site Settings -> Notifications -> Allow</small>';
+                html = '<span style="color:var(--red)">[x] blocked in browser</span> <small style="color:var(--subtle);font-size:0.72rem">— click lock icon in URL bar → Site Settings → Notifications → Allow</small>';
             } else {
                 html = '<span style="color:var(--yellow)">[-] not set</span> <small style="color:var(--subtle);font-size:0.72rem">enable from the notification banner</small>';
             }
             statusDiv.innerHTML = html;
-        }
-        if (vapidDiv) {
-            var hasVapid = window.VAPID_PUBLIC_KEY && window.VAPID_PUBLIC_KEY.length > 10;
-            var hasSw = 'serviceWorker' in navigator;
-            if (!hasSw) {
-                vapidDiv.innerHTML = '[!] service workers not supported in this browser';
-            } else if (!hasVapid) {
-                vapidDiv.innerHTML = '[!] VAPID keys not configured — run <code>python scripts/gen_vapid_keys.py</code> and restart';
-            } else {
-                vapidDiv.innerHTML = '[i] VAPID keys: configured  |  Service Worker: ' + (hasSw ? 'available' : 'unavailable');
-            }
         }
     }
 });

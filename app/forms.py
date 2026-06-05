@@ -79,6 +79,11 @@ class SettingsForm(FlaskForm):
     confirm_password = PasswordField('Подтверждение пароля', validators=[
         EqualTo('new_password', message='Пароли не совпадают')
     ])
+    language = SelectField('Language', choices=[('en', 'English'), ('ru', 'Русский')], default='en')
     notifications_enabled = BooleanField('Push-уведомления')
+    notify_on_like = BooleanField('Likes', default=True)
+    notify_on_comment = BooleanField('Comments', default=True)
+    notify_on_follow = BooleanField('Follows', default=True)
+    notify_on_message = BooleanField('Messages', default=True)
     delete_account = BooleanField('Удалить аккаунт')
     submit = SubmitField('Сохранить изменения')
