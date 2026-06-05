@@ -106,7 +106,7 @@
         if (document.getElementById(id)) return;
 
         const html = `
-            <div id="${id}" style="background:var(--bg);border:1px solid var(--red);padding:8px 12px;margin-bottom:6px;font-family:var(--font);max-width:360px;box-shadow:0 2px 8px rgba(0,0,0,0.3);border-left:3px solid var(--red);">
+            <div id="${id}" style="background:var(--bg);border:1px solid var(--red);padding:8px 12px;margin-bottom:6px;font-family:var(--font);max-width:360px;box-shadow:0 2px 8px rgba(0,0,0,0.3);border-left:3px solid var(--red);pointer-events:auto;">
                 <div style="display:flex;gap:8px;align-items:flex-start">
                     <span style="color:var(--red);font-weight:700;flex-shrink:0">[✗]</span>
                     <div>
@@ -150,7 +150,7 @@
         if (document.getElementById(id)) return;
 
         const html = `
-            <div id="${id}" style="background:var(--bg);border:1px solid var(--overlay);padding:8px 12px;margin-bottom:6px;font-family:var(--font);max-width:360px;box-shadow:0 2px 8px rgba(0,0,0,0.3);">
+            <div id="${id}" style="background:var(--bg);border:1px solid var(--overlay);padding:8px 12px;margin-bottom:6px;font-family:var(--font);max-width:360px;box-shadow:0 2px 8px rgba(0,0,0,0.3);pointer-events:auto;">
                 <div style="display:flex;gap:8px;align-items:flex-start">
                     <span style="color:var(--green);font-weight:700;flex-shrink:0">[!]</span>
                     <div>
@@ -262,7 +262,7 @@ window.showToast = function(title, message, type) {
     };
     const border = colors[type] || 'var(--border)';
     const html = `
-        <div id="${id}" style="background:var(--bg);border:1px solid ${border};border-radius:4px;padding:8px 12px;margin-bottom:6px;font-family:var(--font);max-width:360px;box-shadow:0 2px 8px rgba(0,0,0,0.3);">
+        <div id="${id}" style="background:var(--bg);border:1px solid ${border};border-radius:4px;padding:8px 12px;margin-bottom:6px;font-family:var(--font);max-width:360px;box-shadow:0 2px 8px rgba(0,0,0,0.3);pointer-events:auto;">
             <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
                 <div>
                     <strong style="color:${border}">${escapeHtml(title)}</strong><br>
