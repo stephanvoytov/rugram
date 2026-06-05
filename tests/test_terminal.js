@@ -12,6 +12,7 @@ const { JSDOM } = require('jsdom');
 const JS_DIR = path.resolve(__dirname, '..', 'app', 'static', 'js');
 const LOAD_ORDER = [
   'terminal.js',
+  'terminal-ascii.js',
   'terminal-vfs.js',
   'terminal-nano.js',
   'terminal-chat.js',
