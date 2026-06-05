@@ -218,12 +218,10 @@ window.showToast = function(title, message, type) {
 
     async function enablePush() {
         if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-            showToast('[!] push not supported', 'service workers or push manager unavailable', 'danger');
-            return;
+            return; // push not supported — silently skip
         }
         if (!window.VAPID_PUBLIC_KEY || window.VAPID_PUBLIC_KEY.length < 20) {
-            showToast('[!] VAPID keys missing', 'run: python scripts/gen_vapid_keys.py and restart', 'danger');
-            return;
+            return; // VAPID not configured — silently skip (push is optional)
         }
         function urlBase64ToUint8Array(b64) {
             const padding = '='.repeat((4 - b64.length % 4) % 4);
@@ -258,7 +256,6 @@ window.showToast = function(title, message, type) {
             }
         } catch (e) {
             console.error('Push setup error:', e);
-            showToast('[!] push setup failed', e.message || 'unknown error', 'danger');
         }
     }
 })();
