@@ -20,8 +20,10 @@ main_bp = Blueprint('main', __name__, template_folder='../templates')
 @main_bp.route('/')
 @main_bp.route('/index')
 def index() -> Response:
+    from sqlalchemy import case, desc as sql_desc
     search_query = request.args.get('q', '').strip().lower()
     tag_filter = request.args.get('tag', '').strip().lower()
+    sort_by = request.args.get('sort', 'new').strip().lower()
     page = request.args.get('page', 1, type=int)
     per_page = current_app.config.get('POSTS_PER_PAGE', 15)
     followed_only = request.args.get('followed') == '1'
@@ -39,13 +41,25 @@ def index() -> Response:
     if tag_filter:
         base_query = base_query.join(PostTag).join(Tag).filter(Tag.name == tag_filter)
 
+    # Сортировка
+    if sort_by == 'hot':
+        # hot = вовлечённость: лайки + комменты×2 + репосты×3
+        order = sql_desc(
+            Post.likes_count + Post.comments_count * 2 + Post.reposts_count * 3
+        )
+    elif sort_by == 'top':
+        order = sql_desc(Post.likes_count + Post.comments_count + Post.reposts_count)
+    else:
+        order = Post.created_date.desc()
+        sort_by = 'new'
+
     if search_query:
         search_filter = Post.text.ilike(f'%{search_query}%')
         pagination = base_query.filter(search_filter) \
-            .order_by(Post.created_date.desc()) \
+            .order_by(order) \
             .paginate(page=page, per_page=per_page)
     else:
-        pagination = base_query.order_by(Post.created_date.desc()) \
+        pagination = base_query.order_by(order) \
             .paginate(page=page, per_page=per_page)
 
     # Trending tags for sidebar
@@ -65,6 +79,7 @@ def index() -> Response:
         search_query=search_query,
         followed_only=followed_only,
         tag_filter=tag_filter,
+        sort_by=sort_by,
         trending_tags=trending_tags
     )
 

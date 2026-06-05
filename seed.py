@@ -9,9 +9,10 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 
 from app import create_app
-from app.models import User, Post, Follow, Chat, ChatParticipant, Message, Notification, Like
+from app.models import User, Post, Follow, Chat, ChatParticipant, Message, Notification, Like, Tag, PostTag
 from extensions import db
 from app.crypto import encrypt
+from app.routes.helpers import extract_tags, sync_post_tags
 
 app = create_app()
 
@@ -38,27 +39,39 @@ with app.app_context():
     db.session.flush()
 
     # ── Posts by Alice ──
+    def _make_post(author, text, likes=0, comments=0, reposts=0):
+        existing = Post.query.filter_by(author_id=author.id, text=text).first()
+        if existing:
+            return existing
+        p = Post(text=text, author_id=author.id,
+                 likes_count=likes, comments_count=comments, reposts_count=reposts)
+        db.session.add(p)
+        db.session.flush()
+        tags = extract_tags(text)
+        if tags:
+            sync_post_tags(p.id, tags)
+        return p
+
     alice_posts = [
         "just finished rewriting the entire routing layer in Flask.\n\nthe terminal UI now feels buttery smooth. next up: async chat polling.\n\n#dev #flask #python",
         "people ask me why I built a social network with a terminal interface.\n\nbecause keyboards are faster than mice.\n\n>_ prove me wrong.",
         "hot take: the best UIs are the ones you don't have to touch.\n\n⌨️ > 🖱️",
+        "deep dive into WebSocket scaling today. 10k concurrent connections on a single box.\n\n#dev #python #websocket",
+        "my new terminal-based text editor can now syntax-highlight 40+ languages.\n\n#dev #tools",
     ]
-    for i, text in enumerate(alice_posts):
-        existing = Post.query.filter_by(author_id=alice.id, text=text).first()
-        if not existing:
-            p = Post(text=text, author_id=alice.id)
-            db.session.add(p)
+    for text in alice_posts:
+        _make_post(alice, text)
 
     # ── Posts by Bob ──
     bob_posts = [
-        "finally got the transformer model to converge.\n\n72 hours of training. 4 A100s. zero sleep.\n\nworth it.\n\n#ml #ai #transformers",
-        "been testing rugram's TTY mode all morning.\n\n`grep` for searching posts, `cd` for navigation...\n\nthis is how social media should work.",
+        ("finally got the transformer model to converge.\n\n72 hours of training. 4 A100s. zero sleep.\n\nworth it.\n\n#ml #ai #transformers", 42, 15, 8),
+        ("been testing rugram's TTY mode all morning.\n\n`grep` for searching posts, `cd` for navigation...\n\nthis is how social media should work.", 12, 3, 1),
+        ("just published a paper on attention mechanisms. TL;DR: we can make transformers 3x faster with sparse attention.\n\n#ml #ai #research", 28, 10, 5),
+        ("Rust vs Zig for systems programming? my hot take:\n\nRust for safety, Zig for simplicity.\n\n#dev #rust #zig", 15, 7, 2),
+        ("built a tiny ML model that generates terminal commands from natural language.\n\n`show me all posts about transformers` → `grep transformers`\n\n#ml #ai #tools", 33, 12, 6),
     ]
-    for i, text in enumerate(bob_posts):
-        existing = Post.query.filter_by(author_id=bob.id, text=text).first()
-        if not existing:
-            p = Post(text=text, author_id=bob.id)
-            db.session.add(p)
+    for text, likes, comments, reposts in bob_posts:
+        _make_post(bob, text, likes, comments, reposts)
 
     db.session.flush()
 
