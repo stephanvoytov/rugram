@@ -10,7 +10,9 @@ pillow~=11.2.1
 python-dotenv==1.2.2
 cryptography==48.0.0
 pywebpush==2.3.0
+py-vapid==1.9.4
 flasgger==0.9.7.1
+structlog==26.1.0
 SQLAlchemy==2.0.29
 SQLAlchemy-serializer==1.4.1
 Werkzeug==3.1.6
