@@ -10,11 +10,10 @@
 
 import base64
 import hashlib
-import logging
 
 from cryptography.fernet import Fernet, MultiFernet
 
-logger = logging.getLogger(__name__)
+from app.logger import log
 
 _MULTI_FERNET_CACHE = None
 
@@ -64,5 +63,5 @@ def decrypt(ciphertext: str) -> str:
     try:
         return _get_multi_fernet().decrypt(ciphertext.encode()).decode()
     except Exception as e:
-        logger.warning('decrypt() failed: %s', e)
+        log.warning('decrypt() failed', error=str(e))
         return '[encrypted]'

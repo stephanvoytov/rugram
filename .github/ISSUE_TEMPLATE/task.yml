@@ -1,0 +1,40 @@
+name: 📋 Task
+description: General task that doesn't fit other templates
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Small task, chore, or follow-up.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What needs to be done?
+      placeholder: e.g. "Update README with new API endpoints"
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: How do we know this is done?
+      placeholder: |
+        - [ ] README lists new endpoints
+        - [ ] Examples included
+        - [ ] Russian translation updated
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: false
+      options:
+        - Documentation
+        - CI / GitHub Actions
+        - Docker
+        - Configuration
+        - Dependencies
+        - Other

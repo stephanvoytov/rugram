@@ -2,6 +2,10 @@ import os
 import time
 
 from flask import Flask, request, jsonify, redirect, url_for, session, render_template
+
+from flasgger import Swagger
+
+from app.logger import setup_logging
 from flask_login import LoginManager
 from flask_restful import Api
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -10,7 +14,7 @@ from app.models import User
 from app.filters import filters_bp
 from app.resources import post_resources
 from app.routes import main_bp, auth_bp, posts_bp, admin_bp
-from app.routes.helpers import log_system_event
+from app.logger import log
 from app.translations import _
 from app.limiter import limiter
 from extensions import db, csrf
@@ -36,6 +40,8 @@ def unauthorized():
 
 
 def create_app():
+    setup_logging()
+
     app = Flask(__name__)
     api = Api(app)
     api.add_resource(post_resources.PostListResource, '/api/v1/posts')
@@ -52,6 +58,25 @@ def create_app():
     login_manager.init_app(app)
 
     limiter.init_app(app)
+
+    Swagger(app, template={
+        'swagger': '2.0',
+        'info': {
+            'title': 'Rugram API',
+            'description': 'Social network API — posts, feed, chat, notifications',
+            'version': '1.0.0',
+        },
+        'basePath': '/',
+        'schemes': ['http', 'https'],
+        'securityDefinitions': {
+            'sessionAuth': {
+                'type': 'apiKey',
+                'in': 'cookie',
+                'name': 'session',
+                'description': 'Flask session cookie (auto after login)',
+            },
+        },
+    })
 
     # Директория instance должна существовать до db.create_all(),
     # иначе SQLite не сможет создать файл БД
@@ -160,7 +185,7 @@ def create_app():
             # Log 500+ errors to system events
             if code >= 500:
                 import traceback
-                log_system_event(
+                log.system_event(
                     level='error' if code != 503 else 'warning',
                     category='system',
                     message=f'HTTP {code}: {ERROR_MESSAGES[code]}',
@@ -180,4 +205,5 @@ def create_app():
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(user_id)
+    from extensions import db
+    return db.session.get(User, user_id)

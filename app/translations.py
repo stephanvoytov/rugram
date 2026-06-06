@@ -56,6 +56,8 @@ RU: dict[str, str] = {
         'Пользователь не найден',
     'Post not found':
         'Пост не найден',
+    'Chat not found':
+        'Чат не найден',
     'You cannot follow yourself':
         'Нельзя подписаться на себя',
     'Access denied':

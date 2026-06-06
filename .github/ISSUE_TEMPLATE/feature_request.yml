@@ -1,0 +1,61 @@
+name: ✨ Feature request
+description: Suggest a new feature for Rugram
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to suggest something new!
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's the problem?
+      description: Is something missing or inconvenient? Describe the use case.
+      placeholder: e.g. "I want to see who viewed my profile"
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How should it work? Be specific.
+      placeholder: e.g. "Add a ProfileView model and a /api/profile/views endpoint"
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any other approaches you've thought about?
+      placeholder: e.g. "Could also be implemented as a notification type instead of a separate page"
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of the project does this affect?
+      multiple: true
+      options:
+        - Terminal / Commands
+        - GUI / Frontend
+        - API (REST)
+        - Chat
+        - Admin panel
+        - Auth / Security
+        - Database
+        - Infrastructure / Docker
+        - Tests
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: requirements
+    attributes:
+      label: Acceptance criteria
+      description: What needs to be true for this to be done?
+      options:
+        - label: I've checked that this doesn't duplicate an existing issue
+          required: true

@@ -1,0 +1,74 @@
+name: 🐛 Bug report
+description: Report something that's broken
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: What happened? What did you expect to happen?
+      placeholder: e.g. "When I try to register with a valid email, I get a 500 error"
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: How can we reproduce this?
+      placeholder: |
+        1. Go to /register
+        2. Fill in username 'test', email 'test@test.com'
+        3. Click 'Register'
+        4. See error 500
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Check /admin/events (if you have admin access) or logs/rugram.jsonl
+      render: shell
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      options:
+        - Production (rugram.mooo.com)
+        - Local dev — Docker
+        - Local dev — python run.py
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options:
+        - Terminal / Commands
+        - GUI / Frontend
+        - API (REST)
+        - Chat
+        - Admin panel
+        - Auth / Security
+        - Database
+        - Infrastructure / Docker
+        - Tests
+
+  - type: checkboxes
+    id: requirements
+    attributes:
+      label: Before submitting
+      options:
+        - label: I've checked that this bug hasn't been reported yet
+          required: true
+        - label: I've checked /admin/events for errors

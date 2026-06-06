@@ -40,6 +40,35 @@ The GUI is built on **Bootstrap 5.3** (grid, alerts, dark mode, dropdowns, icons
 
 ---
 
+## Quick start
+
+```bash
+git clone https://github.com/stephanvoytov/rugram
+cd rugram
+
+# Generate SECRET_KEY (required)
+python -c "import secrets; print(f'SECRET_KEY={secrets.token_hex(32)}')" > .env
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Seed demo data (alice/pass123, bob/pass123)
+python seed.py
+
+# Run dev server
+python run.py
+# → http://localhost:5000
+```
+
+### Production (Docker)
+
+```bash
+docker compose up -d
+# → http://localhost:8000 (gunicorn)
+```
+
+---
+
 ## Commands (not exhaustive — full list via `help` in the terminal)
 
 | Command | What it does |
@@ -57,7 +86,7 @@ The GUI is built on **Bootstrap 5.3** (grid, alerts, dark mode, dropdowns, icons
 | `create <text>` | Create a new post |
 | `cat <id>`, `less <id>` | View a post |
 | `watch -n 5 feed` | Auto-refresh feed |
-| `export LANG=ru_RU` | Switch language on the fly |
+| `export LANG=ru_RU` | Switch language |
 | `ping @user` | Check if user exists |
 | `feed`, `saved` | Browse posts |
 | `followers @user`, `following @user` | Social lists |
@@ -69,17 +98,58 @@ The GUI is built on **Bootstrap 5.3** (grid, alerts, dark mode, dropdowns, icons
 
 ---
 
+## Architecture
+
+```
+app/
+├── routes/           # 3 blueprints: auth, main, posts + admin
+│   ├── helpers.py    # Shared utils (image processing, cursor pagination, system events)
+│   └── admin.py      # Admin panel (users, posts, tags, events, logs)
+├── resources/        # REST API (/api/v1/posts)
+├── services/         # Business logic layer (planned)
+├── models.py         # SQLAlchemy models (User, Post, Chat, Message, …)
+├── logger.py         # Structured logging (structlog → console + file + DB)
+├── crypto.py         # Fernet/MultiFernet chat encryption
+├── push.py           # Web Push notifications (VAPID)
+├── limiter.py        # Rate limiting
+├── translations.py   # EN/RU bilingual support
+├── forms.py          # WTForms (Login, Registration, Post, Profile, Settings)
+├── filters.py        # Jinja2 template filters
+├── templates/        # Jinja2 (auth, main, posts, errors, admin)
+└── static/           # CSS, JS (terminal emulator), uploads, sw.js
+```
+
+### Test coverage
+
+```
+81 Python tests (pytest) + 319 JS tests (Node/JSDOM)
+All green — run with:
+  python -m pytest tests/ -n auto -q
+  node tests/test_terminal.js
+```
+
+### API documentation
+
+Full OpenAPI/Swagger docs available at `/apidocs/` when the server is running.
+
+---
+
 ## Features
 
-**Bilingual (EN + RU)** — English by default, Russian via `?lang=ru` on any URL.  
-Flash messages, empty states, forms, help pages, and terminal descriptions are translated — but commands stay in English and some interface elements are intentionally kept in English to preserve the terminal atmosphere.  
-Switch on the fly inside the terminal: `export LANG=ru_RU`.
+**Bilingual (EN + RU)** — English by default, Russian via `?lang=ru`.  
+Flash messages, empty states, forms, help pages — all translated. Switch on the fly: `export LANG=ru_RU`.
 
-**Encrypted messenger** — real-time polling, online status, typing indicator, date separators, read receipts, **image upload**. All messages encrypted at rest (Fernet, key derived from `SECRET_KEY`).
+**Encrypted messenger** — real-time polling, online status, typing indicator, read receipts, image upload.  
+All messages encrypted at rest (Fernet, key rotation via MultiFernet).
 
-**Push notifications** — via Service Worker + Web Push API (VAPID). New messages, likes, comments, follows — arrive even when the site is closed.
+**Push notifications** — via Service Worker + Web Push API (VAPID). Messages, likes, comments, follows.
 
-**Terminal-inspired GUI** — Bootstrap 5.3 grid and utilities under a custom Catppuccin theme. Infinite feed with All/Subscriptions filter, like animations (Web Animations API), inline comments with auto-expand textarea, bookmarks grid, reposts, dark/light theme (respects `prefers-color-scheme`), image lightbox, avatar upload with 500×500 crop, mobile-first responsive layout, REST API (`/api/v1/posts`).
+**Terminal-inspired GUI** — Bootstrap 5.3 + Catppuccin Mocha theme. Infinite feed, like animations, inline comments, bookmarks, reposts, dark/light mode, image lightbox, avatar upload, mobile-first.
+
+**REST API** — `/api/v1/posts`, `/api/feed`, `/api/notifications`, `/api/saved`.  
+Cursor-based pagination, JSON responses.
+
+**Admin panel** — `/admin/` dashboard with stats, user/post management, system events, structured log viewer.
 
 ---
 
@@ -88,9 +158,11 @@ Switch on the fly inside the terminal: `export LANG=ru_RU`.
 | Layer | Tech |
 |-------|------|
 | Backend | Python 3.12, Flask, SQLAlchemy, Flask-Login, Flask-WTF, SQLite |
-| Frontend | Jinja2, **Bootstrap 5.3**, Vanilla JS, CSS Custom Properties (Catppuccin Mocha) |
-| Security | cryptography (Fernet), pywebpush (VAPID) |
-| Infra | Alembic, Gunicorn |
+| Frontend | Jinja2, Bootstrap 5.3, Vanilla JS, CSS Custom Properties (Catppuccin Mocha) |
+| Security | cryptography (Fernet), pywebpush (VAPID), Flask-Limiter |
+| Logging | structlog (console + rotating JSON file + SystemEvent DB) |
+| Infra | Alembic, Gunicorn, Docker Compose |
+| Tests | pytest (xdist), Node.js (JSDOM) |
 
 ---
 
