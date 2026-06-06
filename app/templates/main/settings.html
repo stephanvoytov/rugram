@@ -19,6 +19,8 @@
 
     <form method="POST" enctype="multipart/form-data" style="padding:24px">
         {{ form.hidden_tag() }}
+        {# Active tab tracking — preserves tab across save redirect #}
+        <input type="hidden" name="active_tab" id="activeTabInput" value="account">
 
         {# ════════════ ACCOUNT ════════════ #}
         <div class="st-panel" id="panel-account">
@@ -195,16 +197,21 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // ════════════ TOAST ON SAVE ════════════
+    // ════════════ TOAST ON SAVE + RESTORE TAB ════════════
     var params = new URLSearchParams(window.location.search);
     if (params.get('saved') === '1') {
-        // Clean URL (remove ?saved=1) without page reload
-        var url = window.location.pathname + window.location.hash;
-        window.history.replaceState({}, '', url);
         // Show toast
         if (typeof window.showToast === 'function') {
             window.showToast('[*] settings', 'settings saved', 'success');
         }
+        // Restore active tab
+        var tabParam = params.get('tab');
+        if (tabParam && ['account','appearance','notifications','danger'].indexOf(tabParam) !== -1) {
+            switchTab(tabParam);
+        }
+        // Clean URL (remove ?saved & ?tab) without page reload
+        var url = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, '', url);
     }
 
     // ════════════ TAB SWITCHING ════════════
@@ -224,6 +231,9 @@ document.addEventListener('DOMContentLoaded', function() {
         Object.keys(panels).forEach(function(k) {
             panels[k].style.display = k === tabId ? '' : 'none';
         });
+        // Save to hidden field so redirect preserves tab
+        var hiddenInput = document.getElementById('activeTabInput');
+        if (hiddenInput) hiddenInput.value = tabId;
     }
 
     tabs.forEach(function(tab) {
