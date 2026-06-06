@@ -49,12 +49,12 @@ function setupGlobals(dom) {
   w.sessionStorage = { getItem: () => null, setItem: () => {} };
 
   Object.assign(w, {
-    LOGIN_URL: '/login', HOME_URL: '/', API_ME_URL: '/auth/api/me',
-    API_LOGIN_URL: '/auth/api/login', API_REGISTER_URL: '/auth/api/register',
-    API_LOGOUT_URL: '/auth/api/logout', API_NOTIFICATIONS_URL: '/api/notifications',
-    API_NOTIFICATIONS_UNREAD_URL: '/api/notifications/unread', API_USERS_SEARCH_URL: '/api/users/search',
+    LOGIN_URL: '/login', HOME_URL: '/', API_ME_URL: '/api/v1/auth/me',
+    API_LOGIN_URL: '/api/v1/auth/login', API_REGISTER_URL: '/api/v1/auth/register',
+    API_LOGOUT_URL: '/api/v1/auth/logout', API_NOTIFICATIONS_URL: '/api/v1/notifications',
+    API_NOTIFICATIONS_UNREAD_URL: '/api/v1/notifications/unread', API_USERS_SEARCH_URL: '/api/v1/users/search',
     API_PUSH_SUBSCRIBE_URL: '/push/subscribe', API_FEED_URL: '/api/v1/posts',
-    API_CHAT_LIST_URL: '/api/chat/list', LIKE_URL: '/like/0/', COMMENT_URL: '/comment/0/',
+    API_CHAT_LIST_URL: '/api/v1/chat/list', LIKE_URL: '/like/0/', COMMENT_URL: '/comment/0/',
     SAVE_URL: '/save/0/', REPOST_URL: '/repost/0/', DELETE_POST_URL: '/delete/0',
     FOLLOW_URL: '/follow/', MARK_READ_URL: '/notif/read/0', MARK_ALL_READ_URL: '/notif/read/all',
     EDIT_COMMENT_URL: '/comment/edit/0', DELETE_COMMENT_URL: '/comment/delete/0',
@@ -191,7 +191,7 @@ function setupLoggedIn(dom) {
 
 async function test_login(dom) {
   const T = dom.window.TERMINAL;
-  dom.window.fetch.__mock('/auth/api/login', { ok: true, user: { username: 'testuser', id: 1 } });
+  dom.window.fetch.__mock('/api/v1/auth/login', { ok: true, user: { username: 'testuser', id: 1 } });
   dom.window.fetch.__mockPrefix('/api/v1/posts', { posts: [] });
 
   runCommand(dom, 'login testuser pass123');
@@ -205,7 +205,7 @@ async function test_login(dom) {
 
 async function test_login_error(dom) {
   const T = dom.window.TERMINAL;
-  dom.window.fetch.__mock('/auth/api/login', { ok: false, error: 'Invalid credentials' });
+  dom.window.fetch.__mock('/api/v1/auth/login', { ok: false, error: 'Invalid credentials' });
 
   runCommand(dom, 'login baduser wrong');
   await nextTick(); await wait(15);
@@ -216,7 +216,7 @@ async function test_login_error(dom) {
 
 async function test_register(dom) {
   const T = dom.window.TERMINAL;
-  dom.window.fetch.__mock('/auth/api/register', { ok: true, user: { username: 'newuser', id: 2 } });
+  dom.window.fetch.__mock('/api/v1/auth/register', { ok: true, user: { username: 'newuser', id: 2 } });
   dom.window.fetch.__mockPrefix('/api/v1/posts', { posts: [] });
 
   runCommand(dom, 'register newuser new@mail.com secret');
@@ -230,7 +230,7 @@ async function test_register(dom) {
 async function test_logout(dom) {
   const T = dom.window.TERMINAL;
   setupLoggedIn(dom);
-  dom.window.fetch.__mock('/auth/api/logout', { ok: true });
+  dom.window.fetch.__mock('/api/v1/auth/logout', { ok: true });
 
   runCommand(dom, 'logout');
   await nextTick(); await wait(15);
@@ -428,7 +428,7 @@ async function test_unfollow(dom) {
 async function test_followers_inline(dom) {
   const T = dom.window.TERMINAL;
   setupLoggedIn(dom);
-  dom.window.fetch.__mockPrefix('/api/followers/', { users: [
+  dom.window.fetch.__mockPrefix('/api/v1/followers/', { users: [
     { username: 'fan1', is_online: true, description: 'Big fan' },
     { username: 'fan2', is_online: false },
   ]});
@@ -443,7 +443,7 @@ async function test_followers_inline(dom) {
 async function test_following_inline(dom) {
   const T = dom.window.TERMINAL;
   setupLoggedIn(dom);
-  dom.window.fetch.__mockPrefix('/api/following/', { users: [
+  dom.window.fetch.__mockPrefix('/api/v1/following/', { users: [
     { username: 'hero1', is_online: true },
     { username: 'hero2', is_online: false, description: 'Cool person' },
   ]});
@@ -458,7 +458,7 @@ async function test_following_inline(dom) {
 async function test_followers_less(dom) {
   const T = dom.window.TERMINAL;
   setupLoggedIn(dom);
-  dom.window.fetch.__mockPrefix('/api/followers/', { users: [
+  dom.window.fetch.__mockPrefix('/api/v1/followers/', { users: [
     { username: 'fan1', is_online: true },
   ]});
 
@@ -472,7 +472,7 @@ async function test_followers_less(dom) {
 async function test_followers_empty(dom) {
   const T = dom.window.TERMINAL;
   setupLoggedIn(dom);
-  dom.window.fetch.__mockPrefix('/api/followers/', { users: [] });
+  dom.window.fetch.__mockPrefix('/api/v1/followers/', { users: [] });
 
   runCommand(dom, 'followers --inline');
   await nextTick(); await wait(30);
@@ -483,7 +483,7 @@ async function test_followers_empty(dom) {
 async function test_following_empty(dom) {
   const T = dom.window.TERMINAL;
   setupLoggedIn(dom);
-  dom.window.fetch.__mockPrefix('/api/following/', { users: [] });
+  dom.window.fetch.__mockPrefix('/api/v1/following/', { users: [] });
 
   runCommand(dom, 'following --inline');
   await nextTick(); await wait(30);
@@ -493,7 +493,7 @@ async function test_following_empty(dom) {
 
 async function test_neofetch(dom) {
   const T = dom.window.TERMINAL;
-  dom.window.fetch.__mock('/api/users/search?q=alice', { users: [
+  dom.window.fetch.__mock('/api/v1/users/search?q=alice', { users: [
     { username: 'alice', is_online: true, profile_image: null },
   ]});
 
@@ -506,7 +506,7 @@ async function test_neofetch(dom) {
 
 async function test_neofetch_not_found(dom) {
   const T = dom.window.TERMINAL;
-  dom.window.fetch.__mock('/api/users/search?q=nobody', { users: [] });
+  dom.window.fetch.__mock('/api/v1/users/search?q=nobody', { users: [] });
 
   runCommand(dom, 'neofetch nobody');
   await nextTick(); await wait(30);
@@ -586,7 +586,7 @@ async function test_feed_empty(dom) {
 async function test_saved(dom) {
   const T = dom.window.TERMINAL;
   setupLoggedIn(dom);
-  dom.window.fetch.__mock('/api/saved', { posts: [
+  dom.window.fetch.__mock('/api/v1/saved', { posts: [
     makePost(10, { text: 'Saved first' }),
     makePost(11, { text: 'Saved second' }),
   ]});
@@ -602,7 +602,7 @@ async function test_saved(dom) {
 async function test_saved_empty(dom) {
   const T = dom.window.TERMINAL;
   setupLoggedIn(dom);
-  dom.window.fetch.__mock('/api/saved', { posts: [] });
+  dom.window.fetch.__mock('/api/v1/saved', { posts: [] });
 
   runCommand(dom, 'saved --inline');
   await nextTick(); await wait(30);
@@ -613,7 +613,7 @@ async function test_saved_empty(dom) {
 async function test_saved_search(dom) {
   const T = dom.window.TERMINAL;
   setupLoggedIn(dom);
-  dom.window.fetch.__mock('/api/saved', { posts: [
+  dom.window.fetch.__mock('/api/v1/saved', { posts: [
     makePost(10, { text: 'Cats are great' }),
     makePost(11, { text: 'Dogs are cool' }),
   ]});
@@ -628,7 +628,7 @@ async function test_saved_search(dom) {
 async function test_notifications(dom) {
   const T = dom.window.TERMINAL;
   setupLoggedIn(dom);
-  dom.window.fetch.__mock('/api/notifications', { notifications: [
+  dom.window.fetch.__mock('/api/v1/notifications', { notifications: [
     { id: 1, type: 'like', actor: { username: 'alice' }, post_id: 42, is_read: false, created_date: '2026-06-03T10:00:00' },
     { id: 2, type: 'follow', actor: { username: 'bob' }, post_id: null, is_read: true, created_date: '2026-06-02T10:00:00' },
   ]});
@@ -643,7 +643,7 @@ async function test_notifications(dom) {
 async function test_notifications_empty(dom) {
   const T = dom.window.TERMINAL;
   setupLoggedIn(dom);
-  dom.window.fetch.__mock('/api/notifications', { notifications: [] });
+  dom.window.fetch.__mock('/api/v1/notifications', { notifications: [] });
 
   runCommand(dom, 'notifications --inline');
   await nextTick(); await wait(30);
@@ -734,7 +734,7 @@ async function test_pwd(dom) {
 async function test_whoami_logged_in(dom) {
   const T = dom.window.TERMINAL;
   setupLoggedIn(dom);
-  dom.window.fetch.__mock('/auth/api/me', { authenticated: true, user: { username: 'testuser', id: 1 } });
+  dom.window.fetch.__mock('/api/v1/auth/me', { authenticated: true, user: { username: 'testuser', id: 1 } });
   runCommand(dom, 'whoami');
   hasOutput(dom, 'User:', 'whoami shows User:');
 }
@@ -1045,7 +1045,7 @@ async function test_ping_local(dom) {
 }
 
 async function test_ping_user(dom) {
-  dom.window.fetch.__mock('/api/users/search?q=alice', { users: [
+  dom.window.fetch.__mock('/api/v1/users/search?q=alice', { users: [
     { username: 'alice', is_online: true },
   ]});
   runCommand(dom, 'ping alice');
@@ -1054,7 +1054,7 @@ async function test_ping_user(dom) {
 }
 
 async function test_ping_unreachable(dom) {
-  dom.window.fetch.__mock('/api/users/search?q=ghost', { users: [] });
+  dom.window.fetch.__mock('/api/v1/users/search?q=ghost', { users: [] });
   runCommand(dom, 'ping ghost');
   await nextTick(); await wait(500);
   hasOutput(dom, 'packet loss', 'ping unreachable shows loss');
@@ -1408,7 +1408,7 @@ async function test_feed_less(dom) {
 async function test_saved_inline(dom) {
   const T = dom.window.TERMINAL;
   setupLoggedIn(dom);
-  dom.window.fetch.__mock('/api/saved', { posts: [makePost(10, { text: 'inline saved post' })] });
+  dom.window.fetch.__mock('/api/v1/saved', { posts: [makePost(10, { text: 'inline saved post' })] });
   runCommand(dom, 'saved --inline');
   await nextTick(); await wait(30);
   hasOutput(dom, '10', 'saved --inline shows post id');
@@ -1469,7 +1469,7 @@ async function test_whitespace_input(dom) {
 }
 
 async function test_followers_inline_of(dom) {
-  dom.window.fetch.__mockPrefix('/api/followers/', { users: [
+  dom.window.fetch.__mockPrefix('/api/v1/followers/', { users: [
     { username: 'fan1', is_online: true },
     { username: 'fan2', is_online: false },
   ]});
@@ -1480,7 +1480,7 @@ async function test_followers_inline_of(dom) {
 }
 
 async function test_following_inline_of(dom) {
-  dom.window.fetch.__mockPrefix('/api/following/', { users: [
+  dom.window.fetch.__mockPrefix('/api/v1/following/', { users: [
     { username: 'hero1', is_online: true },
   ]});
   runCommand(dom, 'following --inline --of @bob');
@@ -1489,7 +1489,7 @@ async function test_following_inline_of(dom) {
 }
 
 async function test_followers_empty_of(dom) {
-  dom.window.fetch.__mockPrefix('/api/followers/', { users: [] });
+  dom.window.fetch.__mockPrefix('/api/v1/followers/', { users: [] });
   runCommand(dom, 'followers --inline --of @nobody');
   await nextTick(); await wait(30);
   hasOutput(dom, 'No followers', 'followers empty --of shows msg');
@@ -1497,7 +1497,7 @@ async function test_followers_empty_of(dom) {
 
 async function test_notifications_inline(dom) {
   setupLoggedIn(dom);
-  dom.window.fetch.__mock('/api/notifications', { notifications: [
+  dom.window.fetch.__mock('/api/v1/notifications', { notifications: [
     { id: 1, type: 'like', actor: { username: 'alice' }, post_id: 10,
       is_read: false, created_date: '2026-06-03T12:00:00' },
   ]});
@@ -1509,7 +1509,7 @@ async function test_notifications_inline(dom) {
 
 async function test_notifications_inline_unread(dom) {
   setupLoggedIn(dom);
-  dom.window.fetch.__mock('/api/notifications', { notifications: [
+  dom.window.fetch.__mock('/api/v1/notifications', { notifications: [
     { id: 1, type: 'like', actor: { username: 'bob' }, post_id: 10,
       is_read: false, created_date: '2026-06-03T12:00:00' },
     { id: 2, type: 'follow', actor: { username: 'carol' }, post_id: null,
@@ -1580,7 +1580,7 @@ async function test_chat_list(dom) {
   const T = dom.window.TERMINAL;
   setupLoggedIn(dom);
   // IMPORTANT: last_message_time and last_message are TOP-LEVEL chat fields, not nested!
-  dom.window.fetch.__mock('/api/chat/list', { chats: [
+  dom.window.fetch.__mock('/api/v1/chat/list', { chats: [
     { id: 1, other_user: { username: 'alice', is_online: true },
       last_message_time: '2026-06-03T10:00:00Z', last_message: 'hi', unread_count: 0 },
   ]});
@@ -1632,7 +1632,7 @@ async function test_ls_saved_dir(dom) {
   const T = dom.window.TERMINAL;
   setupLoggedIn(dom);
   // ls in saved dir — use path arg instead of changing cwd
-  dom.window.fetch.__mock('/api/saved', { posts: [] });
+  dom.window.fetch.__mock('/api/v1/saved', { posts: [] });
   runCommand(dom, 'ls saved');
   // Should either list contents or show empty info
   const html = outputHTML(dom);
@@ -1645,7 +1645,7 @@ async function test_ls_saved_dir(dom) {
 async function test_saved_less(dom) {
   const T = dom.window.TERMINAL;
   setupLoggedIn(dom);
-  dom.window.fetch.__mock('/api/saved', { posts: [makePost(10)] });
+  dom.window.fetch.__mock('/api/v1/saved', { posts: [makePost(10)] });
   runCommand(dom, 'saved --less');
   await nextTick(); await wait(30);
   check(T._lessActive === true, 'saved --less opens pager');
@@ -1656,7 +1656,7 @@ async function test_saved_less(dom) {
 async function test_saved_tail(dom) {
   const T = dom.window.TERMINAL;
   setupLoggedIn(dom);
-  dom.window.fetch.__mock('/api/saved', { posts: [makePost(1), makePost(2), makePost(3)] });
+  dom.window.fetch.__mock('/api/v1/saved', { posts: [makePost(1), makePost(2), makePost(3)] });
   runCommand(dom, 'saved --tail 1');
   await nextTick(); await wait(30);
   hasOutput(dom, '#3', 'saved --tail 1 shows last post');
@@ -1667,7 +1667,7 @@ async function test_saved_tail(dom) {
 async function test_notifications_less(dom) {
   const T = dom.window.TERMINAL;
   setupLoggedIn(dom);
-  dom.window.fetch.__mock('/api/notifications', {
+  dom.window.fetch.__mock('/api/v1/notifications', {
     notifications: [
       { id: 101, actor: { username: 'alice' }, type: 'like', post_id: 1,
         created_date: '2026-06-03T10:00:00Z', is_read: false },
@@ -1683,7 +1683,7 @@ async function test_notifications_less(dom) {
 async function test_notifications_tail(dom) {
   const T = dom.window.TERMINAL;
   setupLoggedIn(dom);
-  dom.window.fetch.__mock('/api/notifications', {
+  dom.window.fetch.__mock('/api/v1/notifications', {
     notifications: [
       { id: 1, actor: { username: 'a' }, type: 'like', post_id: 1,
         created_date: '2026-06-03T10:00:00Z', is_read: false },
@@ -1703,7 +1703,7 @@ async function test_notifications_tail(dom) {
 async function test_following_less(dom) {
   const T = dom.window.TERMINAL;
   setupLoggedIn(dom);
-  dom.window.fetch.__mockPrefix('/api/following/', { users: [
+  dom.window.fetch.__mockPrefix('/api/v1/following/', { users: [
     { username: 'alice', is_online: true },
     { username: 'bob', is_online: false },
   ]});

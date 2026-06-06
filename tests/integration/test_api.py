@@ -1,4 +1,4 @@
-"""Tests for REST API at /api/v1/posts and /api/feed."""
+"""Tests for REST API at /api/v1/posts and /api/v1/feed."""
 
 import json
 
@@ -134,17 +134,17 @@ class TestApiDeletePost:
 
 
 class TestApiFeed:
-    """Feed endpoint (/api/feed, not /api/v1/feed)."""
+    """Feed endpoint (/api/v1/feed, not /api/v1/feed)."""
 
     def test_feed_exists(self, client: FlaskClient) -> None:
-        """GET /api/feed returns posts (no auth needed)."""
-        r = client.get("/api/feed")
+        """GET /api/v1/feed returns posts (no auth needed)."""
+        r = client.get("/api/v1/feed")
         assert r.status_code == 200
         data = json.loads(r.data)
         assert "posts" in data
 
     def test_feed_requires_auth(self, client: FlaskClient) -> None:
-        """GET /api/feed without auth still returns 200 (public endpoint)."""
-        r = client.get("/api/feed")
-        # /api/feed is public — no login_required
+        """GET /api/v1/feed without auth still returns 200 (public endpoint)."""
+        r = client.get("/api/v1/feed")
+        # /api/v1/feed is public — no login_required
         assert r.status_code == 200
