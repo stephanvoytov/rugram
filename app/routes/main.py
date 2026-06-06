@@ -188,14 +188,14 @@ def chat() -> Response:
 
 
 # API endpoints for notifications
-@main_bp.route("/api/notifications/unread-count")
+@main_bp.route("/api/v1/notifications/unread-count")
 @login_required
 def notifications_unread_count() -> Response:
     count = NotificationService.unread_count(current_user.id)
     return jsonify({"count": count})
 
 
-@main_bp.route("/api/notifications")
+@main_bp.route("/api/v1/notifications")
 @login_required
 def notifications_list() -> Response:
     """Get notifications for the current user (cursor-based pagination)."""
@@ -234,7 +234,7 @@ def notifications_list() -> Response:
 
 
 # API endpoint for saved posts (JSON, for terminal inline)
-@main_bp.route("/api/saved")
+@main_bp.route("/api/v1/saved")
 @login_required
 def api_saved_posts() -> Response:
     """Get saved posts for the current user."""
@@ -274,7 +274,7 @@ def api_saved_posts() -> Response:
 
 
 # API endpoint for feed (JSON, for terminal inline — independent from GUI DOM)
-@main_bp.route("/api/feed")
+@main_bp.route("/api/v1/feed")
 def api_feed() -> Response:
     """Public feed — list non-deleted posts (cursor-based pagination)."""
     cursor = request.args.get("cursor", None, type=int)
@@ -317,7 +317,7 @@ def api_feed() -> Response:
 
 
 # API endpoint for followers list (JSON, for terminal inline)
-@main_bp.route("/api/followers/<username>")
+@main_bp.route("/api/v1/followers/<username>")
 @login_required
 def api_followers(username: str) -> Response:
     user = UserRepository.get_by_username(username)
@@ -343,7 +343,7 @@ def api_followers(username: str) -> Response:
 
 
 # API endpoint for following list (JSON, for terminal inline)
-@main_bp.route("/api/following/<username>")
+@main_bp.route("/api/v1/following/<username>")
 @login_required
 def api_following(username: str) -> Response:
     user = UserRepository.get_by_username(username)
@@ -392,7 +392,7 @@ def notifications_page() -> Response:
 
 
 # Push-уведомления API
-@main_bp.route("/api/push/subscribe", methods=["POST"])
+@main_bp.route("/api/v1/push/subscribe", methods=["POST"])
 @login_required
 def push_subscribe() -> Response:
     """Сохранить подписку на push-уведомления."""
@@ -423,7 +423,7 @@ def push_subscribe() -> Response:
         return jsonify({"error": str(e)}), 500
 
 
-@main_bp.route("/api/push/unsubscribe", methods=["POST"])
+@main_bp.route("/api/v1/push/unsubscribe", methods=["POST"])
 @login_required
 def push_unsubscribe() -> Response:
     """Удалить подписку на push-уведомления."""
@@ -658,7 +658,7 @@ def chat_typing(chat_id: int) -> Response:
         return jsonify({"error": "Access denied"}), 403
 
 
-@main_bp.route("/api/chat/list")
+@main_bp.route("/api/v1/chat/list")
 @login_required
 def chat_list() -> Response:
     try:
@@ -669,7 +669,7 @@ def chat_list() -> Response:
         return jsonify({"error": "Internal server error"}), 500
 
 
-@main_bp.route("/api/users/search")
+@main_bp.route("/api/v1/users/search")
 def search_users() -> Response:
     query = request.args.get("q", "").strip().lower()
     if not query:
@@ -692,7 +692,7 @@ def search_users() -> Response:
     )
 
 
-@main_bp.route("/api/tags/search")
+@main_bp.route("/api/v1/tags/search")
 def tags_search() -> Response:
     """Автодополнение тегов (начинается с)."""
     query = request.args.get("q", "").strip().lower()
@@ -700,7 +700,7 @@ def tags_search() -> Response:
     return jsonify({"tags": [{"name": t.name, "post_count": t.post_count} for t in tags]})
 
 
-@main_bp.route("/api/tags/trending")
+@main_bp.route("/api/v1/tags/trending")
 def tags_trending() -> Response:
     """Топ-10 популярных тегов."""
     tags = FeedService.get_trending_tags(limit=10)
@@ -812,7 +812,7 @@ def robots_txt() -> Response:
     """Serve robots.txt for SEO."""
     lines = [
         "User-agent: *",
-        "Disallow: /api/",
+        "Disallow: /api/v1/",
         "Disallow: /chat",
         "Disallow: /login",
         "Disallow: /register",

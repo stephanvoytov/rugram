@@ -661,7 +661,7 @@
           return;
         }
         T.showLoading(T._('Загрузка подписчиков...', 'Loading followers...'));
-        T.vfsFetch('/api/followers/' + encodeURIComponent(user), { credentials: 'same-origin' })
+        T.vfsFetch('/api/v1/followers/' + encodeURIComponent(user), { credentials: 'same-origin' })
           .then(function(r) { if (!r.ok) throw new Error(); return r.json(); })
           .then(function(data) {
             T.hideLoading();
@@ -706,7 +706,7 @@
           return;
         }
         T.showLoading(T._('Загрузка подписок...', 'Loading following...'));
-        T.vfsFetch('/api/following/' + encodeURIComponent(user), { credentials: 'same-origin' })
+        T.vfsFetch('/api/v1/following/' + encodeURIComponent(user), { credentials: 'same-origin' })
           .then(function(r) { if (!r.ok) throw new Error(); return r.json(); })
           .then(function(data) {
             T.hideLoading();

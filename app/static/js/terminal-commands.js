@@ -716,7 +716,7 @@
     if (searchMatch) searchQ = searchMatch[1].trim();
 
     T.showLoading(T._('Загрузка сохранённого...', 'Loading saved posts...'));
-    fetch('/api/saved', { credentials: 'same-origin' })
+    fetch('/api/v1/saved', { credentials: 'same-origin' })
       .then(function(r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();
@@ -857,7 +857,7 @@
   T.cmdFollowers = function(args) {
     T._listUsers({
       name: 'followers',
-      apiUrl: '/api/followers/',
+      apiUrl: '/api/v1/followers/',
       loadingText: T._('Загрузка подписчиков...', 'Loading followers...'),
       emptyText: T._('Нет подписчиков.', 'No followers.'),
       lessTitle: T._('Подписчики', 'Followers'),
@@ -869,7 +869,7 @@
   T.cmdFollowing = function(args) {
     T._listUsers({
       name: 'following',
-      apiUrl: '/api/following/',
+      apiUrl: '/api/v1/following/',
       loadingText: T._('Загрузка подписок...', 'Loading following...'),
       emptyText: T._('Нет подписок.', 'Not following anyone.'),
       lessTitle: T._('Подписки', 'Following'),

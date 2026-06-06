@@ -43,8 +43,8 @@ class TestChatAccess:
         assert r.status_code == 200
 
     def test_chat_api_list_requires_auth(self, client: FlaskClient) -> None:
-        """GET /api/chat/list without login redirects."""
-        r = client.get("/api/chat/list")
+        """GET /api/v1/chat/list without login redirects."""
+        r = client.get("/api/v1/chat/list")
         assert r.status_code == 302
 
 
@@ -133,12 +133,12 @@ class TestSendMessage:
 
 
 class TestChatList:
-    """Listing conversations — GET /api/chat/list."""
+    """Listing conversations — GET /api/v1/chat/list."""
 
     def test_chat_list_empty(self, client: FlaskClient) -> None:
         """Chat list is empty for a user with no conversations."""
         _login(client, username="loner")
-        r = client.get("/api/chat/list")
+        r = client.get("/api/v1/chat/list")
         assert r.status_code == 200
         data = r.get_json()
         assert "chats" in data
@@ -149,7 +149,7 @@ class TestChatList:
         register_user_via_db("other")
         _login(client, username="mainuser")
         _start_chat(client, "other")
-        r = client.get("/api/chat/list")
+        r = client.get("/api/v1/chat/list")
         data = r.get_json()
         assert len(data["chats"]) == 1
         assert data["chats"][0]["other_user"]["username"] == "other"

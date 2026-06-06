@@ -36,7 +36,7 @@ def logout() -> Response:
 
 
 # -- JSON API для терминала --
-@auth_bp.route("/auth/api/login", methods=["POST"])
+@auth_bp.route("/api/v1/auth/login", methods=["POST"])
 @limiter.limit("10/minute")
 def api_login() -> Response:
     data = request.get_json(force=True, silent=True)
@@ -65,7 +65,7 @@ def api_login() -> Response:
         return jsonify({"ok": False, "error": e.message}), 401
 
 
-@auth_bp.route("/auth/api/register", methods=["POST"])
+@auth_bp.route("/api/v1/auth/register", methods=["POST"])
 @limiter.limit("5/minute")
 def api_register() -> Response:
     data = request.get_json(force=True, silent=True)
@@ -95,13 +95,13 @@ def api_register() -> Response:
         )
 
 
-@auth_bp.route("/auth/api/logout", methods=["POST"])
+@auth_bp.route("/api/v1/auth/logout", methods=["POST"])
 def api_logout() -> Response:
     logout_user()
     return jsonify({"ok": True, "message": "Вышли из системы"})
 
 
-@auth_bp.route("/auth/api/me")
+@auth_bp.route("/api/v1/auth/me")
 def api_me() -> Response:
     if not current_user.is_authenticated:
         return jsonify({"ok": False, "authenticated": False}), 401

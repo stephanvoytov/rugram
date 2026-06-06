@@ -142,7 +142,7 @@ class TestNotifications:
         assert r.status_code == 200
 
     def test_unread_count(self, client: FlaskClient, app: Flask) -> None:
-        """GET /api/notifications/unread-count returns count."""
+        """GET /api/v1/notifications/unread-count returns count."""
         _login(client, username="countuser")
         with app.app_context():
             u = User.query.filter_by(username="countuser").first()
@@ -155,7 +155,7 @@ class TestNotifications:
             db.session.add(n)
             db.session.commit()
 
-        r = client.get("/api/notifications/unread-count")
+        r = client.get("/api/v1/notifications/unread-count")
         assert r.status_code == 200
         data = json.loads(r.data)
         assert data.get("count", 0) >= 1
