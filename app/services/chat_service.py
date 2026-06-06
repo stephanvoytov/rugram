@@ -1,19 +1,18 @@
-"""Chat service — messaging with Fernet encryption, typing, push."""
+"""Chat service — messaging with Fernet encryption, typing, push.
+
+Uses repositories for all data access — no direct db.session or Model.query calls.
+"""
 
 from typing import Optional
 from datetime import datetime as dt
 
-from sqlalchemy.orm import joinedload
-from sqlalchemy import func
-
 from app.logger import log
-from app.models import (
-    Chat, ChatParticipant, Message, User, utcnow,
-)
+from app.models import Chat, Message, User, utcnow
 from app.crypto import encrypt, decrypt
 from app.push import send_message_push
 from app.services.base import ServiceError, NotFoundError, ForbiddenError
-from extensions import db
+from app.repositories.chat_repository import ChatRepository
+from app.repositories.user_repository import UserRepository
 
 
 class ChatService:
@@ -24,78 +23,45 @@ class ChatService:
     @staticmethod
     def start_or_get_chat(user_id: int, target_username: str) -> dict:
         """Find existing chat or create a new one. Returns {'chat_id': ...}."""
-        target = User.query.filter(User.username == target_username).first()
+        target = UserRepository.get_by_username(target_username)
         if not target:
             raise NotFoundError('User not found')
         if target.id == user_id:
             raise ServiceError('Cannot chat with yourself')
 
         # Check existing chat
-        my_chat_ids = [cp.chat_id for cp in
-                       ChatParticipant.query.filter_by(user_id=user_id).all()]
-        if my_chat_ids:
-            common = ChatParticipant.query.filter(
-                ChatParticipant.chat_id.in_(my_chat_ids),
-                ChatParticipant.user_id == target.id
-            ).first()
-            if common:
-                return {'chat_id': common.chat_id}
+        my_chat_ids = ChatRepository.get_my_chat_ids(user_id)
+        common = ChatRepository.find_common_chat(my_chat_ids, target.id)
+        if common:
+            return {'chat_id': common.chat_id}
 
         # Create new chat
-        chat = Chat()
-        db.session.add(chat)
-        db.session.flush()
-        db.session.add(ChatParticipant(chat_id=chat.id, user_id=user_id))
-        db.session.add(ChatParticipant(chat_id=chat.id, user_id=target.id))
-        db.session.commit()
+        chat = ChatRepository.create_chat()
+        ChatRepository.add_participant(chat.id, user_id)
+        ChatRepository.add_participant(chat.id, target.id)
+        ChatRepository.commit()
         log.info('chat_created', chat_id=chat.id, user_id=user_id, with_user=target.id)
         return {'chat_id': chat.id}
 
     @staticmethod
-    def _require_participant(chat_id: int, user_id: int) -> ChatParticipant:
+    def _require_participant(chat_id: int, user_id: int) -> None:
         """Ensure user is a chat participant. Raises ForbiddenError otherwise."""
-        participant = ChatParticipant.query.filter_by(
-            chat_id=chat_id, user_id=user_id
-        ).first()
+        participant = ChatRepository.get_participant(chat_id, user_id)
         if not participant:
             raise ForbiddenError('Access denied')
-        return participant
 
     @staticmethod
     def get_chat_list(user_id: int) -> list[dict]:
         """Return list of chats with last message, unread count, other user info."""
-        participations = ChatParticipant.query.filter_by(user_id=user_id) \
-            .options(joinedload(ChatParticipant.user)).all()
+        participations = ChatRepository.get_participations(user_id)
         chat_ids = [p.chat_id for p in participations]
         if not chat_ids:
             return []
 
-        # Other participants
-        other_parts = ChatParticipant.query.filter(
-            ChatParticipant.chat_id.in_(chat_ids),
-            ChatParticipant.user_id != user_id
-        ).options(joinedload(ChatParticipant.user)).all()
+        other_parts = ChatRepository.get_other_participants(chat_ids, user_id)
         other_by_chat = {p.chat_id: p for p in other_parts}
-
-        # Latest messages
-        latest_sub = db.session.query(
-            func.max(Message.id).label('max_id')
-        ).filter(Message.chat_id.in_(chat_ids)) \
-         .group_by(Message.chat_id).subquery()
-        latest_msgs = Message.query.filter(
-            Message.id.in_(db.session.query(latest_sub.c.max_id))
-        ).all()
-        latest_by_chat = {m.chat_id: m for m in latest_msgs}
-
-        # Unread counts
-        unread_rows = db.session.query(
-            Message.chat_id, func.count(Message.id).label('cnt')
-        ).filter(
-            Message.chat_id.in_(chat_ids),
-            Message.author_id != user_id,
-            Message.is_read == False
-        ).group_by(Message.chat_id).all()
-        unread_counts = {r.chat_id: r.cnt for r in unread_rows}
+        latest_by_chat = ChatRepository.get_latest_messages_by_chat(chat_ids)
+        unread_counts = ChatRepository.get_unread_counts(chat_ids, user_id)
 
         result = []
         for p in participations:
@@ -129,31 +95,26 @@ class ChatService:
     @staticmethod
     def send_message(chat_id: int, user_id: int, text: Optional[str] = None,
                      image_filename: Optional[str] = None) -> Message:
-        participant = ChatService._require_participant(chat_id, user_id)
+        ChatService._require_participant(chat_id, user_id)
 
         if not text and not image_filename:
             raise ServiceError('Message cannot be empty')
 
         encrypted_text = encrypt(text) if text else ''
-        msg = Message(
-            chat_id=chat_id, author_id=user_id,
-            text=encrypted_text, image=image_filename,
-        )
-        db.session.add(msg)
+        msg = ChatRepository.add_message(chat_id, user_id, encrypted_text, image_filename)
 
         # Update last_seen and participant read time
-        user = db.session.get(User, user_id)
+        user = UserRepository.get(user_id)
         if user:
             user.last_seen = utcnow()
-        participant.last_read_at = utcnow()
-        db.session.commit()
+        participant = ChatRepository.get_participant(chat_id, user_id)
+        if participant:
+            participant.last_read_at = utcnow()
+        ChatRepository.commit()
 
         # Push notification to other participant
         try:
-            other = ChatParticipant.query.filter(
-                ChatParticipant.chat_id == chat_id,
-                ChatParticipant.user_id != user_id
-            ).first()
+            other = ChatRepository.get_other_participant(chat_id, user_id)
             if other:
                 preview = text or '[image]'
                 send_message_push(chat_id, other.user_id,
@@ -170,23 +131,14 @@ class ChatService:
         after: int = 0, before: int = 0, ts: str = '',
         limit: int = 50,
     ) -> dict:
-        """Return messages, updates, and other_user info.
-
-        Returns dict with keys: messages, updates, other_user, is_typing, has_more.
-        """
+        """Return messages, updates, and other_user info."""
         ChatService._require_participant(chat_id, user_id)
 
         # Mark unread as read on first load
         if not before and not after:
-            now = utcnow()
-            Message.query.filter(
-                Message.chat_id == chat_id,
-                Message.author_id != user_id,
-                Message.is_read == False
-            ).update({'is_read': True, 'read_at': now})
-            db.session.commit()
+            ChatRepository.mark_messages_read(chat_id, user_id)
 
-        query = Message.query.filter(Message.chat_id == chat_id)
+        query = ChatRepository.get_messages_query(chat_id)
         max_limit = min(limit, 200)
 
         if before:
@@ -214,33 +166,23 @@ class ChatService:
                 ts_dt = dt.fromisoformat(ts)
                 if ts_dt.tzinfo:
                     ts_dt = ts_dt.replace(tzinfo=None)
-                updates = Message.query.filter(
-                    Message.chat_id == chat_id,
-                    Message.id <= after,
-                    Message.updated_at > ts_dt
-                ).order_by(Message.created_date.asc()).all()
+                updates = ChatRepository.get_message_updates(chat_id, after, ts_dt)
             except ValueError:
                 pass
 
         # Update participant last_read
         if not before and not after:
-            participant = ChatParticipant.query.filter_by(
-                chat_id=chat_id, user_id=user_id
-            ).first()
+            participant = ChatRepository.get_participant(chat_id, user_id)
             if participant:
                 participant.last_read_at = utcnow()
                 now = utcnow()
-                user = db.session.get(User, user_id)
+                user = UserRepository.get(user_id)
                 if user and (not user.last_seen or
                              (now - user.last_seen).total_seconds() > 30):
                     user.last_seen = now
-                db.session.commit()
 
         # Other participant info
-        other_participant = ChatParticipant.query.filter(
-            ChatParticipant.chat_id == chat_id,
-            ChatParticipant.user_id != user_id
-        ).first()
+        other_participant = ChatRepository.get_other_participant(chat_id, user_id)
         other_user_info = None
         is_other_typing = False
         if other_participant:
@@ -255,6 +197,8 @@ class ChatService:
             if other_participant.last_typing_at:
                 typing_delta = utcnow() - other_participant.last_typing_at
                 is_other_typing = typing_delta.total_seconds() < 4
+
+        ChatRepository.commit()
 
         def msg_dict(m):
             return {
@@ -280,7 +224,7 @@ class ChatService:
     def edit_message(chat_id: int, message_id: int, user_id: int,
                      new_text: str) -> Message:
         ChatService._require_participant(chat_id, user_id)
-        msg = Message.query.filter_by(id=message_id, chat_id=chat_id).first()
+        msg = ChatRepository.get_message(message_id, chat_id)
         if not msg:
             raise NotFoundError('Message not found')
         if msg.author_id != user_id:
@@ -290,13 +234,13 @@ class ChatService:
         msg.text = encrypt(new_text)
         msg.edited_at = utcnow()
         msg.updated_at = utcnow()
-        db.session.commit()
+        ChatRepository.commit()
         return msg
 
     @staticmethod
     def delete_message(chat_id: int, message_id: int, user_id: int) -> None:
         ChatService._require_participant(chat_id, user_id)
-        msg = Message.query.filter_by(id=message_id, chat_id=chat_id).first()
+        msg = ChatRepository.get_message(message_id, chat_id)
         if not msg:
             raise NotFoundError('Message not found')
         if msg.author_id != user_id:
@@ -304,12 +248,14 @@ class ChatService:
         msg.text = ''
         msg.image = None
         msg.updated_at = utcnow()
-        db.session.commit()
+        ChatRepository.commit()
 
     # ── Typing ────────────────────────────────────────────────────────
 
     @staticmethod
     def set_typing(chat_id: int, user_id: int) -> None:
-        participant = ChatService._require_participant(chat_id, user_id)
-        participant.last_typing_at = utcnow()
-        db.session.commit()
+        ChatService._require_participant(chat_id, user_id)
+        participant = ChatRepository.get_participant(chat_id, user_id)
+        if participant:
+            ChatRepository.update_typing(participant)
+            ChatRepository.commit()

@@ -1,15 +1,16 @@
-"""Post service — CRUD, likes, comments, reposts, saves, tags."""
+"""Post service — CRUD, likes, comments, reposts, saves, tags.
+
+Uses repositories for all data access — no direct db.session or Model.query calls.
+"""
 
 from typing import Optional
 
-from sqlalchemy.orm import joinedload
-
 from app.logger import log
-from app.models import (
-    Post, Like, Comment, Repost, SavedPost, PostTag, Tag, Notification, utcnow,
-)
+from app.models import Post, Comment, Notification
 from app.services.base import ServiceError, NotFoundError, ForbiddenError, cursor_paginate
-from extensions import db
+from app.repositories.post_repository import PostRepository
+from app.repositories.user_repository import UserRepository
+from app.repositories.notification_repository import NotificationRepository
 
 
 class PostService:
@@ -22,21 +23,18 @@ class PostService:
                     tag_names: Optional[list[str]] = None) -> Post:
         if not text or not text.strip():
             raise ServiceError('Post text cannot be empty')
-        post = Post(text=text.strip(), image=image, author_id=author_id)
-        db.session.add(post)
-        db.session.flush()
+        post = PostRepository.create_post(author_id, text.strip(), image)
 
-        # Sync tags
         if tag_names:
-            PostService._sync_tags(post.id, tag_names)
+            PostRepository.sync_tags(post.id, tag_names)
 
-        db.session.commit()
+        PostRepository.commit()
         log.info('post_created', post_id=post.id, author_id=author_id)
         return post
 
     @staticmethod
     def get_post(post_id: int) -> Post:
-        post = db.session.get(Post, post_id)
+        post = PostRepository.get(post_id)
         if not post:
             raise NotFoundError('Post not found')
         return post
@@ -44,7 +42,7 @@ class PostService:
     @staticmethod
     def get_post_detail(post_id: int) -> Post:
         """Get post with author eagerly loaded."""
-        post = Post.query.options(joinedload(Post.author)).filter(Post.id == post_id).first()
+        post = PostRepository.get_with_author(post_id)
         if not post:
             raise NotFoundError('Post not found')
         return post
@@ -59,8 +57,8 @@ class PostService:
             raise ServiceError('Post text cannot be empty')
         post.text = text.strip()
         if tag_names is not None:
-            PostService._sync_tags(post.id, tag_names)
-        db.session.commit()
+            PostRepository.sync_tags(post.id, tag_names)
+        PostRepository.commit()
         log.info('post_edited', post_id=post_id, author_id=user_id)
         return post
 
@@ -71,14 +69,14 @@ class PostService:
         if post.author_id != user_id:
             raise ForbiddenError('You can only delete your own posts')
         post.is_deleted = True
-        db.session.commit()
+        PostRepository.commit()
         log.info('post_deleted', post_id=post_id, author_id=user_id)
 
     @staticmethod
     def admin_delete_post(post_id: int) -> None:
         post = PostService.get_post(post_id)
         post.is_deleted = True
-        db.session.commit()
+        PostRepository.commit()
         log.info('post_admin_deleted', post_id=post_id)
 
     @staticmethod
@@ -87,7 +85,7 @@ class PostService:
         if not post.is_deleted:
             raise ServiceError('Post is not deleted')
         post.is_deleted = False
-        db.session.commit()
+        PostRepository.commit()
         log.info('post_admin_restored', post_id=post_id)
 
     # ── Likes ─────────────────────────────────────────────────────────
@@ -95,25 +93,26 @@ class PostService:
     @staticmethod
     def toggle_like(post_id: int, user_id: int) -> dict:
         post = PostService.get_post(post_id)
-        existing = Like.query.filter_by(user_id=user_id, post_id=post_id).first()
+        existing = PostRepository.get_like(user_id, post_id)
 
         if existing:
-            db.session.delete(existing)
-            db.session.commit()
+            PostRepository.delete_like(existing)
+            PostRepository.commit()
             return {'liked': False, 'likes_count': post.likes_count}
 
-        like = Like(user_id=user_id, post_id=post_id)
-        db.session.add(like)
+        PostRepository.add_like(user_id, post_id)
 
         # Notify post author (except self-likes)
         if post.author_id != user_id:
-            notification = Notification(
-                user_id=post.author_id, actor_id=user_id,
-                type='like', post_id=post_id,
-            )
-            db.session.add(notification)
+            try:
+                NotificationRepository.create_notification(
+                    user_id=post.author_id, actor_id=user_id,
+                    type_='like', post_id=post_id,
+                )
+            except ServiceError:
+                pass  # self-notification guard
 
-        db.session.commit()
+        PostRepository.commit()
         return {'liked': True, 'likes_count': post.likes_count}
 
     # ── Comments ──────────────────────────────────────────────────────
@@ -124,23 +123,24 @@ class PostService:
         if not text or not text.strip():
             raise ServiceError('Comment cannot be empty')
 
-        comment = Comment(text=text.strip(), author_id=user_id, post_id=post_id)
-        db.session.add(comment)
+        comment = PostRepository.add_comment(post_id, user_id, text.strip())
 
         # Notify post author
         if post.author_id != user_id:
-            notification = Notification(
-                user_id=post.author_id, actor_id=user_id,
-                type='comment', post_id=post_id,
-            )
-            db.session.add(notification)
+            try:
+                NotificationRepository.create_notification(
+                    user_id=post.author_id, actor_id=user_id,
+                    type_='comment', post_id=post_id,
+                )
+            except ServiceError:
+                pass
 
-        db.session.commit()
+        PostRepository.commit()
         return comment
 
     @staticmethod
     def edit_comment(comment_id: int, user_id: int, text: str) -> Comment:
-        comment = db.session.get(Comment, comment_id)
+        comment = PostRepository.get_comment(comment_id)
         if not comment:
             raise NotFoundError('Comment not found')
         if comment.author_id != user_id:
@@ -148,31 +148,31 @@ class PostService:
         if not text or not text.strip():
             raise ServiceError('Comment cannot be empty')
         comment.text = text.strip()
-        db.session.commit()
+        PostRepository.commit()
         return comment
 
     @staticmethod
     def delete_comment(comment_id: int, user_id: int) -> None:
-        comment = db.session.get(Comment, comment_id)
+        comment = PostRepository.get_comment(comment_id)
         if not comment:
             raise NotFoundError('Comment not found')
         if comment.author_id != user_id:
             raise ForbiddenError('You can only delete your own comments')
-        db.session.delete(comment)
-        db.session.commit()
+        PostRepository.delete_comment_hard(comment)
+        PostRepository.commit()
 
     # ── Reposts ───────────────────────────────────────────────────────
 
     @staticmethod
     def toggle_repost(post_id: int, user_id: int) -> dict:
         PostService.get_post(post_id)  # ensure exists
-        existing = Repost.query.filter_by(user_id=user_id, post_id=post_id).first()
+        existing = PostRepository.get_repost(user_id, post_id)
         if existing:
-            db.session.delete(existing)
-            db.session.commit()
+            PostRepository.delete_repost(existing)
+            PostRepository.commit()
             return {'reposted': False}
-        db.session.add(Repost(user_id=user_id, post_id=post_id))
-        db.session.commit()
+        PostRepository.add_repost(user_id, post_id)
+        PostRepository.commit()
         return {'reposted': True}
 
     # ── Saves ─────────────────────────────────────────────────────────
@@ -180,49 +180,17 @@ class PostService:
     @staticmethod
     def toggle_save(post_id: int, user_id: int) -> dict:
         PostService.get_post(post_id)  # ensure exists
-        existing = SavedPost.query.filter_by(user_id=user_id, post_id=post_id).first()
+        existing = PostRepository.get_save(user_id, post_id)
         if existing:
-            db.session.delete(existing)
-            db.session.commit()
+            PostRepository.delete_save(existing)
+            PostRepository.commit()
             return {'saved': False}
-        db.session.add(SavedPost(user_id=user_id, post_id=post_id))
-        db.session.commit()
+        PostRepository.add_save(user_id, post_id)
+        PostRepository.commit()
         return {'saved': True}
 
     @staticmethod
     def get_saved_posts(user_id: int, cursor: Optional[int] = None,
                         limit: int = 15) -> tuple:
-        query = SavedPost.query.filter_by(user_id=user_id) \
-            .options(joinedload(SavedPost.post).joinedload(Post.author)) \
-            .order_by(SavedPost.id.desc())
+        query = PostRepository.get_saved_posts_query(user_id)
         return cursor_paginate(query, cursor, limit)
-
-    # ── Tags ──────────────────────────────────────────────────────────
-
-    @staticmethod
-    def _sync_tags(post_id: int, tag_names: list[str]) -> None:
-        """Sync PostTag relationships — delete old, create new."""
-        PostTag.query.filter(PostTag.post_id == post_id).delete()
-        for name in tag_names:
-            tag = Tag.query.filter(Tag.name == name).first()
-            if not tag:
-                tag = Tag(name=name)
-                db.session.add(tag)
-                db.session.flush()
-            db.session.add(PostTag(post_id=post_id, tag_id=tag.id))
-        db.session.flush()
-        PostService._recalc_tag_counts()
-
-    @staticmethod
-    def _recalc_tag_counts() -> None:
-        from sqlalchemy import func
-        counts = db.session.query(
-            PostTag.tag_id, func.count(PostTag.id)
-        ).group_by(PostTag.tag_id).all()
-        active_ids = [t[0] for t in counts]
-        for tag_id, cnt in counts:
-            Tag.query.filter(Tag.id == tag_id).update({'post_count': cnt})
-        if active_ids:
-            Tag.query.filter(~Tag.id.in_(active_ids)).update({'post_count': 0})
-        else:
-            Tag.query.update({'post_count': 0})
