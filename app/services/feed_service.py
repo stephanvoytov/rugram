@@ -1,10 +1,11 @@
 """Feed service — feed queries, search, trending tags, cursor pagination.
 
 Uses repositories for all data access — no direct db.session or Model.query calls.
+Feed results are cached via Redis (optional — falls back to no cache).
 """
 
-import time
-
+from app.cache import cache_get, cache_set, feed_cache_clear, feed_cache_key
+from app.models import Post
 from app.repositories.post_repository import PostRepository
 from app.services.base import cursor_paginate
 
@@ -12,33 +13,16 @@ from app.services.base import cursor_paginate
 class FeedService:
     """Feed queries, search, trending tags."""
 
-    _feed_cache: dict = {}  # noqa: RUF012
     _CACHE_TTL = 30  # seconds
 
     @classmethod
-    def _cache_get(cls, key: tuple):
-        """Get cached value if fresh."""
-        if key not in cls._feed_cache:
-            return None
-        value, ts = cls._feed_cache[key]
-        if time.monotonic() - ts > cls._CACHE_TTL:
-            del cls._feed_cache[key]
-            return None
-        return value
-
-    @classmethod
-    def _cache_set(cls, key: tuple, value):
-        """Store in cache."""
-        cls._feed_cache[key] = (value, time.monotonic())
-        # Evict oldest if cache grows too large (simple safeguard)
-        if len(cls._feed_cache) > 500:
-            oldest = min(cls._feed_cache.keys(), key=lambda k: cls._feed_cache[k][1])
-            del cls._feed_cache[oldest]
-
-    @classmethod
     def invalidate_feed_cache(cls):
-        """Clear the feed cache (call when a new post is created)."""
-        cls._feed_cache.clear()
+        """Clear the feed cache (call when a new post is created/edited/deleted).
+
+        Bumps the version counter — all existing cache keys become stale
+        and will be replaced on next request.
+        """
+        feed_cache_clear()
 
     @staticmethod
     def get_feed_page(
@@ -73,13 +57,34 @@ class FeedService:
     ) -> tuple:
         """Return (posts, next_cursor, has_more) for the main feed.
 
-        Results are cached in-memory for up to 30 seconds.
+        Results are cached in Redis for up to 30 seconds (if configured).
         Cache is invalidated when a new post is created/liked/commented.
+        Falls back to no cache if Redis is unavailable.
         """
-        cache_key = (user_id, followed_only, tag_filter, search_query, sort_by, cursor, limit)
-        cached = cls._cache_get(cache_key)
+        cache_key = feed_cache_key(
+            user_id=user_id,
+            followed_only=followed_only,
+            tag_filter=tag_filter,
+            search_query=search_query,
+            sort_by=sort_by,
+            cursor=cursor,
+            limit=limit,
+        )
+        cached = cache_get(cache_key)
         if cached is not None:
-            return cached
+            # Cache stores post IDs — re-hydrate from DB on hit
+            post_ids = cached["ids"]
+            next_cursor = cached["nc"]
+            has_more = cached["hm"]
+            if post_ids:
+                posts = PostRepository.filter(Post.id.in_(post_ids))
+                # Preserve cursor order
+                order = {pid: i for i, pid in enumerate(post_ids)}
+                posts.sort(key=lambda p: order.get(p.id, 0))
+            else:
+                posts = []
+            return posts, next_cursor, has_more
+
         query = PostRepository.get_feed_query(
             user_id=user_id,
             followed_only=followed_only,
@@ -88,7 +93,13 @@ class FeedService:
             sort_by=sort_by,
         )
         result = cursor_paginate(query, cursor, limit)
-        cls._cache_set(cache_key, result)
+        posts, next_cursor, has_more = result
+        # Cache only post IDs + cursor (lightweight, no serialization issues)
+        cache_set(
+            cache_key,
+            {"ids": [p.id for p in posts], "nc": next_cursor, "hm": has_more},
+            ttl=cls._CACHE_TTL,
+        )
         return result
 
     @staticmethod
