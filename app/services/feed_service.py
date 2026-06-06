@@ -3,10 +3,8 @@
 Uses repositories for all data access — no direct db.session or Model.query calls.
 """
 
-from typing import Optional
-
-from app.services.base import cursor_paginate
 from app.repositories.post_repository import PostRepository
+from app.services.base import cursor_paginate
 
 
 class FeedService:
@@ -14,11 +12,11 @@ class FeedService:
 
     @staticmethod
     def get_feed_page(
-        user_id: Optional[int] = None,
+        user_id: int | None = None,
         followed_only: bool = False,
-        tag_filter: Optional[str] = None,
-        search_query: Optional[str] = None,
-        sort_by: str = 'new',
+        tag_filter: str | None = None,
+        search_query: str | None = None,
+        sort_by: str = "new",
         page: int = 1,
         per_page: int = 15,
     ):
@@ -34,12 +32,12 @@ class FeedService:
 
     @staticmethod
     def get_feed(
-        user_id: Optional[int] = None,
+        user_id: int | None = None,
         followed_only: bool = False,
-        tag_filter: Optional[str] = None,
-        search_query: Optional[str] = None,
-        sort_by: str = 'new',
-        cursor: Optional[int] = None,
+        tag_filter: str | None = None,
+        search_query: str | None = None,
+        sort_by: str = "new",
+        cursor: int | None = None,
         limit: int = 15,
     ) -> tuple:
         """Return (posts, next_cursor, has_more) for the main feed."""
@@ -63,8 +61,7 @@ class FeedService:
         return PostRepository.search_tags(query_str, limit)
 
     @staticmethod
-    def get_posts_by_tag(tag_name: str, cursor: Optional[int] = None,
-                         limit: int = 15) -> tuple:
+    def get_posts_by_tag(tag_name: str, cursor: int | None = None, limit: int = 15) -> tuple:
         """Get posts filtered by exact tag."""
         query = PostRepository.get_posts_by_tag_query(tag_name)
         return cursor_paginate(query, cursor, limit)

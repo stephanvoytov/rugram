@@ -1,26 +1,25 @@
 import re
-
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from flask import Blueprint
 from markupsafe import Markup
 
-filters_bp = Blueprint('filters', __name__)
+filters_bp = Blueprint("filters", __name__)
 
 
-@filters_bp.app_template_filter('time_ago')
+@filters_bp.app_template_filter("time_ago")
 def time_ago_filter(dt):
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    now = datetime.now(timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
+    now = datetime.now(UTC)
     diff = now - dt
 
     periods = [
-        ('год', 'года', 'лет'),
-        ('месяц', 'месяца', 'месяцев'),
-        ('день', 'дня', 'дней'),
-        ('час', 'часа', 'часов'),
-        ('минуту', 'минуты', 'минут')
+        ("год", "года", "лет"),
+        ("месяц", "месяца", "месяцев"),
+        ("день", "дня", "дней"),
+        ("час", "часа", "часов"),
+        ("минуту", "минуты", "минут"),
     ]
 
     seconds = diff.total_seconds()
@@ -32,7 +31,7 @@ def time_ago_filter(dt):
         (30 * 24 * 60 * 60, periods[1]),
         (24 * 60 * 60, periods[2]),
         (60 * 60, periods[3]),
-        (60, periods[4])
+        (60, periods[4]),
     ]
 
     for seconds_in_unit, unit_names in time_ranges:
@@ -47,31 +46,28 @@ def time_ago_filter(dt):
 
     return "меньше минуты назад"
 
-@filters_bp.app_template_filter('format_datetime')
-def format_datetime(value, format='medium'):
+
+@filters_bp.app_template_filter("format_datetime")
+def format_datetime(value, format="medium"):
     if not value:
         return ""
 
-    if format == 'full':
+    if format == "full":
         format = "%d.%m.%Y %H:%M:%S"
-    elif format == 'medium':
+    elif format == "medium":
         format = "%d.%m.%Y %H:%M"
-    elif format == 'date':
+    elif format == "date":
         format = "%d.%m.%Y"
-    elif format == 'time':
+    elif format == "time":
         format = "%H:%M"
 
     return value.strftime(format)
 
 
-@filters_bp.app_template_filter('linkify_tags')
+@filters_bp.app_template_filter("linkify_tags")
 def linkify_tags_filter(text: str) -> str:
     """Преобразует #хештеги в кликабельные ссылки."""
     if not text:
         return text
-    result = re.sub(
-        r'(?<!\w)#(\w{1,32})',
-        r'<a href="/?tag=\1" class="tag-link">#\1</a>',
-        text
-    )
+    result = re.sub(r"(?<!\w)#(\w{1,32})", r'<a href="/?tag=\1" class="tag-link">#\1</a>', text)
     return Markup(result)

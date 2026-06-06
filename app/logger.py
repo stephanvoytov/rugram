@@ -18,17 +18,17 @@ Usage:
     log.system_event("info", "auth", "User logged in", details={"ip": "..."})
 """
 
-import os
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
 import structlog
 from structlog.stdlib import ProcessorFormatter
 
-LOG_DIR = Path(__file__).resolve().parent.parent / 'logs'
-LOG_FILE = LOG_DIR / 'rugram.jsonl'
-_LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper()
+LOG_DIR = Path(__file__).resolve().parent.parent / "logs"
+LOG_FILE = LOG_DIR / "rugram.jsonl"
+_LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
 
 
 class AppLogger:
@@ -51,46 +51,46 @@ class AppLogger:
     def error(self, event: str, **kwargs: Any) -> None:
         """Log at ERROR level AND persist to SystemEvent DB (admin panel)."""
         self._logger.error(event, **kwargs)
-        self._write_system_event('error', 'system', event, **kwargs)
+        self._write_system_event("error", "system", event, **kwargs)
 
     def critical(self, event: str, **kwargs: Any) -> None:
         """Log at CRITICAL level AND persist to SystemEvent DB (admin panel)."""
         self._logger.critical(event, **kwargs)
-        self._write_system_event('critical', 'system', event, **kwargs)
+        self._write_system_event("critical", "system", event, **kwargs)
 
     def exception(self, event: str, **kwargs: Any) -> None:
         """Log with exception traceback AND persist to SystemEvent DB."""
         self._logger.exception(event, **kwargs)
-        self._write_system_event('error', 'system', event, **kwargs)
+        self._write_system_event("error", "system", event, **kwargs)
 
     # ── Admin-panel helper ────────────────────────────────────────────
 
-    def system_event(self, level: str, category: str, message: str,
-                     details: Any = None) -> None:
+    def system_event(self, level: str, category: str, message: str, details: Any = None) -> None:
         """Write directly to SystemEvent DB (always visible in admin panel).
 
         Levels: critical | error | warning | info
         Categories: push | db | auth | chat | upload | system
         """
-        self._logger.info("system_event", level=level, category=category,
-                          message=message)
+        self._logger.info("system_event", level=level, category=category, message=message)
         self._write_system_event(level, category, message, _details=details)
 
     # ── Internal ──────────────────────────────────────────────────────
 
     @staticmethod
-    def _write_system_event(level: str, category: str, event: str,
-                            **kwargs: Any) -> None:
+    def _write_system_event(level: str, category: str, event: str, **kwargs: Any) -> None:
         """Insert a row into SystemEvent table (best-effort, never raises)."""
         try:
             from app.routes.helpers import log_system_event as _lse
+
             # Strip internal keys that shouldn't go to DB
-            safe = {k: v for k, v in kwargs.items()
-                    if k not in ('event', 'level', 'category', 'message')}
-            _details = safe.pop('_details', None)
+            safe = {
+                k: v
+                for k, v in kwargs.items()
+                if k not in ("event", "level", "category", "message")
+            }
+            _details = safe.pop("_details", None)
             details = _details if _details is not None else (safe or None)
-            _lse(level=level, category=category, message=event,
-                 details=details)
+            _lse(level=level, category=category, message=event, details=details)
         except Exception:
             pass  # Never break the app because of logging
 
@@ -106,7 +106,7 @@ def setup_logging() -> None:
     shared_processors = [
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
-        structlog.processors.TimeStamper(fmt='iso'),
+        structlog.processors.TimeStamper(fmt="iso"),
         structlog.stdlib.PositionalArgumentsFormatter(),
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
@@ -131,17 +131,23 @@ def setup_logging() -> None:
 
     # JSON file handler (rotating, 10 MB per file, keep 5)
     from logging.handlers import RotatingFileHandler
+
     file_handler = RotatingFileHandler(
-        LOG_FILE, maxBytes=10 * 1024 * 1024, backupCount=5, encoding='utf-8',
+        LOG_FILE,
+        maxBytes=10 * 1024 * 1024,
+        backupCount=5,
+        encoding="utf-8",
     )
     file_handler.setLevel(_LOG_LEVEL)
-    file_handler.setFormatter(ProcessorFormatter(
-        processor=structlog.processors.JSONRenderer(),
-        foreign_pre_chain=shared_processors,
-    ))
+    file_handler.setFormatter(
+        ProcessorFormatter(
+            processor=structlog.processors.JSONRenderer(),
+            foreign_pre_chain=shared_processors,
+        )
+    )
     root_logger.addHandler(file_handler)
 
     # Suppress noisy libraries
-    logging.getLogger('werkzeug').setLevel(logging.WARNING)
-    logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
-    logging.getLogger('urllib3').setLevel(logging.WARNING)
+    logging.getLogger("werkzeug").setLevel(logging.WARNING)
+    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+    logging.getLogger("urllib3").setLevel(logging.WARNING)

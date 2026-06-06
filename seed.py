@@ -6,13 +6,22 @@ Run: python seed.py
 
 import os
 import sys
+
 sys.path.insert(0, os.path.dirname(__file__))
 
 from app import create_app
-from app.models import User, Post, Follow, Chat, ChatParticipant, Message, Notification, Like, Tag, PostTag
-from extensions import db
 from app.crypto import encrypt
+from app.models import (
+    Chat,
+    ChatParticipant,
+    Follow,
+    Like,
+    Message,
+    Post,
+    User,
+)
 from app.routes.helpers import extract_tags, sync_post_tags
+from extensions import db
 
 app = create_app()
 
@@ -20,21 +29,23 @@ with app.app_context():
     print("** Seeding database...")
 
     # ── Users ──
-    alice = User.query.filter_by(username='alice').first()
+    alice = User.query.filter_by(username="alice").first()
     if not alice:
-        alice = User(username='alice', email='alice@rugram.local')
-        alice.set_password('pass123')
-        alice.description = 'Python developer & terminal enthusiast. Building the future of social networks.'
-        alice.name = 'Alice'
+        alice = User(username="alice", email="alice@rugram.local")
+        alice.set_password("pass123")
+        alice.description = (
+            "Python developer & terminal enthusiast. Building the future of social networks."
+        )
+        alice.name = "Alice"
         alice.is_admin = True
         db.session.add(alice)
 
-    bob = User.query.filter_by(username='bob').first()
+    bob = User.query.filter_by(username="bob").first()
     if not bob:
-        bob = User(username='bob', email='bob@rugram.local')
-        bob.set_password('pass123')
-        bob.description = 'AI/ML researcher. Love Rust, neural networks, and good coffee.'
-        bob.name = 'Bob'
+        bob = User(username="bob", email="bob@rugram.local")
+        bob.set_password("pass123")
+        bob.description = "AI/ML researcher. Love Rust, neural networks, and good coffee."
+        bob.name = "Bob"
         db.session.add(bob)
         db.session.flush()
     bob.is_moderator = True
@@ -46,8 +57,13 @@ with app.app_context():
         existing = Post.query.filter_by(author_id=author.id, text=text).first()
         if existing:
             return existing
-        p = Post(text=text, author_id=author.id,
-                 likes_count=likes, comments_count=comments, reposts_count=reposts)
+        p = Post(
+            text=text,
+            author_id=author.id,
+            likes_count=likes,
+            comments_count=comments,
+            reposts_count=reposts,
+        )
         db.session.add(p)
         db.session.flush()
         tags = extract_tags(text)
@@ -67,11 +83,36 @@ with app.app_context():
 
     # ── Posts by Bob ──
     bob_posts = [
-        ("finally got the transformer model to converge.\n\n72 hours of training. 4 A100s. zero sleep.\n\nworth it.\n\n#ml #ai #transformers", 42, 15, 8),
-        ("been testing rugram's TTY mode all morning.\n\n`grep` for searching posts, `cd` for navigation...\n\nthis is how social media should work.", 12, 3, 1),
-        ("just published a paper on attention mechanisms. TL;DR: we can make transformers 3x faster with sparse attention.\n\n#ml #ai #research", 28, 10, 5),
-        ("Rust vs Zig for systems programming? my hot take:\n\nRust for safety, Zig for simplicity.\n\n#dev #rust #zig", 15, 7, 2),
-        ("built a tiny ML model that generates terminal commands from natural language.\n\n`show me all posts about transformers` → `grep transformers`\n\n#ml #ai #tools", 33, 12, 6),
+        (
+            "finally got the transformer model to converge.\n\n72 hours of training. 4 A100s. zero sleep.\n\nworth it.\n\n#ml #ai #transformers",
+            42,
+            15,
+            8,
+        ),
+        (
+            "been testing rugram's TTY mode all morning.\n\n`grep` for searching posts, `cd` for navigation...\n\nthis is how social media should work.",
+            12,
+            3,
+            1,
+        ),
+        (
+            "just published a paper on attention mechanisms. TL;DR: we can make transformers 3x faster with sparse attention.\n\n#ml #ai #research",
+            28,
+            10,
+            5,
+        ),
+        (
+            "Rust vs Zig for systems programming? my hot take:\n\nRust for safety, Zig for simplicity.\n\n#dev #rust #zig",
+            15,
+            7,
+            2,
+        ),
+        (
+            "built a tiny ML model that generates terminal commands from natural language.\n\n`show me all posts about transformers` → `grep transformers`\n\n#ml #ai #tools",
+            33,
+            12,
+            6,
+        ),
     ]
     for text, likes, comments, reposts in bob_posts:
         _make_post(bob, text, likes, comments, reposts)
@@ -91,9 +132,13 @@ with app.app_context():
         bobs_first.likes_count += 1
 
     # ── Chat alice ↔ bob ──
-    existing_chat = Chat.query.join(ChatParticipant).filter(
-        ChatParticipant.user_id.in_([alice.id, bob.id])
-    ).group_by(Chat.id).having(db.func.count(ChatParticipant.id) == 2).first()
+    existing_chat = (
+        Chat.query.join(ChatParticipant)
+        .filter(ChatParticipant.user_id.in_([alice.id, bob.id]))
+        .group_by(Chat.id)
+        .having(db.func.count(ChatParticipant.id) == 2)
+        .first()
+    )
 
     if not existing_chat:
         chat = Chat()
@@ -119,7 +164,7 @@ with app.app_context():
 
     db.session.commit()
     print("** Database seeded!")
-    print(f"   - Users: alice / pass123, bob / pass123")
+    print("   - Users: alice / pass123, bob / pass123")
     print(f"   - Posts: {Post.query.count()}")
     print(f"   - Follows: {Follow.query.count()}")
     print(f"   - Likes: {Like.query.count()}")

@@ -6,18 +6,17 @@ ownership guards, validation, exception types, side-effect rules.
 
 # ── imports ──────────────────────────────────────────────────────────────────
 
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from app.services.base import (
-    ServiceError,
-    NotFoundError,
     ForbiddenError,
+    NotFoundError,
+    ServiceError,
     cursor_paginate,
 )
 from app.services.post_service import PostService
-
 
 # =============================================================================
 # cursor_paginate
@@ -38,17 +37,17 @@ class TestCursorPaginate:
         q.offset.return_value = q
         if id_col is None:
             fake_col = MagicMock()
-            fake_col.__name__ = 'id'
-            q.column_descriptions = [{'expr': type('M', (), {'id': fake_col})()}]
+            fake_col.__name__ = "id"
+            q.column_descriptions = [{"expr": type("M", (), {"id": fake_col})()}]
         else:
-            q.column_descriptions = [{'expr': type('M', (), {'id': id_col})()}]
+            q.column_descriptions = [{"expr": type("M", (), {"id": id_col})()}]
         return q
 
     # ── tests ────────────────────────────────────────────────────────────
 
     def test_first_page(self):
         items = [MagicMock(id=i) for i in range(5, 0, -1)]  # 5 4 3 2 1
-        q = self._make_query(items + [MagicMock(id=0)])  # +1 for has_more check
+        q = self._make_query([*items, MagicMock(id=0)])  # +1 for has_more check
         result, cursor, has_more = cursor_paginate(q, None, limit=5)
         assert len(result) == 5
         assert cursor == 1
@@ -66,8 +65,8 @@ class TestCursorPaginate:
         id_col = MagicMock()
         id_col.__lt__ = lambda self, other: True  # pragma: no cover — mock
         items = [MagicMock(id=i) for i in range(5, 1, -1)]  # 4 items: 5,4,3,2
-        q = self._make_query(items + [MagicMock(id=0)], id_col=id_col)
-        result, cursor, has_more = cursor_paginate(q, 5, limit=3, id_col=id_col)
+        q = self._make_query([*items, MagicMock(id=0)], id_col=id_col)
+        _result, _cursor, has_more = cursor_paginate(q, 5, limit=3, id_col=id_col)
         q.filter.assert_called_once()
         assert has_more is True
 
@@ -81,7 +80,7 @@ class TestCursorPaginate:
     def test_max_limit_clamp(self):
         items = [MagicMock(id=i) for i in range(200, 0, -1)]
         q = self._make_query(items[:101])
-        result, cursor, has_more = cursor_paginate(q, None, limit=999)
+        result, _cursor, has_more = cursor_paginate(q, None, limit=999)
         assert len(result) <= 100
         assert has_more is True
 
@@ -103,27 +102,27 @@ class TestServiceException:
     """ServiceError / NotFoundError / ForbiddenError — status code contract."""
 
     def test_service_error_default_code(self):
-        e = ServiceError('bad request')
+        e = ServiceError("bad request")
         assert e.status_code == 400
-        assert str(e) == 'bad request'
+        assert str(e) == "bad request"
 
     def test_service_error_custom_code(self):
-        e = ServiceError('gone', status_code=410)
+        e = ServiceError("gone", status_code=410)
         assert e.status_code == 410
 
     def test_not_found_default_code(self):
         e = NotFoundError()
         assert e.status_code == 404
-        assert str(e) == 'Resource not found'
+        assert str(e) == "Resource not found"
 
     def test_not_found_custom_message(self):
-        e = NotFoundError('Post not found')
-        assert str(e) == 'Post not found'
+        e = NotFoundError("Post not found")
+        assert str(e) == "Post not found"
 
     def test_forbidden_default_code(self):
         e = ForbiddenError()
         assert e.status_code == 403
-        assert str(e) == 'Access denied'
+        assert str(e) == "Access denied"
 
 
 # =============================================================================
@@ -136,42 +135,42 @@ class TestPostService:
 
     # ── create_post ────────────────────────────────────────────────────
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_create_post_success(self, mock_repo):
         mock_post = MagicMock(id=10, author_id=1)
         mock_repo.create_post.return_value = mock_post
 
-        result = PostService.create_post(1, 'Hello world')
+        result = PostService.create_post(1, "Hello world")
 
-        mock_repo.create_post.assert_called_once_with(1, 'Hello world', None)
+        mock_repo.create_post.assert_called_once_with(1, "Hello world", None)
         mock_repo.commit.assert_called_once()
         assert result.id == 10
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_create_post_with_image_and_tags(self, mock_repo):
         mock_post = MagicMock(id=11, author_id=1)
         mock_repo.create_post.return_value = mock_post
 
-        PostService.create_post(1, 'Text', image='img.jpg', tag_names=['test', 'rugram'])
+        PostService.create_post(1, "Text", image="img.jpg", tag_names=["test", "rugram"])
 
-        mock_repo.create_post.assert_called_once_with(1, 'Text', 'img.jpg')
-        mock_repo.sync_tags.assert_called_once_with(11, ['test', 'rugram'])
+        mock_repo.create_post.assert_called_once_with(1, "Text", "img.jpg")
+        mock_repo.sync_tags.assert_called_once_with(11, ["test", "rugram"])
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_create_post_empty_text_raises(self, mock_repo):
-        with pytest.raises(ServiceError, match='cannot be empty'):
-            PostService.create_post(1, '')
+        with pytest.raises(ServiceError, match="cannot be empty"):
+            PostService.create_post(1, "")
         mock_repo.create_post.assert_not_called()
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_create_post_whitespace_only_raises(self, mock_repo):
         with pytest.raises(ServiceError):
-            PostService.create_post(1, '   ')
+            PostService.create_post(1, "   ")
         mock_repo.create_post.assert_not_called()
 
     # ── get_post ────────────────────────────────────────────────────────
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_get_post_found(self, mock_repo):
         mock_post = MagicMock(id=5)
         mock_repo.get.return_value = mock_post
@@ -179,15 +178,15 @@ class TestPostService:
         result = PostService.get_post(5)
         assert result.id == 5
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_get_post_not_found(self, mock_repo):
         mock_repo.get.return_value = None
-        with pytest.raises(NotFoundError, match='not found'):
+        with pytest.raises(NotFoundError, match="not found"):
             PostService.get_post(999)
 
     # ── get_post_detail ────────────────────────────────────────────────
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_get_post_detail_found(self, mock_repo):
         mock_post = MagicMock(id=5, author=MagicMock(id=1))
         mock_repo.get_with_author.return_value = mock_post
@@ -195,7 +194,7 @@ class TestPostService:
         result = PostService.get_post_detail(5)
         assert result.author.id == 1
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_get_post_detail_not_found(self, mock_repo):
         mock_repo.get_with_author.return_value = None
         with pytest.raises(NotFoundError):
@@ -203,52 +202,52 @@ class TestPostService:
 
     # ── edit_post ──────────────────────────────────────────────────────
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_edit_post_success(self, mock_repo):
         mock_post = MagicMock(id=1, author_id=1)
         mock_repo.get.return_value = mock_post
 
-        result = PostService.edit_post(1, 1, 'Updated text')
+        result = PostService.edit_post(1, 1, "Updated text")
 
-        assert result.text == 'Updated text'
+        assert result.text == "Updated text"
         mock_repo.commit.assert_called_once()
         mock_repo.sync_tags.assert_not_called()
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_edit_post_sync_tags(self, mock_repo):
         mock_post = MagicMock(id=1, author_id=1)
         mock_repo.get.return_value = mock_post
 
-        PostService.edit_post(1, 1, 'Updated', tag_names=['newtag'])
+        PostService.edit_post(1, 1, "Updated", tag_names=["newtag"])
 
-        mock_repo.sync_tags.assert_called_once_with(1, ['newtag'])
+        mock_repo.sync_tags.assert_called_once_with(1, ["newtag"])
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_edit_post_wrong_owner(self, mock_repo):
         mock_post = MagicMock(id=1, author_id=2)  # author != user
         mock_repo.get.return_value = mock_post
 
-        with pytest.raises(ForbiddenError, match='own posts'):
-            PostService.edit_post(1, 1, 'text')
+        with pytest.raises(ForbiddenError, match="own posts"):
+            PostService.edit_post(1, 1, "text")
         mock_repo.commit.assert_not_called()
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_edit_post_empty_text(self, mock_repo):
         mock_post = MagicMock(id=1, author_id=1)
         mock_repo.get.return_value = mock_post
 
-        with pytest.raises(ServiceError, match='cannot be empty'):
-            PostService.edit_post(1, 1, '')
+        with pytest.raises(ServiceError, match="cannot be empty"):
+            PostService.edit_post(1, 1, "")
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_edit_post_not_found(self, mock_repo):
         mock_repo.get.return_value = None
         with pytest.raises(NotFoundError):
-            PostService.edit_post(999, 1, 'text')
+            PostService.edit_post(999, 1, "text")
 
     # ── delete_post ────────────────────────────────────────────────────
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_delete_post_success(self, mock_repo):
         mock_post = MagicMock(id=1, author_id=1, is_deleted=False)
         mock_repo.get.return_value = mock_post
@@ -258,7 +257,7 @@ class TestPostService:
         assert mock_post.is_deleted is True
         mock_repo.commit.assert_called_once()
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_delete_post_wrong_owner(self, mock_repo):
         mock_post = MagicMock(id=1, author_id=2)
         mock_repo.get.return_value = mock_post
@@ -268,7 +267,7 @@ class TestPostService:
 
     # ── admin operations ──────────────────────────────────────────────
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_admin_delete_post(self, mock_repo):
         mock_post = MagicMock(id=1, author_id=2, is_deleted=False)
         mock_repo.get.return_value = mock_post
@@ -277,7 +276,7 @@ class TestPostService:
 
         assert mock_post.is_deleted is True
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_admin_restore_post(self, mock_repo):
         mock_post = MagicMock(id=1, author_id=2, is_deleted=True)
         mock_repo.get.return_value = mock_post
@@ -286,18 +285,18 @@ class TestPostService:
 
         assert mock_post.is_deleted is False
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_admin_restore_not_deleted(self, mock_repo):
         mock_post = MagicMock(id=1, is_deleted=False)
         mock_repo.get.return_value = mock_post
 
-        with pytest.raises(ServiceError, match='not deleted'):
+        with pytest.raises(ServiceError, match="not deleted"):
             PostService.admin_restore_post(1)
 
     # ── toggle_like ──────────────────────────────────────────────────────
 
-    @patch('app.services.post_service.PostRepository')
-    @patch('app.services.post_service.NotificationRepository')
+    @patch("app.services.post_service.PostRepository")
+    @patch("app.services.post_service.NotificationRepository")
     def test_toggle_like_fresh(self, mock_notif, mock_repo):
         mock_post = MagicMock(id=5, author_id=2, likes_count=3)
         mock_repo.get.return_value = mock_post
@@ -305,14 +304,17 @@ class TestPostService:
 
         result = PostService.toggle_like(5, 1)
 
-        assert result == {'liked': True, 'likes_count': 3}
+        assert result == {"liked": True, "likes_count": 3}
         mock_repo.add_like.assert_called_once_with(1, 5)
         mock_notif.create_notification.assert_called_once_with(
-            user_id=2, actor_id=1, type_='like', post_id=5,
+            user_id=2,
+            actor_id=1,
+            type_="like",
+            post_id=5,
         )
 
-    @patch('app.services.post_service.PostRepository')
-    @patch('app.services.post_service.NotificationRepository')
+    @patch("app.services.post_service.PostRepository")
+    @patch("app.services.post_service.NotificationRepository")
     def test_toggle_unlike(self, mock_notif, mock_repo):
         mock_post = MagicMock(id=5, author_id=2, likes_count=2)
         mock_like = MagicMock(id=99)
@@ -321,12 +323,12 @@ class TestPostService:
 
         result = PostService.toggle_like(5, 1)
 
-        assert result == {'liked': False, 'likes_count': 2}
+        assert result == {"liked": False, "likes_count": 2}
         mock_repo.delete_like.assert_called_once_with(mock_like)
         mock_notif.create_notification.assert_not_called()
 
-    @patch('app.services.post_service.PostRepository')
-    @patch('app.services.post_service.NotificationRepository')
+    @patch("app.services.post_service.PostRepository")
+    @patch("app.services.post_service.NotificationRepository")
     def test_toggle_self_like_no_notification(self, mock_notif, mock_repo):
         """Self-like should not create a notification."""
         mock_post = MagicMock(id=5, author_id=1)  # author == liker
@@ -337,7 +339,7 @@ class TestPostService:
 
         mock_notif.create_notification.assert_not_called()
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_toggle_like_post_not_found(self, mock_repo):
         mock_repo.get.return_value = None
         with pytest.raises(NotFoundError):
@@ -345,75 +347,78 @@ class TestPostService:
 
     # ── add_comment ────────────────────────────────────────────────────
 
-    @patch('app.services.post_service.PostRepository')
-    @patch('app.services.post_service.NotificationRepository')
+    @patch("app.services.post_service.PostRepository")
+    @patch("app.services.post_service.NotificationRepository")
     def test_add_comment_success(self, mock_notif, mock_repo):
         mock_post = MagicMock(id=10, author_id=2)
         mock_comment = MagicMock(id=1, post_id=10, author_id=1)
         mock_repo.get.return_value = mock_post
         mock_repo.add_comment.return_value = mock_comment
 
-        result = PostService.add_comment(10, 1, 'Nice post!')
+        result = PostService.add_comment(10, 1, "Nice post!")
 
         assert result.id == 1
-        mock_repo.add_comment.assert_called_once_with(10, 1, 'Nice post!')
+        mock_repo.add_comment.assert_called_once_with(10, 1, "Nice post!")
         mock_notif.create_notification.assert_called_once_with(
-            user_id=2, actor_id=1, type_='comment', post_id=10,
+            user_id=2,
+            actor_id=1,
+            type_="comment",
+            post_id=10,
         )
 
-    @patch('app.services.post_service.PostRepository')
-    @patch('app.services.post_service.NotificationRepository')
+    @patch("app.services.post_service.PostRepository")
+    @patch("app.services.post_service.NotificationRepository")
     def test_add_comment_self_no_notification(self, mock_notif, mock_repo):
         mock_post = MagicMock(id=10, author_id=1)  # author == commenter
         mock_repo.get.return_value = mock_post
 
-        PostService.add_comment(10, 1, 'My own post!')
+        PostService.add_comment(10, 1, "My own post!")
 
         mock_notif.create_notification.assert_not_called()
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_add_comment_empty(self, mock_repo):
         mock_post = MagicMock(id=10, author_id=2)
         mock_repo.get.return_value = mock_post
 
-        with pytest.raises(ServiceError, match='cannot be empty'):
-            PostService.add_comment(10, 1, '')
+        with pytest.raises(ServiceError, match="cannot be empty"):
+            PostService.add_comment(10, 1, "")
 
     # ── edit_comment ──────────────────────────────────────────────────
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_edit_comment_success(self, mock_repo):
         mock_comment = MagicMock(id=5, author_id=1)
         mock_repo.get_comment.return_value = mock_comment
 
-        result = PostService.edit_comment(5, 1, 'Updated comment')
+        result = PostService.edit_comment(5, 1, "Updated comment")
 
-        assert result.text == 'Updated comment'
+        assert result.text == "Updated comment"
         mock_repo.commit.assert_called_once()
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_edit_comment_not_found(self, mock_repo):
         mock_repo.get_comment.return_value = None
         with pytest.raises(NotFoundError):
-            PostService.edit_comment(999, 1, 'text')
+            PostService.edit_comment(999, 1, "text")
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_edit_comment_wrong_owner(self, mock_repo):
         mock_comment = MagicMock(id=5, author_id=2)
         mock_repo.get_comment.return_value = mock_comment
         with pytest.raises(ForbiddenError):
-            PostService.edit_comment(5, 1, 'text')
+            PostService.edit_comment(5, 1, "text")
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_edit_comment_empty(self, mock_repo):
         mock_comment = MagicMock(id=5, author_id=1)
         mock_repo.get_comment.return_value = mock_comment
-        with pytest.raises(ServiceError, match='cannot be empty'):
-            PostService.edit_comment(5, 1, '')
+        with pytest.raises(ServiceError, match="cannot be empty"):
+            PostService.edit_comment(5, 1, "")
 
     # ── delete_comment ────────────────────────────────────────────────
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_delete_comment_success(self, mock_repo):
         mock_comment = MagicMock(id=5, author_id=1, post_id=10)
         mock_post = MagicMock(id=10, comments_count=3)
@@ -426,13 +431,13 @@ class TestPostService:
         assert count == 3
         mock_repo.delete_comment_hard.assert_called_once_with(mock_comment)
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_delete_comment_not_found(self, mock_repo):
         mock_repo.get_comment.return_value = None
         with pytest.raises(NotFoundError):
             PostService.delete_comment(999, 1)
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_delete_comment_wrong_owner(self, mock_repo):
         mock_comment = MagicMock(id=5, author_id=2)
         mock_repo.get_comment.return_value = mock_comment
@@ -441,7 +446,7 @@ class TestPostService:
 
     # ── toggle_repost ─────────────────────────────────────────────────
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_repost_fresh(self, mock_repo):
         mock_post = MagicMock(id=5)
         mock_repo.get.return_value = mock_post
@@ -449,10 +454,10 @@ class TestPostService:
 
         result = PostService.toggle_repost(5, 1)
 
-        assert result == {'reposted': True}
+        assert result == {"reposted": True}
         mock_repo.add_repost.assert_called_once_with(1, 5)
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_unrepost(self, mock_repo):
         mock_post = MagicMock(id=5)
         mock_repost = MagicMock(id=99)
@@ -461,12 +466,12 @@ class TestPostService:
 
         result = PostService.toggle_repost(5, 1)
 
-        assert result == {'reposted': False}
+        assert result == {"reposted": False}
         mock_repo.delete_repost.assert_called_once_with(mock_repost)
 
     # ── toggle_save ───────────────────────────────────────────────────
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_save_fresh(self, mock_repo):
         mock_post = MagicMock(id=5)
         mock_repo.get.return_value = mock_post
@@ -474,10 +479,10 @@ class TestPostService:
 
         result = PostService.toggle_save(5, 1)
 
-        assert result == {'saved': True}
+        assert result == {"saved": True}
         mock_repo.add_save.assert_called_once_with(1, 5)
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_unsave(self, mock_repo):
         mock_post = MagicMock(id=5)
         mock_save = MagicMock(id=99)
@@ -486,12 +491,12 @@ class TestPostService:
 
         result = PostService.toggle_save(5, 1)
 
-        assert result == {'saved': False}
+        assert result == {"saved": False}
         mock_repo.delete_save.assert_called_once_with(mock_save)
 
     # ── get_saved_posts ───────────────────────────────────────────────
 
-    @patch('app.services.post_service.PostRepository')
+    @patch("app.services.post_service.PostRepository")
     def test_get_saved_posts(self, mock_repo):
         mock_repo.get_saved_posts_query.return_value = MagicMock()
 
@@ -514,70 +519,70 @@ class TestChatService:
 
     # ── start_or_get_chat ─────────────────────────────────────────────
 
-    @patch('app.services.chat_service.UserRepository')
-    @patch('app.services.chat_service.ChatRepository')
+    @patch("app.services.chat_service.UserRepository")
+    @patch("app.services.chat_service.ChatRepository")
     def test_start_new_chat(self, mock_chat, mock_user):
-        mock_target = MagicMock(id=2, username='bob')
+        mock_target = MagicMock(id=2, username="bob")
         mock_user.get_by_username.return_value = mock_target
         mock_chat.get_my_chat_ids.return_value = [1, 2]
         mock_chat.find_common_chat.return_value = None
         mock_chat.create_chat.return_value = MagicMock(id=10)
 
-        result = ChatService.start_or_get_chat(1, 'bob')
+        result = ChatService.start_or_get_chat(1, "bob")
 
-        assert result == {'chat_id': 10}
+        assert result == {"chat_id": 10}
         mock_chat.add_participant.assert_any_call(10, 1)
         mock_chat.add_participant.assert_any_call(10, 2)
 
-    @patch('app.services.chat_service.UserRepository')
-    @patch('app.services.chat_service.ChatRepository')
+    @patch("app.services.chat_service.UserRepository")
+    @patch("app.services.chat_service.ChatRepository")
     def test_start_existing_chat(self, mock_chat, mock_user):
-        mock_target = MagicMock(id=2, username='bob')
+        mock_target = MagicMock(id=2, username="bob")
         mock_user.get_by_username.return_value = mock_target
         mock_chat.get_my_chat_ids.return_value = [1, 2]
         mock_chat.find_common_chat.return_value = MagicMock(chat_id=7)
 
-        result = ChatService.start_or_get_chat(1, 'bob')
+        result = ChatService.start_or_get_chat(1, "bob")
 
-        assert result == {'chat_id': 7}
+        assert result == {"chat_id": 7}
         mock_chat.create_chat.assert_not_called()
 
-    @patch('app.services.chat_service.UserRepository')
+    @patch("app.services.chat_service.UserRepository")
     def test_start_user_not_found(self, mock_user):
         mock_user.get_by_username.return_value = None
         with pytest.raises(NotFoundError):
-            ChatService.start_or_get_chat(1, 'unknown')
+            ChatService.start_or_get_chat(1, "unknown")
 
-    @patch('app.services.chat_service.UserRepository')
+    @patch("app.services.chat_service.UserRepository")
     def test_start_self_chat(self, mock_user):
-        mock_target = MagicMock(id=1, username='alice')
+        mock_target = MagicMock(id=1, username="alice")
         mock_user.get_by_username.return_value = mock_target
-        with pytest.raises(ServiceError, match='yourself'):
-            ChatService.start_or_get_chat(1, 'alice')
+        with pytest.raises(ServiceError, match="yourself"):
+            ChatService.start_or_get_chat(1, "alice")
 
     # ── _require_participant ──────────────────────────────────────────
 
-    @patch('app.services.chat_service.ChatRepository')
+    @patch("app.services.chat_service.ChatRepository")
     def test_require_participant_ok(self, mock_chat):
         mock_chat.get_participant.return_value = MagicMock(id=10)
         ChatService._require_participant(5, 1)  # no exception
 
-    @patch('app.services.chat_service.ChatRepository')
+    @patch("app.services.chat_service.ChatRepository")
     def test_require_participant_denied(self, mock_chat):
         mock_chat.get_participant.return_value = None
-        with pytest.raises(ForbiddenError, match='Access denied'):
+        with pytest.raises(ForbiddenError, match="Access denied"):
             ChatService._require_participant(5, 1)
 
     # ── send_message ──────────────────────────────────────────────────
 
-    @patch('app.services.chat_service.UserRepository')
-    @patch('app.services.chat_service.ChatRepository')
+    @patch("app.services.chat_service.UserRepository")
+    @patch("app.services.chat_service.ChatRepository")
     def test_send_text_message(self, mock_chat, mock_user):
         mock_chat.get_participant.return_value = MagicMock()
         mock_user.get.return_value = MagicMock(id=1)
         mock_chat.add_message.return_value = MagicMock(id=100)
 
-        msg = ChatService.send_message(5, 1, text='Hello!')
+        msg = ChatService.send_message(5, 1, text="Hello!")
 
         assert msg.id == 100
         mock_chat.add_message.assert_called_once()
@@ -586,49 +591,49 @@ class TestChatService:
         assert isinstance(call_text, str) and len(call_text) > 0
         mock_chat.commit.assert_called_once()
 
-    @patch('app.services.chat_service.ChatRepository')
+    @patch("app.services.chat_service.ChatRepository")
     def test_send_message_not_participant(self, mock_chat):
         mock_chat.get_participant.return_value = None
         with pytest.raises(ForbiddenError):
-            ChatService.send_message(5, 1, text='hi')
+            ChatService.send_message(5, 1, text="hi")
 
-    @patch('app.services.chat_service.UserRepository')
-    @patch('app.services.chat_service.ChatRepository')
+    @patch("app.services.chat_service.UserRepository")
+    @patch("app.services.chat_service.ChatRepository")
     def test_send_message_empty(self, mock_chat, mock_user):
         mock_chat.get_participant.return_value = MagicMock()
-        with pytest.raises(ServiceError, match='cannot be empty'):
-            ChatService.send_message(5, 1, text='')
+        with pytest.raises(ServiceError, match="cannot be empty"):
+            ChatService.send_message(5, 1, text="")
 
-    @patch('app.services.chat_service.UserRepository')
-    @patch('app.services.chat_service.ChatRepository')
+    @patch("app.services.chat_service.UserRepository")
+    @patch("app.services.chat_service.ChatRepository")
     def test_send_image_without_text(self, mock_chat, mock_user):
         mock_chat.get_participant.return_value = MagicMock()
         mock_user.get.return_value = MagicMock(id=1)
         mock_chat.add_message.return_value = MagicMock(id=101)
 
-        msg = ChatService.send_message(5, 1, image_filename='chat_abc.jpg')
+        msg = ChatService.send_message(5, 1, image_filename="chat_abc.jpg")
 
         assert msg.id == 101
         mock_chat.add_message.assert_called_once()
         # text should be '' for image-only
-        assert mock_chat.add_message.call_args[0][2] == ''
+        assert mock_chat.add_message.call_args[0][2] == ""
 
-    @patch('app.services.chat_service.UserRepository')
-    @patch('app.services.chat_service.ChatRepository')
+    @patch("app.services.chat_service.UserRepository")
+    @patch("app.services.chat_service.ChatRepository")
     def test_send_message_updates_last_seen(self, mock_chat, mock_user):
         mock_chat.get_participant.return_value = MagicMock()
         mock_user_obj = MagicMock(id=1, last_seen=None)
         mock_user.get.return_value = mock_user_obj
         mock_chat.add_message.return_value = MagicMock(id=102)
 
-        ChatService.send_message(5, 1, text='Hello!')
+        ChatService.send_message(5, 1, text="Hello!")
 
         assert mock_user_obj.last_seen is not None
 
     # ── get_messages ───────────────────────────────────────────────────
 
-    @patch('app.services.chat_service.UserRepository')
-    @patch('app.services.chat_service.ChatRepository')
+    @patch("app.services.chat_service.UserRepository")
+    @patch("app.services.chat_service.ChatRepository")
     def test_get_messages_first_load(self, mock_chat, mock_user):
         mock_chat.get_participant.side_effect = [
             MagicMock(),  # first _require_participant
@@ -640,28 +645,32 @@ class TestChatService:
         )
         mock_chat.get_messages_query.return_value.limit.return_value.all.return_value = []
         mock_chat.get_other_participant.return_value = MagicMock(
-            user=MagicMock(id=2, username='bob', profile_image=None,
-                           is_online=False, last_seen_str=lambda: 'never',
-                           last_seen=None, spec=['id', 'username',
-                           'profile_image', 'is_online', 'last_seen',
-                           'last_seen_str']),
+            user=MagicMock(
+                id=2,
+                username="bob",
+                profile_image=None,
+                is_online=False,
+                last_seen_str=lambda: "never",
+                last_seen=None,
+                spec=["id", "username", "profile_image", "is_online", "last_seen", "last_seen_str"],
+            ),
             last_typing_at=None,
         )
         # Ensure user mock has last_seen = None and supports subtraction
-        mock_user_obj = MagicMock(spec=['id', 'last_seen', 'username'])
+        mock_user_obj = MagicMock(spec=["id", "last_seen", "username"])
         mock_user_obj.id = 1
         mock_user_obj.last_seen = None
-        mock_user_obj.username = 'alice'
+        mock_user_obj.username = "alice"
         mock_user.get.return_value = mock_user_obj
 
         result = ChatService.get_messages(5, 1)
 
-        assert result['messages'] == []
-        assert result['has_more'] is False
+        assert result["messages"] == []
+        assert result["has_more"] is False
         mock_chat.mark_messages_read.assert_called_once_with(5, 1)
 
-    @patch('app.services.chat_service.UserRepository')
-    @patch('app.services.chat_service.ChatRepository')
+    @patch("app.services.chat_service.UserRepository")
+    @patch("app.services.chat_service.ChatRepository")
     def test_get_messages_paginated(self, mock_chat, mock_user):
         mock_chat.get_participant.return_value = MagicMock()
         q = MagicMock()
@@ -674,11 +683,11 @@ class TestChatService:
 
         result = ChatService.get_messages(5, 1, before=100)
 
-        assert result['messages'] == []
+        assert result["messages"] == []
         # should NOT mark read when paginating
         mock_chat.mark_messages_read.assert_not_called()
 
-    @patch('app.services.chat_service.ChatRepository')
+    @patch("app.services.chat_service.ChatRepository")
     def test_get_messages_not_participant(self, mock_chat):
         mock_chat.get_participant.return_value = None
         with pytest.raises(ForbiddenError):
@@ -686,52 +695,52 @@ class TestChatService:
 
     # ── edit_message ──────────────────────────────────────────────────
 
-    @patch('app.services.chat_service.ChatRepository')
+    @patch("app.services.chat_service.ChatRepository")
     def test_edit_message_success(self, mock_chat):
         mock_chat.get_participant.return_value = MagicMock()
-        mock_msg = MagicMock(id=50, author_id=1, text='old', edited_at=None)
+        mock_msg = MagicMock(id=50, author_id=1, text="old", edited_at=None)
         mock_chat.get_message.return_value = mock_msg
 
-        msg = ChatService.edit_message(5, 50, 1, 'Updated!')
+        msg = ChatService.edit_message(5, 50, 1, "Updated!")
 
-        assert msg.text != 'old'  # should be re-encrypted
+        assert msg.text != "old"  # should be re-encrypted
         assert msg.edited_at is not None
 
-    @patch('app.services.chat_service.ChatRepository')
+    @patch("app.services.chat_service.ChatRepository")
     def test_edit_message_not_found(self, mock_chat):
         mock_chat.get_participant.return_value = MagicMock()
         mock_chat.get_message.return_value = None
         with pytest.raises(NotFoundError):
-            ChatService.edit_message(5, 999, 1, 'text')
+            ChatService.edit_message(5, 999, 1, "text")
 
-    @patch('app.services.chat_service.ChatRepository')
+    @patch("app.services.chat_service.ChatRepository")
     def test_edit_message_wrong_author(self, mock_chat):
         mock_chat.get_participant.return_value = MagicMock()
         mock_chat.get_message.return_value = MagicMock(id=50, author_id=2)
         with pytest.raises(ForbiddenError):
-            ChatService.edit_message(5, 50, 1, 'text')
+            ChatService.edit_message(5, 50, 1, "text")
 
-    @patch('app.services.chat_service.ChatRepository')
+    @patch("app.services.chat_service.ChatRepository")
     def test_edit_message_empty(self, mock_chat):
         mock_chat.get_participant.return_value = MagicMock()
         mock_chat.get_message.return_value = MagicMock(id=50, author_id=1)
-        with pytest.raises(ServiceError, match='cannot be empty'):
-            ChatService.edit_message(5, 50, 1, '')
+        with pytest.raises(ServiceError, match="cannot be empty"):
+            ChatService.edit_message(5, 50, 1, "")
 
     # ── delete_message ────────────────────────────────────────────────
 
-    @patch('app.services.chat_service.ChatRepository')
+    @patch("app.services.chat_service.ChatRepository")
     def test_delete_message_success(self, mock_chat):
         mock_chat.get_participant.return_value = MagicMock()
-        mock_msg = MagicMock(id=50, author_id=1, text='secret', image='img.jpg')
+        mock_msg = MagicMock(id=50, author_id=1, text="secret", image="img.jpg")
         mock_chat.get_message.return_value = mock_msg
 
         ChatService.delete_message(5, 50, 1)
 
-        assert mock_msg.text == ''
+        assert mock_msg.text == ""
         assert mock_msg.image is None
 
-    @patch('app.services.chat_service.ChatRepository')
+    @patch("app.services.chat_service.ChatRepository")
     def test_delete_message_wrong_author(self, mock_chat):
         mock_chat.get_participant.return_value = MagicMock()
         mock_chat.get_message.return_value = MagicMock(id=50, author_id=2)
@@ -740,14 +749,14 @@ class TestChatService:
 
     # ── set_typing ────────────────────────────────────────────────────
 
-    @patch('app.services.chat_service.ChatRepository')
+    @patch("app.services.chat_service.ChatRepository")
     def test_set_typing_ok(self, mock_chat):
         mock_chat.get_participant.return_value = MagicMock(id=10)
         ChatService.set_typing(5, 1)
         mock_chat.update_typing.assert_called_once()
         mock_chat.commit.assert_called_once()
 
-    @patch('app.services.chat_service.ChatRepository')
+    @patch("app.services.chat_service.ChatRepository")
     def test_set_typing_not_participant(self, mock_chat):
         mock_chat.get_participant.return_value = None
         with pytest.raises(ForbiddenError):
@@ -766,48 +775,48 @@ class TestSocialService:
 
     # ── get_user / get_user_by_username ──────────────────────────────
 
-    @patch('app.services.social_service.UserRepository')
+    @patch("app.services.social_service.UserRepository")
     def test_get_user_found(self, mock_repo):
         mock_repo.get.return_value = MagicMock(id=1)
         assert SocialService.get_user(1).id == 1
 
-    @patch('app.services.social_service.UserRepository')
+    @patch("app.services.social_service.UserRepository")
     def test_get_user_not_found(self, mock_repo):
         mock_repo.get.return_value = None
         with pytest.raises(NotFoundError):
             SocialService.get_user(999)
 
-    @patch('app.services.social_service.UserRepository')
+    @patch("app.services.social_service.UserRepository")
     def test_get_by_username_found(self, mock_repo):
-        mock_repo.get_by_username.return_value = MagicMock(id=1, username='alice')
-        u = SocialService.get_user_by_username('alice')
-        assert u.username == 'alice'
+        mock_repo.get_by_username.return_value = MagicMock(id=1, username="alice")
+        u = SocialService.get_user_by_username("alice")
+        assert u.username == "alice"
 
-    @patch('app.services.social_service.UserRepository')
+    @patch("app.services.social_service.UserRepository")
     def test_get_by_username_not_found(self, mock_repo):
         mock_repo.get_by_username.return_value = None
         with pytest.raises(NotFoundError):
-            SocialService.get_user_by_username('nobody')
+            SocialService.get_user_by_username("nobody")
 
     # ── get_profile ──────────────────────────────────────────────────
 
-    @patch('app.services.social_service.UserRepository')
+    @patch("app.services.social_service.UserRepository")
     def test_get_profile_own(self, mock_repo):
-        mock_user = MagicMock(id=1, username='alice')
+        mock_user = MagicMock(id=1, username="alice")
         mock_repo.get.return_value = mock_user
         mock_repo.get_follower_count.return_value = 5
         mock_repo.get_following_count.return_value = 3
 
         profile = SocialService.get_profile(1, current_user_id=1)
 
-        assert profile['followers_count'] == 5
-        assert profile['following_count'] == 3
-        assert profile['is_followed'] is False  # own profile
+        assert profile["followers_count"] == 5
+        assert profile["following_count"] == 3
+        assert profile["is_followed"] is False  # own profile
         mock_repo.is_following.assert_not_called()
 
-    @patch('app.services.social_service.UserRepository')
+    @patch("app.services.social_service.UserRepository")
     def test_get_profile_other_followed(self, mock_repo):
-        mock_user = MagicMock(id=2, username='bob')
+        mock_user = MagicMock(id=2, username="bob")
         mock_repo.get.return_value = mock_user
         mock_repo.get_follower_count.return_value = 10
         mock_repo.get_following_count.return_value = 7
@@ -815,76 +824,81 @@ class TestSocialService:
 
         profile = SocialService.get_profile(2, current_user_id=1)
 
-        assert profile['is_followed'] is True
+        assert profile["is_followed"] is True
         mock_repo.is_following.assert_called_once_with(1, 2)
 
     # ── toggle_follow ────────────────────────────────────────────────
 
-    @patch('app.services.social_service.UserRepository')
-    @patch('app.services.social_service.NotificationRepository')
+    @patch("app.services.social_service.UserRepository")
+    @patch("app.services.social_service.NotificationRepository")
     def test_follow_success(self, mock_notif, mock_repo):
         mock_repo.get_by_username.return_value = MagicMock(id=2)
         mock_repo.get_follow.return_value = None
 
-        result = SocialService.toggle_follow(1, 'bob')
+        result = SocialService.toggle_follow(1, "bob")
 
-        assert result == {'followed': True}
+        assert result == {"followed": True}
         mock_repo.add_follow.assert_called_once_with(1, 2)
         mock_notif.create_notification.assert_called_once_with(
-            user_id=2, actor_id=1, type_='follow',
+            user_id=2,
+            actor_id=1,
+            type_="follow",
         )
 
-    @patch('app.services.social_service.UserRepository')
+    @patch("app.services.social_service.UserRepository")
     def test_unfollow(self, mock_repo):
         mock_repo.get_by_username.return_value = MagicMock(id=2)
         mock_repo.get_follow.return_value = MagicMock(id=99)
 
-        result = SocialService.toggle_follow(1, 'bob')
+        result = SocialService.toggle_follow(1, "bob")
 
-        assert result == {'followed': False}
+        assert result == {"followed": False}
         mock_repo.delete_follow.assert_called_once()
 
-    @patch('app.services.social_service.UserRepository')
+    @patch("app.services.social_service.UserRepository")
     def test_follow_self(self, mock_repo):
         mock_repo.get_by_username.return_value = MagicMock(id=1)
-        with pytest.raises(ServiceError, match='yourself'):
-            SocialService.toggle_follow(1, 'alice')
+        with pytest.raises(ServiceError, match="yourself"):
+            SocialService.toggle_follow(1, "alice")
 
-    @patch('app.services.social_service.UserRepository')
+    @patch("app.services.social_service.UserRepository")
     def test_follow_user_not_found(self, mock_repo):
         mock_repo.get_by_username.return_value = None
         with pytest.raises(NotFoundError):
-            SocialService.toggle_follow(1, 'nobody')
+            SocialService.toggle_follow(1, "nobody")
 
     # ── get_followers / get_following ────────────────────────────────
 
-    @patch('app.services.social_service.UserRepository')
+    @patch("app.services.social_service.UserRepository")
     def test_get_followers(self, mock_repo):
         mock_follows = [MagicMock(follower=MagicMock(id=i)) for i in (3, 2, 1)]
         mock_repo.get_followers_query.return_value = MagicMock()
-        mock_repo.get_followers_query.return_value.limit.return_value \
-            .all.return_value = mock_follows + [MagicMock()]  # has_more
+        mock_repo.get_followers_query.return_value.limit.return_value.all.return_value = [
+            *mock_follows,
+            MagicMock(),
+        ]  # has_more
 
-        users, cursor, has_more = SocialService.get_followers(1, limit=3)
+        users, _cursor, has_more = SocialService.get_followers(1, limit=3)
 
         assert len(users) == 3
         assert has_more is True
 
-    @patch('app.services.social_service.UserRepository')
+    @patch("app.services.social_service.UserRepository")
     def test_get_following(self, mock_repo):
         mock_follows = [MagicMock(followed=MagicMock(id=i)) for i in (3, 2)]
         mock_repo.get_following_query.return_value = MagicMock()
-        mock_repo.get_following_query.return_value.limit.return_value \
-            .all.return_value = mock_follows
+        mock_repo.get_following_query.return_value.limit.return_value.all.return_value = (
+            mock_follows
+        )
 
-        users, cursor, has_more = SocialService.get_following(1)
+        users, _cursor, has_more = SocialService.get_following(1)
 
         assert len(users) == 2
         assert has_more is False
 
     # ── delete_user_account ──────────────────────────────────────────
 
-    @patch('app.services.social_service.UserRepository')
+    @patch("app.services.social_service.UserRepository")
     def test_delete_user_account(self, mock_repo):
         mock_user = MagicMock(id=1)
         mock_repo.get.return_value = mock_user
@@ -895,13 +909,12 @@ class TestSocialService:
 
     # ── get_user_posts ───────────────────────────────────────────────
 
-    @patch('app.repositories.post_repository.PostRepository')
-    @patch('app.services.social_service.UserRepository')
+    @patch("app.repositories.post_repository.PostRepository")
+    @patch("app.services.social_service.UserRepository")
     def test_get_user_posts(self, mock_user_repo, mock_post_repo):
         """PostRepository is lazily imported inside get_user_posts — patch source."""
         mock_post_repo.get_user_posts_query.return_value = MagicMock()
-        mock_post_repo.get_user_posts_query.return_value.limit.return_value \
-            .all.return_value = []
+        mock_post_repo.get_user_posts_query.return_value.limit.return_value.all.return_value = []
 
         SocialService.get_user_posts(1)
 
@@ -918,55 +931,62 @@ from app.services.feed_service import FeedService
 class TestFeedService:
     """FeedService — feed queries, search, trending tags."""
 
-    @patch('app.services.feed_service.PostRepository')
+    @patch("app.services.feed_service.PostRepository")
     def test_get_feed_page(self, mock_repo):
         mock_repo.get_feed_query.return_value = MagicMock()
-        mock_repo.get_feed_query.return_value.paginate.return_value = 'pagination'
+        mock_repo.get_feed_query.return_value.paginate.return_value = "pagination"
 
-        result = FeedService.get_feed_page(user_id=1, sort_by='new')
-        assert result == 'pagination'
+        result = FeedService.get_feed_page(user_id=1, sort_by="new")
+        assert result == "pagination"
         mock_repo.get_feed_query.assert_called_once_with(
-            user_id=1, followed_only=False, tag_filter=None,
-            search_query=None, sort_by='new',
+            user_id=1,
+            followed_only=False,
+            tag_filter=None,
+            search_query=None,
+            sort_by="new",
         )
 
-    @patch('app.services.feed_service.PostRepository')
+    @patch("app.services.feed_service.PostRepository")
     def test_get_feed_with_filters(self, mock_repo):
         mock_repo.get_feed_query.return_value = MagicMock()
-        mock_repo.get_feed_query.return_value.limit.return_value \
-            .all.return_value = []
+        mock_repo.get_feed_query.return_value.limit.return_value.all.return_value = []
 
         FeedService.get_feed(
-            user_id=1, followed_only=True, tag_filter='cat',
-            search_query='hello', sort_by='hot',
+            user_id=1,
+            followed_only=True,
+            tag_filter="cat",
+            search_query="hello",
+            sort_by="hot",
         )
 
         mock_repo.get_feed_query.assert_called_once_with(
-            user_id=1, followed_only=True, tag_filter='cat',
-            search_query='hello', sort_by='hot',
+            user_id=1,
+            followed_only=True,
+            tag_filter="cat",
+            search_query="hello",
+            sort_by="hot",
         )
 
-    @patch('app.services.feed_service.PostRepository')
+    @patch("app.services.feed_service.PostRepository")
     def test_get_trending_tags(self, mock_repo):
-        mock_repo.get_trending_tags.return_value = ['tag1', 'tag2']
-        assert FeedService.get_trending_tags(5) == ['tag1', 'tag2']
+        mock_repo.get_trending_tags.return_value = ["tag1", "tag2"]
+        assert FeedService.get_trending_tags(5) == ["tag1", "tag2"]
         mock_repo.get_trending_tags.assert_called_once_with(5)
 
-    @patch('app.services.feed_service.PostRepository')
+    @patch("app.services.feed_service.PostRepository")
     def test_search_tags(self, mock_repo):
-        mock_repo.search_tags.return_value = ['tag1']
-        assert FeedService.search_tags('cat', 5) == ['tag1']
-        mock_repo.search_tags.assert_called_once_with('cat', 5)
+        mock_repo.search_tags.return_value = ["tag1"]
+        assert FeedService.search_tags("cat", 5) == ["tag1"]
+        mock_repo.search_tags.assert_called_once_with("cat", 5)
 
-    @patch('app.services.feed_service.PostRepository')
+    @patch("app.services.feed_service.PostRepository")
     def test_get_posts_by_tag(self, mock_repo):
         mock_repo.get_posts_by_tag_query.return_value = MagicMock()
-        mock_repo.get_posts_by_tag_query.return_value.limit.return_value \
-            .all.return_value = []
+        mock_repo.get_posts_by_tag_query.return_value.limit.return_value.all.return_value = []
 
-        FeedService.get_posts_by_tag('cat')
+        FeedService.get_posts_by_tag("cat")
 
-        mock_repo.get_posts_by_tag_query.assert_called_once_with('cat')
+        mock_repo.get_posts_by_tag_query.assert_called_once_with("cat")
 
 
 # =============================================================================
@@ -979,61 +999,62 @@ from app.services.notification_service import NotificationService
 class TestNotificationService:
     """NotificationService — create, list, mark read."""
 
-    @patch('app.services.notification_service.NotificationRepository')
+    @patch("app.services.notification_service.NotificationRepository")
     def test_get_notifications(self, mock_repo):
         mock_repo.get_user_notifications_query.return_value = MagicMock()
-        mock_repo.get_user_notifications_query.return_value.limit.return_value \
-            .all.return_value = []
+        mock_repo.get_user_notifications_query.return_value.limit.return_value.all.return_value = []
         mock_repo.load_actors.return_value = {}
 
-        items, cursor, has_more = NotificationService.get_notifications(1)
+        items, _cursor, _has_more = NotificationService.get_notifications(1)
 
         assert items == []
         mock_repo.get_user_notifications_query.assert_called_once_with(1, unread_only=False)
 
-    @patch('app.services.notification_service.NotificationRepository')
+    @patch("app.services.notification_service.NotificationRepository")
     def test_get_notifications_unread_only(self, mock_repo):
         mock_repo.get_user_notifications_query.return_value = MagicMock()
-        mock_repo.get_user_notifications_query.return_value.limit.return_value \
-            .all.return_value = []
+        mock_repo.get_user_notifications_query.return_value.limit.return_value.all.return_value = []
 
         NotificationService.get_notifications(1, unread_only=True)
 
         mock_repo.get_user_notifications_query.assert_called_once_with(1, unread_only=True)
 
-    @patch('app.services.notification_service.NotificationRepository')
+    @patch("app.services.notification_service.NotificationRepository")
     def test_mark_read_success(self, mock_repo):
         mock_repo.mark_read.return_value = MagicMock(id=5)
         result = NotificationService.mark_read(5, 1)
         assert result.id == 5
 
-    @patch('app.services.notification_service.NotificationRepository')
+    @patch("app.services.notification_service.NotificationRepository")
     def test_mark_read_not_found(self, mock_repo):
         mock_repo.mark_read.return_value = None
         with pytest.raises(NotFoundError):
             NotificationService.mark_read(999, 1)
 
-    @patch('app.services.notification_service.NotificationRepository')
+    @patch("app.services.notification_service.NotificationRepository")
     def test_mark_all_read(self, mock_repo):
         mock_repo.mark_all_read.return_value = 3
         assert NotificationService.mark_all_read(1) == 3
 
-    @patch('app.services.notification_service.NotificationRepository')
+    @patch("app.services.notification_service.NotificationRepository")
     def test_unread_count(self, mock_repo):
         mock_repo.get_unread_count.return_value = 5
         assert NotificationService.unread_count(1) == 5
 
-    @patch('app.services.notification_service.NotificationRepository')
+    @patch("app.services.notification_service.NotificationRepository")
     def test_create_notification_success(self, mock_repo):
         mock_repo.create_notification.return_value = MagicMock(id=1)
-        n = NotificationService.create_notification(2, 1, 'like', post_id=10)
+        n = NotificationService.create_notification(2, 1, "like", post_id=10)
         assert n.id == 1
         mock_repo.create_notification.assert_called_once_with(
-            user_id=2, actor_id=1, type_='like', post_id=10,
+            user_id=2,
+            actor_id=1,
+            type_="like",
+            post_id=10,
         )
 
-    @patch('app.services.notification_service.NotificationRepository')
+    @patch("app.services.notification_service.NotificationRepository")
     def test_create_notification_self_error(self, mock_repo):
-        with pytest.raises(ServiceError, match='notify yourself'):
-            NotificationService.create_notification(1, 1, 'like')
+        with pytest.raises(ServiceError, match="notify yourself"):
+            NotificationService.create_notification(1, 1, "like")
         mock_repo.create_notification.assert_not_called()

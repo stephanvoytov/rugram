@@ -6,14 +6,14 @@ Services call repositories, never db.session or Model.query directly.
 
 from __future__ import annotations
 
-from typing import Any, Optional, TypeVar
+from typing import Any, TypeVar
 
-from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import func
+from sqlalchemy.orm import DeclarativeBase
 
 from extensions import db
 
-ModelT = TypeVar('ModelT', bound=DeclarativeBase)
+ModelT = TypeVar("ModelT", bound=DeclarativeBase)
 
 
 class BaseRepository:
@@ -131,7 +131,7 @@ class BaseRepository:
     # ── Aggregates ──────────────────────────────────────────────────
 
     @classmethod
-    def max_id(cls) -> Optional[int]:
+    def max_id(cls) -> int | None:
         """Return the maximum id value, or None if table is empty."""
         return db.session.query(func.max(cls.model.id)).scalar()
 

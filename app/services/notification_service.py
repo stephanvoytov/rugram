@@ -3,11 +3,9 @@
 Uses repositories for all data access — no direct db.session or Model.query calls.
 """
 
-from typing import Optional
-
 from app.models import Notification
-from app.services.base import ServiceError, NotFoundError, cursor_paginate
 from app.repositories.notification_repository import NotificationRepository
+from app.services.base import NotFoundError, ServiceError, cursor_paginate
 
 
 class NotificationService:
@@ -16,7 +14,7 @@ class NotificationService:
     @staticmethod
     def get_notifications(
         user_id: int,
-        cursor: Optional[int] = None,
+        cursor: int | None = None,
         limit: int = 20,
         unread_only: bool = False,
     ) -> tuple:
@@ -38,7 +36,7 @@ class NotificationService:
     def mark_read(notification_id: int, user_id: int) -> Notification:
         notification = NotificationRepository.mark_read(notification_id, user_id)
         if not notification:
-            raise NotFoundError('Notification not found')
+            raise NotFoundError("Notification not found")
         return notification
 
     @staticmethod
@@ -52,13 +50,17 @@ class NotificationService:
 
     @staticmethod
     def create_notification(
-        user_id: int, actor_id: Optional[int],
-        type_: str, post_id: Optional[int] = None,
+        user_id: int,
+        actor_id: int | None,
+        type_: str,
+        post_id: int | None = None,
     ) -> Notification:
         """Create a notification. Skips if user == actor (self-action)."""
         if actor_id and user_id == actor_id:
-            raise ServiceError('Cannot notify yourself')
+            raise ServiceError("Cannot notify yourself")
         return NotificationRepository.create_notification(
-            user_id=user_id, actor_id=actor_id,
-            type_=type_, post_id=post_id,
+            user_id=user_id,
+            actor_id=actor_id,
+            type_=type_,
+            post_id=post_id,
         )

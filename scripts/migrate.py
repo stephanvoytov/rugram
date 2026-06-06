@@ -13,17 +13,17 @@ Usage:
     python scripts/migrate.py --check  # CI mode — fail if migrations pending
 """
 
+import argparse
 import os
 import sys
-import argparse
 
 # Add project root to path so 'from app import create_app' works
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from alembic.config import Config
 from alembic.command import upgrade
-from alembic.script import ScriptDirectory
+from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
+from alembic.script import ScriptDirectory
 from alembic.util.exc import CommandError
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import OperationalError
@@ -64,9 +64,10 @@ def get_pending_revisions(script, current_rev, head):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Apply Alembic migrations resiliently.')
-    parser.add_argument('--check', action='store_true',
-                        help='CI mode: exit 1 if migrations would be applied')
+    parser = argparse.ArgumentParser(description="Apply Alembic migrations resiliently.")
+    parser.add_argument(
+        "--check", action="store_true", help="CI mode: exit 1 if migrations would be applied"
+    )
     args = parser.parse_args()
 
     # Always run from project root
@@ -74,14 +75,15 @@ def main():
 
     # Create Flask app to get real DB URL from config
     from app import create_app
+
     app = create_app()
 
-    db_uri = app.config['SQLALCHEMY_DATABASE_URI']
-    db_path = db_uri.replace('sqlite:///', '')
+    db_uri = app.config["SQLALCHEMY_DATABASE_URI"]
+    db_uri.replace("sqlite:///", "")
 
     # Configure Alembic with the real DB URL
-    alembic_cfg = Config('alembic.ini')
-    alembic_cfg.set_main_option('sqlalchemy.url', db_uri)
+    alembic_cfg = Config("alembic.ini")
+    alembic_cfg.set_main_option("sqlalchemy.url", db_uri)
 
     script = ScriptDirectory.from_config(alembic_cfg)
     head = script.get_current_head()
@@ -90,17 +92,17 @@ def main():
     current_rev = get_current_revision(engine)
 
     if current_rev == head:
-        print('[ok] All migrations already applied.')
+        print("[ok] All migrations already applied.")
         engine.dispose()
         return 0
 
     pending = get_pending_revisions(script, current_rev, head)
 
     if args.check:
-        print(f'[check] Would apply {len(pending)} migration(s):')
+        print(f"[check] Would apply {len(pending)} migration(s):")
         for rev_id in pending:
             r = script.get_revision(rev_id)
-            print(f'    {rev_id}  {r.doc}')
+            print(f"    {rev_id}  {r.doc}")
         engine.dispose()
         return 1  # CI failure: migrations aren't up to date
 
@@ -113,16 +115,16 @@ def main():
 
     while current_rev != head:
         try:
-            upgrade(alembic_cfg, '+1')
+            upgrade(alembic_cfg, "+1")
             applied += 1
             current_rev = get_current_revision(engine)
             r = script.get_revision(current_rev) if current_rev else None
-            label = f'  [ok] {current_rev}' + (f'  {r.doc}' if r else '')
+            label = f"  [ok] {current_rev}" + (f"  {r.doc}" if r else "")
             print(label)
 
         except OperationalError as e:
             err_str = str(e).lower()
-            if 'duplicate' in err_str or 'already exists' in err_str:
+            if "duplicate" in err_str or "already exists" in err_str:
                 # Column/table already existed — skip this migration
                 next_rev = get_next_revision(script, current_rev)
                 if next_rev:
@@ -131,41 +133,43 @@ def main():
                         conn.execute(text("DELETE FROM alembic_version"))
                         conn.execute(
                             text("INSERT INTO alembic_version (version_num) VALUES (:rev)"),
-                            {"rev": next_rev}
+                            {"rev": next_rev},
                         )
                         conn.commit()
                     skipped += 1
                     r = script.get_revision(next_rev)
-                    label = f'  ~ {next_rev}' + (f'  {r.doc} (already applied)' if r else ' (already applied)')
+                    label = f"  ~ {next_rev}" + (
+                        f"  {r.doc} (already applied)" if r else " (already applied)"
+                    )
                     print(label)
                     current_rev = get_current_revision(engine)
                 else:
-                    print(f'[err] Cannot determine next revision from {current_rev}')
+                    print(f"[err] Cannot determine next revision from {current_rev}")
                     engine.dispose()
                     return 1
             else:
-                print(f'[err] Migration failed:\n{e}')
+                print(f"[err] Migration failed:\n{e}")
                 engine.dispose()
                 return 1
 
         except CommandError as e:
             err = str(e)
-            if 'Can\'t locate revision' in err or 'No such revision' in err:
-                print('[ok] No more migrations to apply (at head).')
+            if "Can't locate revision" in err or "No such revision" in err:
+                print("[ok] No more migrations to apply (at head).")
                 break
-            print(f'[err] Alembic error:\n{e}')
+            print(f"[err] Alembic error:\n{e}")
             engine.dispose()
             return 1
 
         except Exception as e:
-            print(f'[err] Unexpected error:\n{e}')
+            print(f"[err] Unexpected error:\n{e}")
             engine.dispose()
             return 1
 
-    print(f'[ok] Done: {applied} applied, {skipped} skipped')
+    print(f"[ok] Done: {applied} applied, {skipped} skipped")
     engine.dispose()
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

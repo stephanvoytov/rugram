@@ -3,13 +3,13 @@
 Uses repositories for all data access — no direct db.session or Model.query calls.
 """
 
-from typing import Optional
+import contextlib
 
 from app.logger import log
-from app.models import User, Notification, utcnow
-from app.services.base import ServiceError, NotFoundError, cursor_paginate
-from app.repositories.user_repository import UserRepository
+from app.models import User
 from app.repositories.notification_repository import NotificationRepository
+from app.repositories.user_repository import UserRepository
+from app.services.base import NotFoundError, ServiceError, cursor_paginate
 
 
 class SocialService:
@@ -19,18 +19,18 @@ class SocialService:
     def get_user(user_id: int) -> User:
         user = UserRepository.get(user_id)
         if not user:
-            raise NotFoundError('User not found')
+            raise NotFoundError("User not found")
         return user
 
     @staticmethod
     def get_user_by_username(username: str) -> User:
         user = UserRepository.get_by_username(username)
         if not user:
-            raise NotFoundError('User not found')
+            raise NotFoundError("User not found")
         return user
 
     @staticmethod
-    def get_profile(user_id: int, current_user_id: Optional[int] = None) -> dict:
+    def get_profile(user_id: int, current_user_id: int | None = None) -> dict:
         """Return profile info with follow status."""
         user = SocialService.get_user(user_id)
 
@@ -41,10 +41,10 @@ class SocialService:
             is_followed = UserRepository.is_following(current_user_id, user_id)
 
         return {
-            'user': user,
-            'followers_count': followers,
-            'following_count': following,
-            'is_followed': is_followed,
+            "user": user,
+            "followers_count": followers,
+            "following_count": following,
+            "is_followed": is_followed,
         }
 
     @staticmethod
@@ -55,43 +55,41 @@ class SocialService:
     def toggle_follow(follower_id: int, target_username: str) -> dict:
         target = UserRepository.get_by_username(target_username)
         if not target:
-            raise NotFoundError('User not found')
+            raise NotFoundError("User not found")
         if target.id == follower_id:
-            raise ServiceError('Cannot follow yourself')
+            raise ServiceError("Cannot follow yourself")
 
         existing = UserRepository.get_follow(follower_id, target.id)
 
         if existing:
             UserRepository.delete_follow(existing)
             UserRepository.commit()
-            log.info('unfollow', follower_id=follower_id, followed_id=target.id)
-            return {'followed': False}
+            log.info("unfollow", follower_id=follower_id, followed_id=target.id)
+            return {"followed": False}
 
         UserRepository.add_follow(follower_id, target.id)
 
         # Create notification for the followed user
-        try:
+        with contextlib.suppress(ServiceError):
             NotificationRepository.create_notification(
-                user_id=target.id, actor_id=follower_id, type_='follow',
+                user_id=target.id,
+                actor_id=follower_id,
+                type_="follow",
             )
-        except ServiceError:
-            pass  # self-notification not possible here, but safe
 
         UserRepository.commit()
-        log.info('follow', follower_id=follower_id, followed_id=target.id)
-        return {'followed': True}
+        log.info("follow", follower_id=follower_id, followed_id=target.id)
+        return {"followed": True}
 
     @staticmethod
-    def get_followers(user_id: int, cursor: Optional[int] = None,
-                      limit: int = 20) -> tuple:
+    def get_followers(user_id: int, cursor: int | None = None, limit: int = 20) -> tuple:
         query = UserRepository.get_followers_query(user_id)
         items, next_cursor, has_more = cursor_paginate(query, cursor, limit)
         users = [f.follower for f in items]
         return users, next_cursor, has_more
 
     @staticmethod
-    def get_following(user_id: int, cursor: Optional[int] = None,
-                      limit: int = 20) -> tuple:
+    def get_following(user_id: int, cursor: int | None = None, limit: int = 20) -> tuple:
         query = UserRepository.get_following_query(user_id)
         items, next_cursor, has_more = cursor_paginate(query, cursor, limit)
         users = [f.followed for f in items]
@@ -109,9 +107,9 @@ class SocialService:
         return UserRepository.get_user_counts_by_day(since)
 
     @staticmethod
-    def get_user_posts(user_id: int, cursor: Optional[int] = None,
-                       limit: int = 15) -> tuple:
+    def get_user_posts(user_id: int, cursor: int | None = None, limit: int = 15) -> tuple:
         """Get posts by a specific user with cursor pagination."""
         from app.repositories.post_repository import PostRepository
+
         query = PostRepository.get_user_posts_query(user_id)
         return cursor_paginate(query, cursor, limit)

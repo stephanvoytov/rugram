@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
-from sqlalchemy import func, desc as sql_desc
+from sqlalchemy import desc as sql_desc
+from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
 from app.models import (
-    Post, Comment, Like, Repost, SavedPost, PostTag, Tag, db,
+    Comment,
+    Like,
+    Post,
+    PostTag,
+    Repost,
+    SavedPost,
+    Tag,
+    db,
 )
 from app.repositories.base import BaseRepository
 
@@ -22,13 +28,10 @@ class PostRepository(BaseRepository):
 
     @classmethod
     def get_with_author(cls, post_id: int) -> Post | None:
-        return Post.query.options(joinedload(Post.author)).filter(
-            Post.id == post_id
-        ).first()
+        return Post.query.options(joinedload(Post.author)).filter(Post.id == post_id).first()
 
     @classmethod
-    def create_post(cls, author_id: int, text: str,
-                    image: Optional[str] = None) -> Post:
+    def create_post(cls, author_id: int, text: str, image: str | None = None) -> Post:
         post = Post(text=text, image=image, author_id=author_id)
         cls.add(post)
         cls.flush()
@@ -45,40 +48,35 @@ class PostRepository(BaseRepository):
     @classmethod
     def get_feed_query(
         cls,
-        user_id: Optional[int] = None,
+        user_id: int | None = None,
         followed_only: bool = False,
-        tag_filter: Optional[str] = None,
-        search_query: Optional[str] = None,
-        sort_by: str = 'new',
+        tag_filter: str | None = None,
+        search_query: str | None = None,
+        sort_by: str = "new",
     ):
         """Build the base feed query with all filters applied. Returns query."""
-        base = Post.query.options(joinedload(Post.author)).filter(
-            Post.is_deleted == False
-        )
+        base = Post.query.options(joinedload(Post.author)).filter(Post.is_deleted == False)  # noqa: E712
 
         if followed_only and user_id:
             from app.models import Follow
-            followed_sub = db.session.query(Follow.followed_id).filter(
-                Follow.follower_id == user_id
-            ).scalar_subquery()
-            base = base.filter(
-                (Post.author_id.in_(followed_sub)) | (Post.author_id == user_id)
+
+            followed_sub = (
+                db.session.query(Follow.followed_id)
+                .filter(Follow.follower_id == user_id)
+                .scalar_subquery()
             )
+            base = base.filter((Post.author_id.in_(followed_sub)) | (Post.author_id == user_id))
 
         if tag_filter:
             base = base.join(PostTag).join(Tag).filter(Tag.name == tag_filter)
 
         if search_query:
-            base = base.filter(Post.text.ilike(f'%{search_query}%'))
+            base = base.filter(Post.text.ilike(f"%{search_query}%"))
 
-        if sort_by == 'hot':
-            order = sql_desc(
-                Post.likes_count + Post.comments_count * 2 + Post.reposts_count * 3
-            )
-        elif sort_by == 'top':
-            order = sql_desc(
-                Post.likes_count + Post.comments_count + Post.reposts_count
-            )
+        if sort_by == "hot":
+            order = sql_desc(Post.likes_count + Post.comments_count * 2 + Post.reposts_count * 3)
+        elif sort_by == "top":
+            order = sql_desc(Post.likes_count + Post.comments_count + Post.reposts_count)
         else:
             order = Post.id.desc()
 
@@ -86,8 +84,11 @@ class PostRepository(BaseRepository):
 
     @classmethod
     def get_user_posts_query(cls, user_id: int):
-        return Post.query.filter_by(author_id=user_id, is_deleted=False) \
-            .options(joinedload(Post.author)).order_by(Post.id.desc())
+        return (
+            Post.query.filter_by(author_id=user_id, is_deleted=False)
+            .options(joinedload(Post.author))
+            .order_by(Post.id.desc())
+        )
 
     # ── Likes ──────────────────────────────────────────────────────
 
@@ -155,9 +156,11 @@ class PostRepository(BaseRepository):
 
     @classmethod
     def get_saved_posts_query(cls, user_id: int):
-        return SavedPost.query.filter_by(user_id=user_id) \
-            .options(joinedload(SavedPost.post).joinedload(Post.author)) \
+        return (
+            SavedPost.query.filter_by(user_id=user_id)
+            .options(joinedload(SavedPost.post).joinedload(Post.author))
             .order_by(SavedPost.id.desc())
+        )
 
     # ── Tags ───────────────────────────────────────────────────────
 
@@ -165,14 +168,18 @@ class PostRepository(BaseRepository):
     def search_tags(cls, query_str: str, limit: int = 10) -> list[Tag]:
         if not query_str:
             return []
-        return Tag.query.filter(
-            Tag.name.ilike(f'{query_str}%')
-        ).order_by(Tag.post_count.desc()).limit(limit).all()
+        return (
+            Tag.query.filter(Tag.name.ilike(f"{query_str}%"))
+            .order_by(Tag.post_count.desc())
+            .limit(limit)
+            .all()
+        )
 
     @classmethod
     def get_trending_tags(cls, limit: int = 10) -> list[Tag]:
-        return Tag.query.filter(Tag.post_count > 0) \
-            .order_by(Tag.post_count.desc()).limit(limit).all()
+        return (
+            Tag.query.filter(Tag.post_count > 0).order_by(Tag.post_count.desc()).limit(limit).all()
+        )
 
     @classmethod
     def get_tag_by_name(cls, name: str) -> Tag | None:
@@ -199,29 +206,33 @@ class PostRepository(BaseRepository):
 
     @classmethod
     def _recalc_tag_counts(cls) -> None:
-        counts = db.session.query(
-            PostTag.tag_id, func.count(PostTag.id)
-        ).group_by(PostTag.tag_id).all()
+        counts = (
+            db.session.query(PostTag.tag_id, func.count(PostTag.id)).group_by(PostTag.tag_id).all()
+        )
         active_ids = [t[0] for t in counts]
         for tag_id, cnt in counts:
-            Tag.query.filter(Tag.id == tag_id).update({'post_count': cnt})
+            Tag.query.filter(Tag.id == tag_id).update({"post_count": cnt})
         if active_ids:
-            Tag.query.filter(~Tag.id.in_(active_ids)).update({'post_count': 0})
+            Tag.query.filter(~Tag.id.in_(active_ids)).update({"post_count": 0})
         else:
-            Tag.query.update({'post_count': 0})
+            Tag.query.update({"post_count": 0})
 
     @classmethod
     def get_posts_by_tag_query(cls, tag_name: str):
-        return Post.query.options(joinedload(Post.author)) \
-            .filter(Post.is_deleted == False) \
-            .join(PostTag).join(Tag).filter(Tag.name == tag_name) \
+        return (
+            Post.query.options(joinedload(Post.author))
+            .filter(Post.is_deleted == False)  # noqa: E712
+            .join(PostTag)
+            .join(Tag)
+            .filter(Tag.name == tag_name)
             .order_by(Post.id.desc())
+        )
 
     # ── Stats (for admin dashboard) ────────────────────────────────
 
     @classmethod
     def get_active_posts_count(cls) -> int:
-        return Post.query.filter(Post.is_deleted == False).count()
+        return Post.query.filter(Post.is_deleted == False).count()  # noqa: E712
 
     @classmethod
     def get_likes_count(cls) -> int:
@@ -233,16 +244,18 @@ class PostRepository(BaseRepository):
 
     @classmethod
     def get_all_active_posts(cls):
-        return Post.query.filter(Post.is_deleted == False) \
-            .order_by(Post.created_date.desc()).all()
+        return Post.query.filter(Post.is_deleted == False).order_by(Post.created_date.desc()).all()  # noqa: E712
 
     @classmethod
     def get_post_counts_by_day(cls, since):
         from sqlalchemy import func
-        return db.session.query(
-            func.date(Post.created_date).label('day'),
-            func.count(Post.id)
-        ).filter(Post.created_date >= since).group_by('day').all()
+
+        return (
+            db.session.query(func.date(Post.created_date).label("day"), func.count(Post.id))
+            .filter(Post.created_date >= since)
+            .group_by("day")
+            .all()
+        )
 
     @classmethod
     def get_posts_paginated(cls, page: int = 1, per_page: int = 20):
