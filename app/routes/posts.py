@@ -4,7 +4,7 @@ import logging
 
 from flask import render_template, flash, redirect, url_for, Blueprint, request, jsonify, abort, current_app, Response
 from flask_login import login_required, current_user
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import selectinload
 from werkzeug.utils import secure_filename
 
 from config import Config
@@ -100,7 +100,7 @@ def edit_post(post_id: int) -> Response:
 @posts_bp.route('/post/<int:post_id>')
 def get_post(post_id: int) -> Response:
     post = Post.query.options(
-        joinedload(Post.comments).joinedload(Comment.author)
+        selectinload(Post.comments).joinedload(Comment.author)
     ).filter(Post.id == post_id, Post.is_deleted == False).first()
     if post:
         return render_template('posts/post.html', post=post)
