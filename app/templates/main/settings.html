@@ -27,7 +27,6 @@
                 <input type="text" class="field-input" id="{{ form.new_username.id }}" name="{{ form.new_username.name }}"
                        placeholder="new username" value="{{ current_user.username }}" autocomplete="off"
                        style="padding:10px 14px;font-size:0.9rem;width:100%"
-                       pattern="[a-z0-9_]+" title="Only Latin letters (a-z), digits (0-9), and underscore (_)"
                        oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9_]/g,'')">
                 {% if form.new_username.errors %}{% for e in form.new_username.errors %}<div class="field-msg error">{{ e }}</div>{% endfor %}{% endif %}
                 <div style="color:var(--subtle);font-size:0.78rem;margin-top:4px">current: <b>{{ current_user.username }}</b>. leave empty to keep.</div>

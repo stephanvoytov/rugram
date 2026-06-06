@@ -146,7 +146,7 @@ class Post(db.Model, SerializerMixin):
     author: Mapped["User"] = relationship(back_populates='posts')
 
     likes: Mapped[list['Like']] = relationship(back_populates='post', cascade='all, delete-orphan', lazy='dynamic')
-    comments: Mapped[list['Comment']] = relationship(back_populates='post', cascade='all, delete-orphan', lazy='dynamic')
+    comments: Mapped[list['Comment']] = relationship(back_populates='post', cascade='all, delete-orphan', lazy='selectin')
     reposted_by: Mapped[list['Repost']] = relationship(back_populates='post')
     saved_by: Mapped[list['SavedPost']] = relationship(back_populates='post')
     post_tags: Mapped[list['PostTag']] = relationship(back_populates='post', cascade='all, delete-orphan')
