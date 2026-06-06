@@ -58,4 +58,7 @@ AUDIT2.md
 CONCEPT.md
 PLAN.md
 
+# GitHub Wiki clone (separate repo, synced manually)
+/wiki/
+
 node_modules/
