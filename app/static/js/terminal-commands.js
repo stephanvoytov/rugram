@@ -898,14 +898,15 @@
         T.addOutputLine('');
         T.addOutputLine('  ' + T.escapeHtml(p.text));
         if (p.image) {
-          T.addOutputLine('  <span class="tp-muted">[img: ' + T.escapeHtml(p.image) + ']</span>');
+          T.addOutputLine('<span class="tp-section">  -- ' + T._('изображение', 'image') + ' --</span>');
+          T.imageToAscii(p.image, 60, function(ascii) {
+            T.addOutput(ascii);
+          });
         }
         T.addOutputLine('');
         var liked = p.is_liked ? '<span class="tp-ok">♥</span>' : '♡';
         var saved = p.is_saved ? '<span class="tp-ok">★</span>' : '☆';
-        T.addOutputLine('  ' + liked + ' ' + p.likes + '  c:' + p.comments + '  r:' + p.reposts + '  ' + saved);
-        T.addOutputLine('');
-        T.addOutputLine('<span class="tp-desc"># <span class="tp-cmd">like ' + p.id + '</span>  <span class="tp-cmd">comment ' + p.id + ' "..."</span>  <span class="tp-cmd">bookmark ' + p.id + '</span></span>');
+        T.addOutputLine('  ' + liked + ' ' + p.likes + '  ' + T._('лайков', 'likes') + '  c:' + p.comments + '  r:' + p.reposts + '  ' + saved);
       })
       .catch(function() {
         T.hideLoading();

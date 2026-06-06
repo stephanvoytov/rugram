@@ -70,14 +70,6 @@
 
         {# ════════════ APPEARANCE ════════════ #}
         <div class="st-panel" id="panel-appearance" style="display:none">
-            <div class="auth-field" style="margin-bottom:20px">
-                <span class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] images</span>
-                <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:6px">
-                    <input type="checkbox" id="ascii_art" style="width:18px;height:18px;cursor:pointer">
-                    <label for="ascii_art" style="cursor:pointer;color:var(--fg);font-size:0.88rem;flex:1">ASCII art instead of images</label>
-                    <span style="color:var(--subtle);font-size:0.75rem">posts · chat · avatars</span>
-                </div>
-            </div>
 
             <div class="auth-field" style="margin-bottom:20px">
                 <span class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] theme</span>
@@ -257,15 +249,6 @@ document.addEventListener('DOMContentLoaded', function() {
     modal.addEventListener('click', function(e) {
         if (e.target === modal) { this.classList.add('d-none'); deleteCheckbox.checked = false; }
     });
-
-    // ════════════ ASCII ART TOGGLE ════════════
-    var asciiCheck = document.getElementById('ascii_art');
-    if (asciiCheck && window.GUI_ASCII) {
-        asciiCheck.checked = GUI_ASCII.isEnabled();
-        asciiCheck.addEventListener('change', function() {
-            GUI_ASCII.setEnabled(this.checked);
-        });
-    }
 
     // ════════════ THEME TOGGLE ════════════
     if (window.GUI_THEME) {
