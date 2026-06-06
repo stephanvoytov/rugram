@@ -3,6 +3,7 @@
 ![Bootstrap 5.3](https://img.shields.io/badge/Bootstrap-5.3-712CF9?logo=bootstrap&logoColor=white)
 ![Stars](https://img.shields.io/github/stars/stephanvoytov/rugram)
 [![Site](https://img.shields.io/badge/demo-rugram.mooo.com-89b4fa)](https://rugram.mooo.com)
+[![Wiki](https://img.shields.io/badge/wiki-docs-cba6f7)](https://github.com/stephanvoytov/rugram/wiki)
 
 [Русская версия →](README.ru.md)
 
