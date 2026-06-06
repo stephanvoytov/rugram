@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from app.models import SystemEvent
 from app.repositories.base import BaseRepository
+from extensions import db
 
 
 class EventRepository(BaseRepository):
@@ -14,11 +13,14 @@ class EventRepository(BaseRepository):
     model = SystemEvent
 
     @classmethod
-    def log_event(cls, level: str, category: str, message: str,
-                  details: Optional[str] = None) -> SystemEvent:
+    def log_event(
+        cls, level: str, category: str, message: str, details: str | None = None
+    ) -> SystemEvent:
         event = SystemEvent(
-            level=level, category=category,
-            message=message, details=details,
+            level=level,
+            category=category,
+            message=message,
+            details=details,
         )
         cls.add(event)
         cls.commit()
@@ -27,10 +29,10 @@ class EventRepository(BaseRepository):
     @classmethod
     def get_counts(cls) -> dict[str, int]:
         return {
-            'total': cls.model.query.count(),
-            'unread': cls.model.query.filter(cls.model.is_read == False).count(),
-            'critical': cls.model.query.filter(cls.model.level == 'critical').count(),
-            'errors': cls.model.query.filter(cls.model.level == 'error').count(),
+            "total": cls.model.query.count(),
+            "unread": cls.model.query.filter(cls.model.is_read == False).count(),  # noqa: E712
+            "critical": cls.model.query.filter(cls.model.level == "critical").count(),
+            "errors": cls.model.query.filter(cls.model.level == "error").count(),
         }
 
     @classmethod
@@ -49,23 +51,23 @@ class EventRepository(BaseRepository):
 
     @classmethod
     def mark_all_read(cls) -> int:
-        result = cls.model.query.filter(
-            cls.model.is_read == False
-        ).update({'is_read': True})
+        result = cls.model.query.filter(cls.model.is_read == False).update({"is_read": True})  # noqa: E712
         cls.commit()
         return result
 
     @classmethod
     def get_tag_count(cls) -> int:
         from app.models import Tag
+
         return Tag.query.count()
 
     @classmethod
-    def get_all_tags_paginated(cls, page: int = 1, per_page: int = 50, search: str = ''):
+    def get_all_tags_paginated(cls, page: int = 1, per_page: int = 50, search: str = ""):
         from app.models import Tag
+
         query = Tag.query
         if search:
-            query = query.filter(Tag.name.ilike(f'%{search}%'))
+            query = query.filter(Tag.name.ilike(f"%{search}%"))
         return query.order_by(Tag.post_count.desc()).paginate(
             page=page, per_page=per_page, error_out=False
         )
@@ -73,11 +75,13 @@ class EventRepository(BaseRepository):
     @classmethod
     def get_tag(cls, tag_id: int):
         from app.models import Tag
+
         return db.session.get(Tag, tag_id)
 
     @classmethod
     def delete_tag_hard(cls, tag_id: int) -> None:
         from app.models import Tag
+
         tag = db.session.get(Tag, tag_id)
         if tag:
             cls.delete(tag)
@@ -86,5 +90,7 @@ class EventRepository(BaseRepository):
     @classmethod
     def get_top_tags(cls, limit: int = 10):
         from app.models import Tag
-        return Tag.query.filter(Tag.post_count > 0) \
-            .order_by(Tag.post_count.desc()).limit(limit).all()
+
+        return (
+            Tag.query.filter(Tag.post_count > 0).order_by(Tag.post_count.desc()).limit(limit).all()
+        )

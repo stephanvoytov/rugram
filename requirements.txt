@@ -23,3 +23,9 @@ flask-limiter==4.1.1
 pytest==9.0.3
 pytest-cov==7.1.0
 pytest-xdist==3.6.1
+
+# Linting / formatting (CI & local)
+ruff==0.15.16
+
+# Optional (dev only)
+# pre-commit==4.6.0

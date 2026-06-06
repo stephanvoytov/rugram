@@ -1,15 +1,15 @@
 from flask import abort, jsonify
+from flask_login import current_user, login_required
 from flask_restful import Resource, reqparse
-from flask_login import login_required, current_user
 
 from app.models import Post
-from app.services import PostService, FeedService
-from app.services.base import NotFoundError, ForbiddenError, ServiceError
+from app.services import FeedService, PostService
+from app.services.base import ForbiddenError, NotFoundError, ServiceError
 from extensions import db
 
 parser = reqparse.RequestParser()
-parser.add_argument('text', required=True)
-parser.add_argument('image')
+parser.add_argument("text", required=True)
+parser.add_argument("image")
 
 
 def _get_post_or_404(post_id):
@@ -90,21 +90,25 @@ class PostResource(Resource):
         author = posts.author
         liked = posts.is_liked_by(current_user) if current_user.is_authenticated else False
         saved = posts.is_saved_by(current_user) if current_user.is_authenticated else False
-        return jsonify({'post': {
-            'id': posts.id,
-            'text': posts.text,
-            'image': posts.image,
-            'author_id': posts.author_id,
-            'author': author.username,
-            'author_image': author.profile_image,
-            'is_deleted': posts.is_deleted,
-            'likes': posts.likes_count,
-            'comments': posts.comments_count,
-            'reposts': posts.reposts_count,
-            'is_liked': liked,
-            'is_saved': saved,
-            'time': posts.created_date.isoformat()
-        }})
+        return jsonify(
+            {
+                "post": {
+                    "id": posts.id,
+                    "text": posts.text,
+                    "image": posts.image,
+                    "author_id": posts.author_id,
+                    "author": author.username,
+                    "author_image": author.profile_image,
+                    "is_deleted": posts.is_deleted,
+                    "likes": posts.likes_count,
+                    "comments": posts.comments_count,
+                    "reposts": posts.reposts_count,
+                    "is_liked": liked,
+                    "is_saved": saved,
+                    "time": posts.created_date.isoformat(),
+                }
+            }
+        )
 
     @login_required
     def patch(self, post_id):
@@ -160,11 +164,11 @@ class PostResource(Resource):
             description: Post not found
         """
         patch_parser = reqparse.RequestParser()
-        patch_parser.add_argument('text', required=True, help='Text is required')
+        patch_parser.add_argument("text", required=True, help="Text is required")
         args = patch_parser.parse_args()
         try:
-            post = PostService.edit_post(post_id, current_user.id, args['text'])
-            return {'id': post.id, 'text': post.text}
+            post = PostService.edit_post(post_id, current_user.id, args["text"])
+            return {"id": post.id, "text": post.text}
         except NotFoundError as e:
             abort(404, description=e.message)
         except ForbiddenError as e:
@@ -208,7 +212,7 @@ class PostResource(Resource):
         """
         try:
             PostService.delete_post(post_id, current_user.id)
-            return {'success': 'OK'}
+            return {"success": "OK"}
         except NotFoundError as e:
             abort(404, description=e.message)
         except ForbiddenError as e:
@@ -251,25 +255,32 @@ class PostListResource(Resource):
                 has_more: {type: boolean}
         """
         parser = reqparse.RequestParser()
-        parser.add_argument('cursor', type=int, default=None, location='args')
-        parser.add_argument('limit', type=int, default=20, location='args')
+        parser.add_argument("cursor", type=int, default=None, location="args")
+        parser.add_argument("limit", type=int, default=20, location="args")
         args = parser.parse_args()
-        posts, next_cursor, has_more = FeedService.get_feed(cursor=args['cursor'], limit=args['limit'])
-        return jsonify({
-            'posts': [{
-                'id': p.id,
-                'author_id': p.author_id,
-                'author': p.author.username,
-                'text': p.text,
-                'image': p.image,
-                'likes': p.likes_count,
-                'comments': p.comments_count,
-                'reposts': p.reposts_count,
-                'time': p.created_date.isoformat(),
-            } for p in posts],
-            'cursor': next_cursor,
-            'has_more': has_more,
-        })
+        posts, next_cursor, has_more = FeedService.get_feed(
+            cursor=args["cursor"], limit=args["limit"]
+        )
+        return jsonify(
+            {
+                "posts": [
+                    {
+                        "id": p.id,
+                        "author_id": p.author_id,
+                        "author": p.author.username,
+                        "text": p.text,
+                        "image": p.image,
+                        "likes": p.likes_count,
+                        "comments": p.comments_count,
+                        "reposts": p.reposts_count,
+                        "time": p.created_date.isoformat(),
+                    }
+                    for p in posts
+                ],
+                "cursor": next_cursor,
+                "has_more": has_more,
+            }
+        )
 
     @login_required
     def post(self):
@@ -320,9 +331,9 @@ class PostListResource(Resource):
         try:
             post = PostService.create_post(
                 author_id=current_user.id,
-                text=args['text'],
-                image=args.get('image'),
+                text=args["text"],
+                image=args.get("image"),
             )
-            return {'id': post.id}
+            return {"id": post.id}
         except ServiceError as e:
-            return {'error': e.message}, 400
+            return {"error": e.message}, 400

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from app.models import Notification, User
 from app.repositories.base import BaseRepository
 
@@ -16,10 +14,9 @@ class NotificationRepository(BaseRepository):
     @classmethod
     def get_user_notifications_query(cls, user_id: int, unread_only: bool = False):
         """Return base query for user notifications, ordered by id desc."""
-        query = Notification.query.filter_by(user_id=user_id) \
-            .order_by(Notification.id.desc())
+        query = Notification.query.filter_by(user_id=user_id).order_by(Notification.id.desc())
         if unread_only:
-            query = query.filter(Notification.is_read == False)
+            query = query.filter(Notification.is_read == False)  # noqa: E712
         return query
 
     @classmethod
@@ -35,16 +32,17 @@ class NotificationRepository(BaseRepository):
 
     @classmethod
     def get_unread_count(cls, user_id: int) -> int:
-        return Notification.query.filter_by(
-            user_id=user_id, is_read=False
-        ).count()
+        return Notification.query.filter_by(user_id=user_id, is_read=False).count()
 
     @classmethod
-    def create_notification(cls, user_id: int, actor_id: Optional[int],
-                            type_: str, post_id: Optional[int] = None) -> Notification:
+    def create_notification(
+        cls, user_id: int, actor_id: int | None, type_: str, post_id: int | None = None
+    ) -> Notification:
         notif = Notification(
-            user_id=user_id, actor_id=actor_id,
-            type=type_, post_id=post_id,
+            user_id=user_id,
+            actor_id=actor_id,
+            type=type_,
+            post_id=post_id,
         )
         cls.add(notif)
         cls.commit()
@@ -52,9 +50,7 @@ class NotificationRepository(BaseRepository):
 
     @classmethod
     def mark_read(cls, notification_id: int, user_id: int) -> Notification | None:
-        notification = Notification.query.filter_by(
-            id=notification_id, user_id=user_id
-        ).first()
+        notification = Notification.query.filter_by(id=notification_id, user_id=user_id).first()
         if not notification:
             return None
         notification.is_read = True
@@ -63,9 +59,8 @@ class NotificationRepository(BaseRepository):
 
     @classmethod
     def mark_all_read(cls, user_id: int) -> int:
-        from app.models import utcnow
-        result = Notification.query.filter_by(
-            user_id=user_id, is_read=False
-        ).update({'is_read': True})
+        result = Notification.query.filter_by(user_id=user_id, is_read=False).update(
+            {"is_read": True}
+        )
         cls.commit()
         return result

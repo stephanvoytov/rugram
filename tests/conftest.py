@@ -9,10 +9,11 @@ Supports pytest-xdist parallelism: each worker gets its own DB file
 Uses session-scoped schema creation + per-test raw DELETE for cleanup
 (faster than per-test drop_all+create_all).
 """
+
 import os
 
 # Must be set BEFORE importing any app modules that read SECRET_KEY
-os.environ.setdefault('SECRET_KEY', 'test-secret-key-please-change')
+os.environ.setdefault("SECRET_KEY", "test-secret-key-please-change")
 
 from collections.abc import Generator
 from pathlib import Path
@@ -21,13 +22,11 @@ import pytest
 from flask import Flask
 from flask.testing import FlaskClient
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import text
 from sqlalchemy.pool import StaticPool
 
 from app import create_app
 from config import Config as BaseConfig
 from extensions import db as _db
-
 
 # ── in-memory SQLite (≈5× faster than file-based) ───────────────────────────
 # Each xdist worker is a separate process with its own memory, so no clashes.
@@ -36,22 +35,23 @@ _TEST_DIR = Path(__file__).parent
 
 class TestConfig(BaseConfig):
     """Configuration overrides for testing."""
+
     TESTING = True
-    SECRET_KEY = 'test-secret-key-please-change'
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    SECRET_KEY = "test-secret-key-please-change"
+    SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     SQLALCHEMY_ENGINE_OPTIONS = {
-        'poolclass': StaticPool,
-        'connect_args': {'check_same_thread': False},
+        "poolclass": StaticPool,
+        "connect_args": {"check_same_thread": False},
     }
     WTF_CSRF_ENABLED = False
     RATELIMIT_ENABLED = False
-    UPLOAD_FOLDER = str(_TEST_DIR / 'test_uploads')
-    CHAT_UPLOAD_FOLDER = str(_TEST_DIR / 'test_chat_uploads')
+    UPLOAD_FOLDER = str(_TEST_DIR / "test_uploads")
+    CHAT_UPLOAD_FOLDER = str(_TEST_DIR / "test_chat_uploads")
 
 
-def register_user_via_db(username: str,
-                          password: str = 'secret123',
-                          email: str | None = None) -> int:
+def register_user_via_db(
+    username: str, password: str = "secret123", email: str | None = None
+) -> int:
     """Create a user directly in the test database (no HTTP roundtrip).
 
     Idempotent — skips if user already exists.
@@ -59,13 +59,15 @@ def register_user_via_db(username: str,
     Returns the user id.
     """
     from app.models import User
+
     existing = User.query.filter_by(username=username).first()
     if existing:
         return existing.id
     from werkzeug.security import generate_password_hash
+
     user = User(
         username=username,
-        email=email or f'{username}@test.com',
+        email=email or f"{username}@test.com",
         hashed_password=generate_password_hash(password),
     )
     _db.session.add(user)
@@ -87,7 +89,7 @@ def _delete_all_data() -> None:
     _db.session.commit()
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def app() -> Flask:
     """Create the Flask application with test configuration.
 
@@ -97,21 +99,24 @@ def app() -> Flask:
 
     # Override Config class attrs BEFORE create_app() is called
     from config import Config as _Cfg
+
     _Cfg.CHAT_UPLOAD_FOLDER = TestConfig.CHAT_UPLOAD_FOLDER
     _Cfg.SQLALCHEMY_DATABASE_URI = TestConfig.SQLALCHEMY_DATABASE_URI
     _Cfg.RATELIMIT_ENABLED = False
 
     app = create_app()
 
-    app.config.update({
-        'TESTING': TestConfig.TESTING,
-        'SECRET_KEY': TestConfig.SECRET_KEY,
-        'SQLALCHEMY_DATABASE_URI': TestConfig.SQLALCHEMY_DATABASE_URI,
-        'SQLALCHEMY_ENGINE_OPTIONS': TestConfig.SQLALCHEMY_ENGINE_OPTIONS,
-        'WTF_CSRF_ENABLED': TestConfig.WTF_CSRF_ENABLED,
-        'RATELIMIT_ENABLED': TestConfig.RATELIMIT_ENABLED,
-        'UPLOAD_FOLDER': TestConfig.UPLOAD_FOLDER,
-    })
+    app.config.update(
+        {
+            "TESTING": TestConfig.TESTING,
+            "SECRET_KEY": TestConfig.SECRET_KEY,
+            "SQLALCHEMY_DATABASE_URI": TestConfig.SQLALCHEMY_DATABASE_URI,
+            "SQLALCHEMY_ENGINE_OPTIONS": TestConfig.SQLALCHEMY_ENGINE_OPTIONS,
+            "WTF_CSRF_ENABLED": TestConfig.WTF_CSRF_ENABLED,
+            "RATELIMIT_ENABLED": TestConfig.RATELIMIT_ENABLED,
+            "UPLOAD_FOLDER": TestConfig.UPLOAD_FOLDER,
+        }
+    )
 
     # Ensure upload directories exist
     Path(TestConfig.UPLOAD_FOLDER).mkdir(parents=True, exist_ok=True)
@@ -124,7 +129,7 @@ def app() -> Flask:
     return app
 
 
-@pytest.fixture(scope='function', autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def _clean_db(app: Flask) -> Generator[None, None, None]:
     """Clean all data between tests without dropping/recreating schema.
 
@@ -135,14 +140,14 @@ def _clean_db(app: Flask) -> Generator[None, None, None]:
         _delete_all_data()
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope="function")
 def client(app: Flask) -> Generator[FlaskClient, None, None]:
     """Provide a Flask test client."""
     with app.app_context():
         yield app.test_client()
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope="function")
 def db(app: Flask) -> Generator[SQLAlchemy, None, None]:
     """Provide a clean database session for direct model access."""
     with app.app_context():

@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from sqlalchemy.orm import joinedload
 
-from app.models import User, Follow
+from app.models import Follow, User
 from app.repositories.base import BaseRepository
 from extensions import db
 
@@ -30,17 +28,18 @@ class UserRepository(BaseRepository):
     def search(cls, query_str: str, limit: int = 20) -> list[User]:
         if not query_str:
             return []
-        return User.query.filter(
-            User.username.ilike(f'%{query_str}%')
-        ).order_by(User.id.asc()).limit(limit).all()
+        return (
+            User.query.filter(User.username.ilike(f"%{query_str}%"))
+            .order_by(User.id.asc())
+            .limit(limit)
+            .all()
+        )
 
     # ── Follows ────────────────────────────────────────────────────
 
     @classmethod
     def get_follow(cls, follower_id: int, followed_id: int) -> Follow | None:
-        return Follow.query.filter_by(
-            follower_id=follower_id, followed_id=followed_id
-        ).first()
+        return Follow.query.filter_by(follower_id=follower_id, followed_id=followed_id).first()
 
     @classmethod
     def add_follow(cls, follower_id: int, followed_id: int) -> Follow:
@@ -58,31 +57,42 @@ class UserRepository(BaseRepository):
 
     @classmethod
     def get_followers_query(cls, user_id: int):
-        return Follow.query.filter_by(followed_id=user_id) \
-            .options(joinedload(Follow.follower)) \
+        return (
+            Follow.query.filter_by(followed_id=user_id)
+            .options(joinedload(Follow.follower))
             .order_by(Follow.id.desc())
+        )
 
     @classmethod
     def get_following_query(cls, user_id: int):
-        return Follow.query.filter_by(follower_id=user_id) \
-            .options(joinedload(Follow.followed)) \
+        return (
+            Follow.query.filter_by(follower_id=user_id)
+            .options(joinedload(Follow.followed))
             .order_by(Follow.id.desc())
+        )
 
     @classmethod
     def get_user_counts_by_day(cls, since):
         from sqlalchemy import func
+
         from app.models import User as UserModel
-        return db.session.query(
-            func.date(UserModel.created_date).label('day'),
-            func.count(UserModel.id)
-        ).filter(UserModel.created_date >= since).group_by('day').all()
+
+        return (
+            db.session.query(
+                func.date(UserModel.created_date).label("day"), func.count(UserModel.id)
+            )
+            .filter(UserModel.created_date >= since)
+            .group_by("day")
+            .all()
+        )
 
     @classmethod
     def search_users_by_keyword(cls, keyword: str):
         """Search users by username, email or name (for admin panel)."""
-        like = f'%{keyword}%'
+        like = f"%{keyword}%"
         from app.models import User as UserModel
         from extensions import db
+
         return UserModel.query.filter(
             db.or_(
                 UserModel.username.ilike(like),
@@ -125,26 +135,37 @@ class UserRepository(BaseRepository):
     def get_users_with_posts(cls):
         """Return distinct users who have at least one non-deleted post."""
         from app.models import Post
-        return cls.model.query \
-            .join(Post, Post.author_id == cls.model.id) \
-            .filter(Post.is_deleted == False) \
-            .distinct().all()
+
+        return (
+            cls.model.query.join(Post, Post.author_id == cls.model.id)
+            .filter(Post.is_deleted == False)  # noqa: E712
+            .distinct()
+            .all()
+        )
 
     @classmethod
     def get_followers(cls, user_id: int):
         """Return Follow records for followers of user_id, with follower loaded."""
         from sqlalchemy.orm import joinedload
-        return Follow.query.filter_by(followed_id=user_id) \
-            .options(joinedload(Follow.follower)) \
-            .order_by(Follow.created_date.desc()).all()
+
+        return (
+            Follow.query.filter_by(followed_id=user_id)
+            .options(joinedload(Follow.follower))
+            .order_by(Follow.created_date.desc())
+            .all()
+        )
 
     @classmethod
     def get_following(cls, user_id: int):
         """Return Follow records for users followed by user_id, with followed loaded."""
         from sqlalchemy.orm import joinedload
-        return Follow.query.filter_by(follower_id=user_id) \
-            .options(joinedload(Follow.followed)) \
-            .order_by(Follow.created_date.desc()).all()
+
+        return (
+            Follow.query.filter_by(follower_id=user_id)
+            .options(joinedload(Follow.followed))
+            .order_by(Follow.created_date.desc())
+            .all()
+        )
 
     @classmethod
     def create_user(cls, username: str, email: str) -> User:
@@ -163,26 +184,38 @@ class UserRepository(BaseRepository):
 
     @classmethod
     def get_admin_count(cls) -> int:
-        return User.query.filter(User.is_admin == True).count()
+        return User.query.filter(User.is_admin).count()
 
     @classmethod
     def get_users_today(cls) -> int:
+
         from app.models import utcnow
-        from datetime import timedelta
+
         today = utcnow().date()
-        return User.query.filter(
-            User.created_date >= today
-        ).count()
+        return User.query.filter(User.created_date >= today).count()
 
     @classmethod
     def delete_user_cascade(cls, user: User) -> None:
         """Delete user and all related records. Handles SQLite cascade limitations."""
         uid = user.id
-        from app.models import Like, Comment, Follow, Notification, ChatParticipant, Message, Repost, SavedPost, PushSubscription, Post
+        from app.models import (
+            ChatParticipant,
+            Comment,
+            Follow,
+            Like,
+            Message,
+            Notification,
+            PushSubscription,
+            Repost,
+            SavedPost,
+        )
+
         Like.query.filter(Like.user_id == uid).delete()
         Comment.query.filter(Comment.author_id == uid).delete()
         Follow.query.filter((Follow.follower_id == uid) | (Follow.followed_id == uid)).delete()
-        Notification.query.filter((Notification.user_id == uid) | (Notification.actor_id == uid)).delete()
+        Notification.query.filter(
+            (Notification.user_id == uid) | (Notification.actor_id == uid)
+        ).delete()
         ChatParticipant.query.filter(ChatParticipant.user_id == uid).delete()
         Message.query.filter(Message.author_id == uid).delete()
         Repost.query.filter(Repost.user_id == uid).delete()

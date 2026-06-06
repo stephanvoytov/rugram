@@ -58,10 +58,10 @@ def decrypt(ciphertext: str) -> str:
     считается plaintext'ом и возвращается как есть (обратная совместимость
     с сообщениями, сохранёнными до включения шифрования).
     """
-    if not ciphertext or not ciphertext.startswith('gAAAAA'):
+    if not ciphertext or not ciphertext.startswith("gAAAAA"):
         return ciphertext
     try:
         return _get_multi_fernet().decrypt(ciphertext.encode()).decode()
     except Exception as e:
-        log.warning('decrypt() failed', error=str(e))
-        return '[encrypted]'
+        log.warning("decrypt() failed", error=str(e))
+        return "[encrypted]"
