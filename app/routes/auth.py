@@ -5,10 +5,9 @@ from flask_login import login_user, login_required, logout_user, current_user
 
 from app.translations import _
 from app.forms import LoginForm, RegistrationForm
-from app.models import User
 from app.limiter import limiter
 from app.logger import log
-from extensions import db, csrf
+from app.repositories.user_repository import UserRepository
 
 auth_bp = Blueprint('auth', __name__, template_folder='../templates')
 
@@ -18,10 +17,7 @@ auth_bp = Blueprint('auth', __name__, template_folder='../templates')
 def login() -> Response:
     form = LoginForm()
     if form.validate_on_submit():
-        user = User.query.filter(
-            (User.email == form.email_or_username.data) |
-            (User.username == form.email_or_username.data)
-        ).first()
+        user = UserRepository.get_by_login(form.email_or_username.data)
         if not user or not user.check_password(form.password.data):
             flash(_('Invalid email/username or password'), 'danger')
             return redirect(url_for('auth.login'))
@@ -51,9 +47,7 @@ def api_login() -> Response:
     password = (data.get('password') or '').strip()
     if not login_or_email or not password:
         return jsonify({'ok': False, 'error': 'login/email and password required'}), 400
-    user = User.query.filter(
-        (User.email == login_or_email) | (User.username == login_or_email)
-    ).first()
+    user = UserRepository.get_by_login(login_or_email)
     if not user or not user.check_password(password):
         return jsonify({'ok': False, 'error': 'Invalid login/email or password'}), 401
     login_user(user)
@@ -86,18 +80,14 @@ def api_register() -> Response:
         return jsonify({'ok': False, 'error': 'Username can only contain a-z, 0-9, underscore'}), 400
     if len(password) < 6:
         return jsonify({'ok': False, 'error': 'Password must be at least 6 characters'}), 400
-    existing = User.query.filter(
-        (User.username == username) | (User.email == email)
-    ).first()
-    if existing:
+    if UserRepository.username_exists(username) or UserRepository.email_exists(email):
         return jsonify({'ok': False, 'error': _('This username is already taken')}), 409
-    user = User()
-    user.username = username
-    user.email = email
+    user = UserRepository.create_user(username, email)
+    if not user:
+        return jsonify({'ok': False, 'error': 'Ошибка при регистрации'}), 500
     user.set_password(password)
     try:
-        db.session.add(user)
-        db.session.commit()
+        UserRepository.commit()
         login_user(user)
         return jsonify({
             'ok': True,
@@ -108,7 +98,7 @@ def api_register() -> Response:
             }
         }), 201
     except Exception:
-        db.session.rollback()
+        UserRepository.rollback()
         return jsonify({'ok': False, 'error': 'Ошибка при регистрации'}), 500
 
 
@@ -140,27 +130,30 @@ def api_me() -> Response:
 def register() -> Response:
     form = RegistrationForm()
     if form.validate_on_submit():
-        username_exists = User.query.filter(User.username == form.username.data).first()
-        email_exists = User.query.filter(User.email == form.email.data).first()
+        username = form.username.data.lower()
+        email = form.email.data
 
-        if username_exists or email_exists:
-            if username_exists:
+        u_exists = UserRepository.username_exists(username)
+        e_exists = UserRepository.email_exists(email)
+
+        if u_exists or e_exists:
+            if u_exists:
                 flash(_('This username is already taken'), 'danger')
-            if email_exists:
+            if e_exists:
                 flash(_('This email is already registered'), 'danger')
             return render_template('auth/register.html', form=form)
 
-        user = User()
-        user.username = form.username.data.lower()
-        user.email = form.email.data
+        user = UserRepository.create_user(username, email)
+        if not user:
+            flash(_('Registration failed. Please try again.'), 'danger')
+            return render_template('auth/register.html', form=form)
         user.set_password(form.password.data)
         try:
-            db.session.add(user)
-            db.session.commit()
+            UserRepository.commit()
             log.info('user_registered', user_id=user.id, username=user.username, ip=request.remote_addr)
             flash(_('Registration successful! You can now log in.'), 'success')
             return redirect(url_for('auth.login'))
         except Exception:
-            db.session.rollback()
+            UserRepository.rollback()
             flash(_('Registration failed. Please try again.'), 'danger')
     return render_template('auth/register.html', form=form)

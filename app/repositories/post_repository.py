@@ -217,6 +217,39 @@ class PostRepository(BaseRepository):
             .join(PostTag).join(Tag).filter(Tag.name == tag_name) \
             .order_by(Post.id.desc())
 
+    # ── Stats (for admin dashboard) ────────────────────────────────
+
+    @classmethod
+    def get_active_posts_count(cls) -> int:
+        return Post.query.filter(Post.is_deleted == False).count()
+
+    @classmethod
+    def get_likes_count(cls) -> int:
+        return Like.query.count()
+
+    @classmethod
+    def get_comments_count(cls) -> int:
+        return Comment.query.count()
+
+    @classmethod
+    def get_all_active_posts(cls):
+        return Post.query.filter(Post.is_deleted == False) \
+            .order_by(Post.created_date.desc()).all()
+
+    @classmethod
+    def get_post_counts_by_day(cls, since):
+        from sqlalchemy import func
+        return db.session.query(
+            func.date(Post.created_date).label('day'),
+            func.count(Post.id)
+        ).filter(Post.created_date >= since).group_by('day').all()
+
+    @classmethod
+    def get_posts_paginated(cls, page: int = 1, per_page: int = 20):
+        return Post.query.order_by(Post.id.desc()).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+
     # ── Comment repository methods (for PostRepository access) ─────
 
     # Comment is handled via generic get/delete from BaseRepository

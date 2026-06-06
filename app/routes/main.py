@@ -10,6 +10,8 @@ from app.limiter import limiter
 from app.logger import log
 from app.routes.helpers import process_avatar, process_chat_image, is_allowed_image, _require_chat_participant
 from app.push import send_notification_push
+from app.repositories.user_repository import UserRepository
+from app.repositories.push_repository import PushRepository
 from app.services import PostService, FeedService, ChatService, NotificationService, SocialService
 from app.services.base import ServiceError, NotFoundError, ForbiddenError
 
@@ -19,10 +21,6 @@ main_bp = Blueprint('main', __name__, template_folder='../templates')
 @main_bp.route('/')
 @main_bp.route('/index')
 def index() -> Response:
-    from sqlalchemy import case, desc as sql_desc
-    from sqlalchemy.orm import joinedload
-    from extensions import db
-    from app.models import Post, Tag, PostTag, Follow
     search_query = request.args.get('q', '').strip().lower()
     tag_filter = request.args.get('tag', '').strip().lower()
     sort_by = request.args.get('sort', 'new').strip().lower()
@@ -30,39 +28,15 @@ def index() -> Response:
     per_page = current_app.config.get('POSTS_PER_PAGE', 15)
     followed_only = request.args.get('followed') == '1'
 
-    base_query = Post.query.options(joinedload(Post.author)).filter(Post.is_deleted == False)
-
-    if followed_only and current_user.is_authenticated:
-        followed_sub = db.session.query(Follow.followed_id).filter(
-            Follow.follower_id == current_user.id
-        ).scalar_subquery()
-        base_query = base_query.filter(
-            (Post.author_id.in_(followed_sub)) | (Post.author_id == current_user.id)
-        )
-
-    if tag_filter:
-        base_query = base_query.join(PostTag).join(Tag).filter(Tag.name == tag_filter)
-
-    # Сортировка
-    if sort_by == 'hot':
-        # hot = вовлечённость: лайки + комменты×2 + репосты×3
-        order = sql_desc(
-            Post.likes_count + Post.comments_count * 2 + Post.reposts_count * 3
-        )
-    elif sort_by == 'top':
-        order = sql_desc(Post.likes_count + Post.comments_count + Post.reposts_count)
-    else:
-        order = Post.created_date.desc()
-        sort_by = 'new'
-
-    if search_query:
-        search_filter = Post.text.ilike(f'%{search_query}%')
-        pagination = base_query.filter(search_filter) \
-            .order_by(order) \
-            .paginate(page=page, per_page=per_page)
-    else:
-        pagination = base_query.order_by(order) \
-            .paginate(page=page, per_page=per_page)
+    pagination = FeedService.get_feed_page(
+        user_id=current_user.id if current_user.is_authenticated else None,
+        followed_only=followed_only,
+        tag_filter=tag_filter,
+        search_query=search_query,
+        sort_by=sort_by,
+        page=page,
+        per_page=per_page,
+    )
 
     # Trending tags for sidebar
     trending_tags = FeedService.get_trending_tags()
@@ -101,7 +75,6 @@ def profile(user_id_or_username: str) -> Response:
 @main_bp.route('/edit_profile', methods=['GET', 'POST'])
 @login_required
 def edit_profile() -> Response:
-    from extensions import db
     form = ProfileForm()
 
     if form.validate_on_submit():
@@ -115,12 +88,12 @@ def edit_profile() -> Response:
                 if filename:
                     current_user.profile_image = filename
 
-            db.session.commit()
+            UserRepository.commit()
             flash(_('Profile updated!'), 'success')
             return redirect(url_for('main.profile', user_id_or_username=current_user.username))
 
         except Exception:
-            db.session.rollback()
+            UserRepository.rollback()
             flash(_('Error updating profile'), 'danger')
 
     elif request.method == 'GET':
@@ -158,37 +131,30 @@ def follow_toggle(username: str) -> Response:
 
 @main_bp.route('/followers/<username>')
 def followers_page(username: str) -> Response:
-    from app.models import User, Follow
-    from sqlalchemy.orm import joinedload
-    user = User.query.filter(User.username == username).first()
-    if not user:
-        return abort(404)
-    follows = Follow.query.filter_by(followed_id=user.id)\
-        .options(joinedload(Follow.follower))\
-        .order_by(Follow.created_date.desc()).all()
+    try:
+        user = SocialService.get_user_by_username(username)
+    except NotFoundError:
+        abort(404)
+    follows = UserRepository.get_followers(user.id)
     return render_template('main/followers.html', user=user, follows=follows)
 
 
 @main_bp.route('/following/<username>')
 def following_page(username: str) -> Response:
-    from app.models import User, Follow
-    from sqlalchemy.orm import joinedload
-    user = User.query.filter(User.username == username).first()
-    if not user:
-        return abort(404)
-    follows = Follow.query.filter_by(follower_id=user.id)\
-        .options(joinedload(Follow.followed))\
-        .order_by(Follow.created_date.desc()).all()
+    try:
+        user = SocialService.get_user_by_username(username)
+    except NotFoundError:
+        abort(404)
+    follows = UserRepository.get_following(user.id)
     return render_template('main/following.html', user=user, follows=follows)
 
 
 @main_bp.route('/saved')
 @login_required
 def saved_posts() -> Response:
-    from app.models import SavedPost
+    from app.repositories.post_repository import PostRepository
     page = request.args.get('page', 1, type=int)
-    saved = SavedPost.query.filter_by(user_id=current_user.id)\
-        .order_by(SavedPost.created_date.desc())\
+    saved = PostRepository.get_saved_posts_query(current_user.id) \
         .paginate(page=page, per_page=current_app.config.get('POSTS_PER_PAGE', 15))
     return render_template('main/saved.html', saved=saved)
 
@@ -309,14 +275,10 @@ def api_feed() -> Response:
 @main_bp.route('/api/followers/<username>')
 @login_required
 def api_followers(username: str) -> Response:
-    from app.models import User, Follow
-    from sqlalchemy.orm import joinedload
-    user = User.query.filter(User.username == username).first()
+    user = UserRepository.get_by_username(username)
     if not user:
         return jsonify({'error': 'User not found'}), 404
-    follows = Follow.query.filter_by(followed_id=user.id)\
-        .options(joinedload(Follow.follower))\
-        .order_by(Follow.created_date.desc()).all()
+    follows = UserRepository.get_followers(user.id)
     return jsonify({
         'users': [{
             'id': f.follower.id,
@@ -334,14 +296,10 @@ def api_followers(username: str) -> Response:
 @main_bp.route('/api/following/<username>')
 @login_required
 def api_following(username: str) -> Response:
-    from app.models import User, Follow
-    from sqlalchemy.orm import joinedload
-    user = User.query.filter(User.username == username).first()
+    user = UserRepository.get_by_username(username)
     if not user:
         return jsonify({'error': 'User not found'}), 404
-    follows = Follow.query.filter_by(follower_id=user.id)\
-        .options(joinedload(Follow.followed))\
-        .order_by(Follow.created_date.desc()).all()
+    follows = UserRepository.get_following(user.id)
     return jsonify({
         'users': [{
             'id': f.followed.id,
@@ -383,8 +341,7 @@ def notifications_page() -> Response:
 @login_required
 def push_subscribe() -> Response:
     """Сохранить подписку на push-уведомления."""
-    from app.models import PushSubscription
-    from extensions import db
+    from app.repositories.push_repository import PushRepository
 
     try:
         data = request.get_json()
@@ -403,30 +360,11 @@ def push_subscribe() -> Response:
         if not endpoint or not p256dh or not auth:
             return jsonify({'error': 'Incomplete subscription'}), 400
 
-        # Ищем существующую подписку с таким endpoint
-        existing = PushSubscription.query.filter_by(
-            user_id=current_user.id,
-            endpoint=endpoint
-        ).first()
-
-        if existing:
-            # Обновляем ключи
-            existing.p256dh_key = p256dh
-            existing.auth_key = auth
-        else:
-            sub = PushSubscription(
-                user_id=current_user.id,
-                endpoint=endpoint,
-                p256dh_key=p256dh,
-                auth_key=auth
-            )
-            db.session.add(sub)
-
-        db.session.commit()
+        PushRepository.upsert(current_user.id, endpoint, p256dh, auth)
         return jsonify({'status': 'subscribed'})
 
     except Exception as e:
-        db.session.rollback()
+        PushRepository.rollback()
         return jsonify({'error': str(e)}), 500
 
 
@@ -434,28 +372,21 @@ def push_subscribe() -> Response:
 @login_required
 def push_unsubscribe() -> Response:
     """Удалить подписку на push-уведомления."""
-    from app.models import PushSubscription
-    from extensions import db
+    from app.repositories.push_repository import PushRepository
 
     try:
         data = request.get_json()
         endpoint = data.get('endpoint') if data else None
 
         if endpoint:
-            PushSubscription.query.filter_by(
-                user_id=current_user.id,
-                endpoint=endpoint
-            ).delete()
+            PushRepository.delete_by_endpoint(current_user.id, endpoint)
         else:
-            PushSubscription.query.filter_by(
-                user_id=current_user.id
-            ).delete()
+            PushRepository.delete_all_user(current_user.id)
 
-        db.session.commit()
         return jsonify({'status': 'unsubscribed'})
 
     except Exception as e:
-        db.session.rollback()
+        PushRepository.rollback()
         return jsonify({'error': str(e)}), 500
 
 
@@ -546,12 +477,6 @@ def chat_send(chat_id: int) -> Response:
 
         if not text and not image_filename:
             return jsonify({'error': _('Message cannot be empty')}), 400
-
-        # Verify chat exists before calling service (service raises ForbiddenError for non-existent chats)
-        from extensions import db
-        from app.models import Chat
-        if not db.session.get(Chat, chat_id):
-            return jsonify({'error': _('Chat not found')}), 404
 
         msg = ChatService.send_message(
             chat_id, current_user.id, text=text, image_filename=image_filename
@@ -718,10 +643,6 @@ def tags_trending() -> Response:
 @main_bp.route('/settings', methods=['GET', 'POST'])
 @login_required
 def settings() -> Response:
-    from app.models import User, PushSubscription
-    from app.models import Like, Comment, Follow, Notification, ChatParticipant, Message, Repost, SavedPost
-    from extensions import db
-
     form = SettingsForm()
 
     # Pre-populate form with current user data
@@ -747,8 +668,7 @@ def settings() -> Response:
 
             # Обновление логина
             if form.new_username.data and form.new_username.data != current_user.username:
-                existing_user = User.query.filter(User.username == form.new_username.data).first()
-                if existing_user:
+                if UserRepository.username_exists(form.new_username.data):
                     flash(_('This username is already taken'), 'danger')
                     return render_template('main/settings.html', form=form)
 
@@ -757,8 +677,7 @@ def settings() -> Response:
 
             # Обновление email
             if form.new_email.data and form.new_email.data != current_user.email:
-                existing_user = User.query.filter(User.email == form.new_email.data).first()
-                if existing_user:
+                if UserRepository.email_exists(form.new_email.data):
                     flash(_('This email is already registered'), 'danger')
                     return render_template('main/settings.html', form=form)
 
@@ -784,8 +703,7 @@ def settings() -> Response:
                 if new_value:
                     flash(_('Notifications enabled'), 'success')
                 else:
-                    # Отключаем уведомления — удаляем все push-подписки пользователя
-                    PushSubscription.query.filter_by(user_id=current_user.id).delete()
+                    PushRepository.delete_all_user(current_user.id)
                     flash(_('Notifications disabled'), 'info')
 
             # Обновление типов уведомлений
@@ -794,27 +712,13 @@ def settings() -> Response:
             current_user.notify_on_follow = form.notify_on_follow.data
             current_user.notify_on_message = form.notify_on_message.data
 
-            db.session.commit()
+            UserRepository.commit()
 
             flash(_('Settings saved'), 'success')
 
             # Удаление аккаунта
             if form.delete_account.data:
-                uid = current_user.id
-                # Bulk-delete связанных записей перед удалением пользователя.
-                Like.query.filter(Like.user_id == uid).delete()
-                Comment.query.filter(Comment.author_id == uid).delete()
-                Follow.query.filter((Follow.follower_id == uid) | (Follow.followed_id == uid)).delete()
-                Notification.query.filter((Notification.user_id == uid) | (Notification.actor_id == uid)).delete()
-                ChatParticipant.query.filter(ChatParticipant.user_id == uid).delete()
-                Message.query.filter(Message.author_id == uid).delete()
-                Repost.query.filter(Repost.user_id == uid).delete()
-                SavedPost.query.filter(SavedPost.user_id == uid).delete()
-                PushSubscription.query.filter(PushSubscription.user_id == uid).delete()
-                for post in current_user.posts:
-                    db.session.delete(post)
-                db.session.delete(current_user)
-                db.session.commit()
+                SocialService.delete_user_account(current_user.id)
                 logout_user()
                 flash(_('Account deleted'), 'success')
                 return redirect(url_for('auth.login'))
@@ -824,7 +728,7 @@ def settings() -> Response:
             return redirect(url_for('main.settings', saved='1', tab=active_tab))
 
         except Exception:
-            db.session.rollback()
+            UserRepository.rollback()
             flash(_('Error updating settings'), 'danger')
 
     return render_template('main/settings.html', form=form)
@@ -860,7 +764,8 @@ def sitemap_xml() -> Response:
     """Generate dynamic sitemap.xml with posts and profiles."""
     from xml.etree.ElementTree import Element, SubElement, tostring
     from xml.dom import minidom
-    from app.models import User, Post
+    from app.repositories.post_repository import PostRepository
+    from app.repositories.user_repository import UserRepository
 
     base_url = request.url_root.rstrip('/')
 
@@ -884,25 +789,15 @@ def sitemap_xml() -> Response:
     add_url(f'{base_url}/help', priority='0.6', changefreq='monthly')
 
     # Public profiles (users with at least one non-deleted post)
-    users_with_posts = (
-        User.query
-        .join(Post, Post.author_id == User.id)
-        .filter(Post.is_deleted == False)
-        .distinct()
-        .all()
-    )
+    users_with_posts = UserRepository.get_users_with_posts()
     for user in users_with_posts:
-        last_post = (
-            Post.query
-            .filter(Post.author_id == user.id, Post.is_deleted == False)
-            .order_by(Post.created_date.desc())
-            .first()
-        )
+        posts = PostRepository.get_user_posts_query(user.id)
+        last_post = posts.first()
         lastmod = last_post.created_date if last_post else None
         add_url(f'{base_url}/profile/{user.username}', lastmod=lastmod, priority='0.8', changefreq='weekly')
 
     # All non-deleted posts
-    posts = Post.query.filter(Post.is_deleted == False).order_by(Post.created_date.desc()).all()
+    posts = PostRepository.get_all_active_posts()
     for post in posts:
         add_url(f'{base_url}/post/{post.id}', lastmod=post.created_date, priority='0.9', changefreq='monthly')
 

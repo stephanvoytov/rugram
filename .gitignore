@@ -46,6 +46,11 @@ node_modules/
 tests/_debug.js
 tests/_debug2.js
 
+# Test artifacts
+tests/*.sqlite
+tests/*.sqlite3
+logs/
+
 # Internal planning docs (were committed by accident)
 AGENTS.md
 AUDIT.md

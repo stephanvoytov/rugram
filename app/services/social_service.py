@@ -98,6 +98,12 @@ class SocialService:
         return users, next_cursor, has_more
 
     @staticmethod
+    def delete_user_account(user_id: int) -> None:
+        """Permanently delete a user and all related records."""
+        user = SocialService.get_user(user_id)
+        UserRepository.delete_user_cascade(user)
+
+    @staticmethod
     def get_user_posts(user_id: int, cursor: Optional[int] = None,
                        limit: int = 15) -> tuple:
         """Get posts by a specific user with cursor pagination."""

@@ -5,7 +5,7 @@ from typing import Optional
 
 from PIL import Image
 
-from flask import jsonify, current_app
+from flask import jsonify
 from flask_login import current_user
 from werkzeug.datastructures import FileStorage
 
@@ -13,29 +13,27 @@ from app.logger import log
 
 from config import Config
 from app.translations import _
-from app.models import Notification, ChatParticipant, Tag, PostTag, SystemEvent, utcnow
-from extensions import db
+from app.repositories.chat_repository import ChatRepository
+from app.repositories.event_repository import EventRepository
 
 
-def _create_notification_and_push(user_id: int, actor_id: int, type_: str, post_id: Optional[int] = None) -> Notification:
+def _create_notification_and_push(user_id: int, actor_id: int, type_: str, post_id: Optional[int] = None):
     """Create a notification and send push. Returns the Notification object."""
-    notification = Notification(
-        user_id=user_id,
-        actor_id=actor_id,
-        type=type_,
-        post_id=post_id
+    from app.repositories.notification_repository import NotificationRepository
+    from app.push import send_notification_push
+    notification = NotificationRepository.create_notification(
+        user_id=user_id, actor_id=actor_id, type_=type_, post_id=post_id,
     )
-    db.session.add(notification)
+    try:
+        send_notification_push(user_id, notification.type)
+    except Exception:
+        pass
     return notification
 
 
 def _require_chat_participant(chat_id: int) -> tuple:
-    """Check if current user is a chat participant. Returns (participant, error_response).
-    error_response is None if the user is a valid participant."""
-    participant = ChatParticipant.query.filter_by(
-        chat_id=chat_id,
-        user_id=current_user.id
-    ).first()
+    """Check if current user is a chat participant. Returns (participant, error_response)."""
+    participant = ChatRepository.get_participant(chat_id, current_user.id)
     if not participant:
         return None, (jsonify({'error': _('Access denied')}), 403)
     return participant, None
@@ -163,77 +161,14 @@ def extract_tags(text: str | None) -> list[str]:
 
 
 def sync_post_tags(post_id: int, tag_names: list[str]) -> None:
-    """Синхронизирует теги поста: удаляет старые связи, создаёт новые."""
-    # Удаляем старые PostTag для этого поста
-    PostTag.query.filter(PostTag.post_id == post_id).delete()
-
-    for name in tag_names:
-        tag = Tag.query.filter(Tag.name == name).first()
-        if not tag:
-            tag = Tag(name=name)
-            db.session.add(tag)
-            db.session.flush()
-        # Создаём связь
-        db.session.add(PostTag(post_id=post_id, tag_id=tag.id))
-
-    # Пересчитываем post_count для всех затронутых тегов
-    db.session.flush()
-    from sqlalchemy import func
-    counts = db.session.query(
-        PostTag.tag_id, func.count(PostTag.id)
-    ).group_by(PostTag.tag_id).all()
-    for tag_id, cnt in counts:
-        Tag.query.filter(Tag.id == tag_id).update({'post_count': cnt})
-    # Сбрасываем счётчик для тегов без постов
-    active_ids = [t[0] for t in counts]
-    if active_ids:
-        Tag.query.filter(~Tag.id.in_(active_ids)).update({'post_count': 0})
-    else:
-        Tag.query.update({'post_count': 0})
-
-
-def cursor_paginate(query, cursor_id, limit=20, id_col=None):
-    """Cursor-based pagination helper (faster than OFFSET for large datasets).
-
-    Args:
-        query: SQLAlchemy query ordered by id DESC.
-        cursor_id: Last seen ID (None = first page).
-        limit: Items per page (max 100).
-        id_col: ID column to filter on (default: model's 'id').
-
-    Returns:
-        (items, next_cursor, has_more)
-    """
-    max_limit = 100
-    limit = min(limit, max_limit)
-
-    if id_col is None:
-        model = query.column_descriptions[0]['expr']
-        id_col = model.id
-
-    if cursor_id:
-        query = query.filter(id_col < cursor_id)
-
-    raw = query.limit(limit + 1).all()
-    has_more = len(raw) > limit
-    items = raw[:limit]
-    next_cursor = items[-1].id if items else None
-
-    return items, next_cursor, has_more
+    """Синхронизирует теги поста через PostRepository."""
+    from app.repositories.post_repository import PostRepository
+    PostRepository.sync_tags(post_id, tag_names)
 
 
 def log_system_event(level, category, message, details=None):
-    """Записать системное событие в БД (для панели администратора).
-
-    Args:
-        level: 'critical' | 'error' | 'warning' | 'info'
-        category: 'push' | 'db' | 'auth' | 'chat' | 'upload' | 'system'
-        message: Краткое описание
-        details: Опциональный JSON с деталями (stack trace и т.д.)
-    """
+    """Записать системное событие в EventRepository."""
     try:
-        event = SystemEvent(level=level, category=category, message=message, details=details)
-        db.session.add(event)
-        db.session.commit()
+        EventRepository.log_event(level, category, message, details)
     except Exception:
         log.exception('Failed to log system event')

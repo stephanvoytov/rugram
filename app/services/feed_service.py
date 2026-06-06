@@ -13,6 +13,26 @@ class FeedService:
     """Feed queries, search, trending tags."""
 
     @staticmethod
+    def get_feed_page(
+        user_id: Optional[int] = None,
+        followed_only: bool = False,
+        tag_filter: Optional[str] = None,
+        search_query: Optional[str] = None,
+        sort_by: str = 'new',
+        page: int = 1,
+        per_page: int = 15,
+    ):
+        """Return a Flask-SQLAlchemy Pagination object for page-based feed."""
+        query = PostRepository.get_feed_query(
+            user_id=user_id,
+            followed_only=followed_only,
+            tag_filter=tag_filter,
+            search_query=search_query,
+            sort_by=sort_by,
+        )
+        return query.paginate(page=page, per_page=per_page, error_out=False)
+
+    @staticmethod
     def get_feed(
         user_id: Optional[int] = None,
         followed_only: bool = False,
