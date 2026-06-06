@@ -8,7 +8,7 @@ from flask_login import login_required, current_user
 
 from app.translations import _
 from app.models import User, Post, utcnow
-from app.services import PostService
+from app.services import PostService, SocialService, FeedService
 from app.services.base import NotFoundError, ServiceError
 from app.repositories.user_repository import UserRepository
 from app.repositories.post_repository import PostRepository
@@ -65,17 +65,17 @@ def dashboard():
     day_strs = [d.strftime('%Y-%m-%d') for d in days]
 
     # Посты по дням
-    posts_raw = PostRepository.get_post_counts_by_day(days[0])
+    posts_raw = PostService.get_post_counts_by_day(days[0])
     posts_by_day = dict(posts_raw)
     posts_chart = [posts_by_day.get(d, 0) for d in day_strs]
 
     # Пользователи по дням
-    users_raw = UserRepository.get_user_counts_by_day(days[0])
+    users_raw = SocialService.get_user_counts_by_day(days[0])
     users_by_day = dict(users_raw)
     users_chart = [users_by_day.get(d, 0) for d in day_strs]
 
     # Топ-10 тегов
-    top_tags = EventRepository.get_top_tags(10)
+    top_tags = FeedService.get_trending_tags(10)
     tags_labels = ['#' + t.name for t in top_tags][::-1]
     tags_data = [t.post_count for t in top_tags][::-1]
 

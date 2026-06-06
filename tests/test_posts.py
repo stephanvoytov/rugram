@@ -9,17 +9,15 @@ from werkzeug.datastructures import FileStorage
 
 from app.models import User, Post, Like, Comment, Repost, SavedPost
 from extensions import db
+from tests.conftest import register_user_via_db
 
 
 # ── Helpers ──
 
 def _login(client: FlaskClient, username: str = 'testuser',
            password: str = 'secret123') -> None:
-    """Register + login a test user."""
-    client.post('/register', data={
-        'username': username, 'email': f'{username}@test.com',
-        'password': password, 'password2': password,
-    }, follow_redirects=True)
+    """Login a test user (created via DB, just logs in via HTTP)."""
+    register_user_via_db(username, password)
     client.post('/login', data={
         'email_or_username': username, 'password': password,
     })

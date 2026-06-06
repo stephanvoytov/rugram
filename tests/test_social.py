@@ -7,16 +7,14 @@ from flask import Flask
 
 from app.models import User, Follow, Notification
 from extensions import db
+from tests.conftest import register_user_via_db
 
 
 # ── Helpers ──
 
 def _login(client: FlaskClient, username: str = 'testuser',
            password: str = 'secret123') -> None:
-    client.post('/register', data={
-        'username': username, 'email': f'{username}@test.com',
-        'password': password, 'password2': password,
-    }, follow_redirects=True)
+    register_user_via_db(username, password)
     client.post('/login', data={
         'email_or_username': username, 'password': password,
     })
