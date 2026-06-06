@@ -902,7 +902,6 @@
         var statsLine = '  ' + liked + ' ' + p.likes + '  ' + T._('лайков', 'likes') + '  c:' + p.comments + '  r:' + p.reposts + '  ' + saved;
         if (p.image) {
           T.imageToAscii('/static/uploads/posts/' + p.image, 80, function(ascii) {
-            T.addOutputLine('');
             T.addOutput(ascii);
             T.addOutputLine('');
             T.addOutputLine(statsLine);

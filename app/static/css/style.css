@@ -199,9 +199,10 @@ a:hover { color: var(--blue); }
 .post-stat.liked { color: var(--red); }
 .post-body {
     padding: 8px 14px; font-size: 0.85rem; line-height: 1.7;
-    color: var(--text); white-space: pre-wrap; word-break: break-word;
+    color: var(--text); word-break: break-word;
 }
-.post-body img { display: block; max-width: 100%; margin-top: 6px; margin-bottom: 4px; border: 1px solid var(--overlay); cursor: pointer; }
+.post-body p { margin: 0 0 4px 0; white-space: pre-wrap; }
+.post-body img { display: block; max-width: 100%; margin-top: 0; margin-bottom: 6px; border: 1px solid var(--overlay); cursor: pointer; }
 .post-actions {
     display: flex; gap: 2px; padding: 3px 14px 6px; border-top: 1px solid var(--overlay); font-size: 0.72rem;
 }
