@@ -139,6 +139,19 @@ class PostService:
         return comment
 
     @staticmethod
+    def edit_comment(comment_id: int, user_id: int, text: str) -> Comment:
+        comment = db.session.get(Comment, comment_id)
+        if not comment:
+            raise NotFoundError('Comment not found')
+        if comment.author_id != user_id:
+            raise ForbiddenError('You can only edit your own comments')
+        if not text or not text.strip():
+            raise ServiceError('Comment cannot be empty')
+        comment.text = text.strip()
+        db.session.commit()
+        return comment
+
+    @staticmethod
     def delete_comment(comment_id: int, user_id: int) -> None:
         comment = db.session.get(Comment, comment_id)
         if not comment:

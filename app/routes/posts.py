@@ -265,19 +265,17 @@ def delete_comment(comment_id: int) -> Response:
 @posts_bp.route('/comment/<int:comment_id>/edit', methods=['POST'])
 @login_required
 def edit_comment(comment_id: int) -> Response:
-    # Not yet extracted to PostService — kept inline
-    comment = Comment.query.get_or_404(comment_id)
-    if comment.author_id != current_user.id:
-        return jsonify({'error': 'Недостаточно прав'}), 403
-
     data = request.get_json()
-    text = data.get('text', '').strip()
+    text = data.get('text', '')
 
-    if not text:
+    try:
+        comment = PostService.edit_comment(comment_id, current_user.id, text)
+    except NotFoundError:
+        return jsonify({'error': 'Comment not found'}), 404
+    except ForbiddenError:
+        return jsonify({'error': 'Недостаточно прав'}), 403
+    except ServiceError:
         return jsonify({'error': 'Комментарий не может быть пустым'}), 400
-
-    comment.text = text
-    db.session.commit()
 
     return jsonify({
         'status': 'success',
