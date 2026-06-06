@@ -126,10 +126,10 @@ class TestSendMessage:
         assert r.status_code == 400
 
     def test_send_to_nonexistent_chat(self, client: FlaskClient) -> None:
-        """Send to non-existent chat returns 404."""
+        """Send to non-existent chat returns 403 (not participant)."""
         _login(client, username='stranger')
         r = client.post('/chat/99999/send', json={'text': 'hi'})
-        assert r.status_code == 404
+        assert r.status_code == 403
 
     def test_send_not_participant(self, client: FlaskClient,
                                    app: Flask) -> None:

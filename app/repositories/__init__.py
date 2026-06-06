@@ -9,6 +9,8 @@ from app.repositories.post_repository import PostRepository
 from app.repositories.user_repository import UserRepository
 from app.repositories.notification_repository import NotificationRepository
 from app.repositories.chat_repository import ChatRepository
+from app.repositories.event_repository import EventRepository
+from app.repositories.push_repository import PushRepository
 
 __all__ = [
     'BaseRepository',
@@ -16,4 +18,6 @@ __all__ = [
     'UserRepository',
     'NotificationRepository',
     'ChatRepository',
+    'EventRepository',
+    'PushRepository',
 ]

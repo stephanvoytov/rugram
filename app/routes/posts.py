@@ -16,9 +16,6 @@ from app.limiter import limiter
 from app.routes.helpers import process_post_image
 from extensions import csrf
 
-# Still needed for routes not yet extracted to services (edit_comment, delete_comment helpers):
-from app.models import Comment
-from extensions import db
 
 posts_bp = Blueprint('posts', __name__, template_folder='../templates')
 
@@ -245,21 +242,14 @@ def add_comment(post_id: int) -> Response:
 @posts_bp.route('/comment/<int:comment_id>', methods=['DELETE'])
 @login_required
 def delete_comment(comment_id: int) -> Response:
-    # Resolve post_id before deletion for the response
-    comment = db.session.get(Comment, comment_id)
-    if not comment:
-        return jsonify({'error': 'Comment not found'}), 404
-    post_id = comment.post_id
-
     try:
-        PostService.delete_comment(comment_id, current_user.id)
+        _, comments_count = PostService.delete_comment(comment_id, current_user.id)
     except NotFoundError:
         return jsonify({'error': 'Comment not found'}), 404
     except ForbiddenError:
         return jsonify({'error': 'Недостаточно прав'}), 403
 
-    post = PostService.get_post(post_id)
-    return jsonify({'status': 'deleted', 'comments_count': post.comments_count})
+    return jsonify({'status': 'deleted', 'comments_count': comments_count})
 
 
 @posts_bp.route('/comment/<int:comment_id>/edit', methods=['POST'])

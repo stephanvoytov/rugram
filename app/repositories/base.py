@@ -119,6 +119,11 @@ class BaseRepository:
         db.session.commit()
 
     @classmethod
+    def rollback(cls) -> None:
+        """Rollback the current session."""
+        db.session.rollback()
+
+    @classmethod
     def flush(cls) -> None:
         """Flush the current session (sends pending ops to DB without commit)."""
         db.session.flush()

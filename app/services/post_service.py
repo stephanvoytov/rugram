@@ -152,14 +152,19 @@ class PostService:
         return comment
 
     @staticmethod
-    def delete_comment(comment_id: int, user_id: int) -> None:
+    def delete_comment(comment_id: int, user_id: int) -> tuple[int, int]:
+        """Delete a comment. Returns (post_id, comments_count)."""
         comment = PostRepository.get_comment(comment_id)
         if not comment:
             raise NotFoundError('Comment not found')
         if comment.author_id != user_id:
             raise ForbiddenError('You can only delete your own comments')
+        post_id = comment.post_id
         PostRepository.delete_comment_hard(comment)
         PostRepository.commit()
+        post = PostRepository.get(post_id)
+        comments_count = post.comments_count if post else 0
+        return post_id, comments_count
 
     # ── Reposts ───────────────────────────────────────────────────────
 

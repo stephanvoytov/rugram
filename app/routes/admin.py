@@ -1,22 +1,18 @@
-"""Admin panel blueprint — управление пользователями, постами, тегами."""
+"""Admin panel blueprint."""
 
-import logging
 import datetime
 from functools import wraps
-from collections import defaultdict
 
 from flask import render_template, flash, redirect, url_for, Blueprint, request, jsonify, Response, abort
 from flask_login import login_required, current_user
-from sqlalchemy import func
 
 from app.translations import _
-from app.models import User, Post, Tag, Like, Comment, Follow, SystemEvent, utcnow
+from app.models import User, Post, utcnow
 from app.services import PostService
 from app.services.base import NotFoundError, ServiceError
-from app.logger import log
-from extensions import db
-
-logger = logging.getLogger(__name__)
+from app.repositories.user_repository import UserRepository
+from app.repositories.post_repository import PostRepository
+from app.repositories.event_repository import EventRepository
 
 admin_bp = Blueprint('admin', __name__, template_folder='../templates', url_prefix='/admin')
 
@@ -53,15 +49,13 @@ def mod_or_admin_required(f):
 @mod_or_admin_required
 def dashboard():
     stats = {
-        'users_total': User.query.count(),
-        'users_today': User.query.filter(
-            User.created_date >= utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-        ).count(),
-        'posts_total': Post.query.filter(Post.is_deleted == False).count(),
-        'likes_total': Like.query.count(),
-        'comments_total': Comment.query.count(),
-        'follows_total': Follow.query.count(),
-        'tags_total': Tag.query.count(),
+        'users_total': UserRepository.count(),
+        'users_today': UserRepository.get_users_today(),
+        'posts_total': PostRepository.get_active_posts_count(),
+        'likes_total': PostRepository.get_likes_count(),
+        'comments_total': PostRepository.get_comments_count(),
+        'follows_total': UserRepository.get_follows_count(),
+        'tags_total': EventRepository.get_tag_count(),
     }
 
     # ── Данные для графиков ──
@@ -71,24 +65,17 @@ def dashboard():
     day_strs = [d.strftime('%Y-%m-%d') for d in days]
 
     # Посты по дням
-    posts_raw = db.session.query(
-        func.date(Post.created_date).label('day'),
-        func.count(Post.id)
-    ).filter(Post.created_date >= days[0]).group_by('day').all()
+    posts_raw = PostRepository.get_post_counts_by_day(days[0])
     posts_by_day = dict(posts_raw)
     posts_chart = [posts_by_day.get(d, 0) for d in day_strs]
 
     # Пользователи по дням
-    users_raw = db.session.query(
-        func.date(User.created_date).label('day'),
-        func.count(User.id)
-    ).filter(User.created_date >= days[0]).group_by('day').all()
+    users_raw = UserRepository.get_user_counts_by_day(days[0])
     users_by_day = dict(users_raw)
     users_chart = [users_by_day.get(d, 0) for d in day_strs]
 
     # Топ-10 тегов
-    top_tags = Tag.query.filter(Tag.post_count > 0) \
-        .order_by(Tag.post_count.desc()).limit(10).all()
+    top_tags = EventRepository.get_top_tags(10)
     tags_labels = ['#' + t.name for t in top_tags][::-1]
     tags_data = [t.post_count for t in top_tags][::-1]
 
@@ -111,13 +98,11 @@ def users():
     q = request.args.get('q', '').strip()
     per_page = 30
 
-    query = User.query
     if q:
-        like = f'%{q}%'
-        query = query.filter(
-            db.or_(User.username.ilike(like), User.email.ilike(like), User.name.ilike(like))
-        )
-    pagination = query.order_by(User.created_date.desc()).paginate(page=page, per_page=per_page)
+        query = UserRepository.search_users_by_keyword(q)
+        pagination = query.order_by(User.created_date.desc()).paginate(page=page, per_page=per_page)
+    else:
+        pagination = UserRepository.get_all_paginated(page, per_page)
 
     return render_template('admin/users.html', users=pagination.items, pagination=pagination, q=q)
 
@@ -125,19 +110,18 @@ def users():
 @admin_bp.route('/users/<int:user_id>/toggle-admin', methods=['POST'])
 @admin_required
 def toggle_admin(user_id):
-    user = db.session.get(User, user_id)
+    user = UserRepository.get(user_id)
     if not user:
         flash('User not found', 'error')
         return redirect(url_for('admin.users'))
     if user.id == current_user.id:
         flash('Cannot change your own admin status', 'error')
         return redirect(url_for('admin.users'))
-    # Нельзя снять админку с последнего админа
-    if user.is_admin and User.query.filter(User.is_admin == True).count() <= 1:
+    if user.is_admin and UserRepository.get_admin_count() <= 1:
         flash('Cannot revoke — at least one admin must remain', 'error')
         return redirect(url_for('admin.users'))
     user.is_admin = not user.is_admin
-    db.session.commit()
+    UserRepository.commit()
     flash(f'Admin {"granted" if user.is_admin else "revoked"} for {user.username}', 'success')
     return redirect(url_for('admin.users', page=request.args.get('page', 1)))
 
@@ -145,7 +129,7 @@ def toggle_admin(user_id):
 @admin_bp.route('/users/<int:user_id>/toggle-mod', methods=['POST'])
 @admin_required
 def toggle_moderator(user_id):
-    user = db.session.get(User, user_id)
+    user = UserRepository.get(user_id)
     if not user:
         flash('User not found', 'error')
         return redirect(url_for('admin.users'))
@@ -153,7 +137,7 @@ def toggle_moderator(user_id):
         flash('Cannot remove your own moderator status', 'error')
         return redirect(url_for('admin.users'))
     user.is_moderator = not user.is_moderator
-    db.session.commit()
+    UserRepository.commit()
     username = user.username
     flash(f'Moderator {"granted" if user.is_moderator else "revoked"} for @{username}', 'success')
     return redirect(url_for('admin.users', page=request.args.get('page', 1)))
@@ -162,20 +146,19 @@ def toggle_moderator(user_id):
 @admin_bp.route('/users/<int:user_id>/delete', methods=['POST'])
 @admin_required
 def delete_user(user_id):
-    user = db.session.get(User, user_id)
+    user = UserRepository.get(user_id)
     if not user:
         flash('User not found', 'error')
         return redirect(url_for('admin.users'))
     if user.id == current_user.id:
         flash('Cannot delete your own account', 'error')
         return redirect(url_for('admin.users'))
-    # Нельзя удалить последнего админа
-    if user.is_admin and User.query.filter(User.is_admin == True).count() <= 1:
+    if user.is_admin and UserRepository.get_admin_count() <= 1:
         flash('Cannot delete — at least one admin must remain', 'error')
         return redirect(url_for('admin.users'))
     username = user.username
-    db.session.delete(user)
-    db.session.commit()
+    UserRepository.delete(user)
+    UserRepository.commit()
     flash(f'User {username} deleted', 'success')
     return redirect(url_for('admin.users', page=request.args.get('page', 1)))
 
@@ -189,10 +172,11 @@ def posts():
     q = request.args.get('q', '').strip()
     per_page = 30
 
-    query = Post.query
     if q:
-        query = query.filter(Post.text.ilike(f'%{q}%'))
-    pagination = query.order_by(Post.created_date.desc()).paginate(page=page, per_page=per_page)
+        query = PostRepository.filter(Post.text.ilike(f'%{q}%'))
+        pagination = query.order_by(Post.created_date.desc()).paginate(page=page, per_page=per_page)
+    else:
+        pagination = PostRepository.get_posts_paginated(page, per_page)
 
     return render_template('admin/posts.html', posts=pagination.items, pagination=pagination, q=q)
 
@@ -230,24 +214,19 @@ def tags():
     q = request.args.get('q', '').strip()
     per_page = 50
 
-    query = Tag.query
-    if q:
-        query = query.filter(Tag.name.ilike(f'%{q}%'))
-    pagination = query.order_by(Tag.post_count.desc()).paginate(page=page, per_page=per_page)
-
+    pagination = EventRepository.get_all_tags_paginated(page, per_page, search=q)
     return render_template('admin/tags.html', tags=pagination.items, pagination=pagination, q=q)
 
 
 @admin_bp.route('/tags/<int:tag_id>/delete', methods=['POST'])
 @mod_or_admin_required
 def delete_tag(tag_id):
-    tag = db.session.get(Tag, tag_id)
+    tag = EventRepository.get_tag(tag_id)
     if not tag:
         flash('Tag not found', 'error')
         return redirect(url_for('admin.tags'))
     name = tag.name
-    db.session.delete(tag)
-    db.session.commit()
+    EventRepository.delete_tag_hard(tag_id)
     flash(f'Tag #{name} deleted', 'success')
     return redirect(url_for('admin.tags', page=request.args.get('page', 1)))
 
@@ -262,41 +241,35 @@ def events():
     category = request.args.get('category', '')
     per_page = 50
 
-    query = SystemEvent.query
+    filters = {}
     if level:
-        query = query.filter(SystemEvent.level == level)
+        filters['level'] = level
     if category:
-        query = query.filter(SystemEvent.category == category)
-    pagination = query.order_by(SystemEvent.created_date.desc()).paginate(page=page, per_page=per_page)
+        filters['category'] = category
+    pagination = EventRepository.paginate(page=page, per_page=per_page, **filters)
 
-    # Counts for filter badges
-    total = SystemEvent.query.count()
-    unread = SystemEvent.query.filter(SystemEvent.is_read == False).count()
-    critical = SystemEvent.query.filter(SystemEvent.level == 'critical').count()
-    errors = SystemEvent.query.filter(SystemEvent.level == 'error').count()
+    counts = EventRepository.get_counts()
 
     return render_template('admin/events.html',
                            events=pagination.items, pagination=pagination,
                            level=level, category=category,
-                           total=total, unread=unread, critical=critical, errors=errors)
+                           total=counts['total'], unread=counts['unread'],
+                           critical=counts['critical'], errors=counts['errors'])
 
 
 @admin_bp.route('/events/<int:event_id>/read', methods=['POST'])
 @admin_required
 def mark_event_read(event_id):
-    event = db.session.get(SystemEvent, event_id)
+    event = EventRepository.mark_read(event_id)
     if not event:
         abort(404)
-    event.is_read = True
-    db.session.commit()
     return jsonify({'status': 'ok'})
 
 
 @admin_bp.route('/events/read-all', methods=['POST'])
 @admin_required
 def mark_all_events_read():
-    SystemEvent.query.filter(SystemEvent.is_read == False).update({'is_read': True})
-    db.session.commit()
+    EventRepository.mark_all_read()
     flash('All events marked as read', 'success')
     return redirect(url_for('admin.events'))
 
