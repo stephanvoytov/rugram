@@ -405,6 +405,58 @@ class TestPostServiceComments:
                 PostService.delete_comment(comment.id, intruder.id)
 
 
+    # ── edit_comment ──────────────────────────────────────────────
+
+    def test_edit_comment_success(self, app: Flask) -> None:
+        """Happy path: owner edits their comment."""
+        with app.app_context():
+            author = _user('editor_a')
+            post = _post(author.id, 'test')
+            comment = PostService.add_comment(post.id, author.id, 'original')
+            updated = PostService.edit_comment(comment.id, author.id, 'edited')
+            assert updated.id == comment.id
+            assert updated.text == 'edited'
+
+    def test_edit_comment_not_found(self, app: Flask) -> None:
+        """Error case: editing non-existent comment raises NotFoundError."""
+        with app.app_context():
+            with pytest.raises(NotFoundError, match='Comment not found'):
+                PostService.edit_comment(99999, 1, 'text')
+
+    def test_edit_comment_forbidden(self, app: Flask) -> None:
+        """Error case: non-author cannot edit — ForbiddenError."""
+        with app.app_context():
+            author = _user('editor_b')
+            intruder = _user('editor_c')
+            post = _post(author.id, 'test')
+            comment = PostService.add_comment(post.id, author.id, 'mine')
+            with pytest.raises(ForbiddenError, match='only edit your own'):
+                PostService.edit_comment(comment.id, intruder.id, 'hacked')
+
+    def test_edit_comment_empty_text_raises_error(self, app: Flask) -> None:
+        """Error case: empty text raises ServiceError."""
+        with app.app_context():
+            author = _user('editor_d')
+            post = _post(author.id, 'test')
+            comment = PostService.add_comment(post.id, author.id, 'text')
+            with pytest.raises(ServiceError, match='Comment cannot be empty'):
+                PostService.edit_comment(comment.id, author.id, '')
+            with pytest.raises(ServiceError, match='Comment cannot be empty'):
+                PostService.edit_comment(comment.id, author.id, '   ')
+
+    def test_edit_comment_persists(self, app: Flask) -> None:
+        """Verify edit is actually persisted in DB."""
+        with app.app_context():
+            author = _user('editor_e')
+            post = _post(author.id, 'test')
+            comment = PostService.add_comment(post.id, author.id, 'original')
+            PostService.edit_comment(comment.id, author.id, 'new text')
+            # Re-fetch from DB to ensure persistence
+            fresh = db.session.get(Comment, comment.id)
+            assert fresh is not None
+            assert fresh.text == 'new text'
+
+
 # ══════════════════════════════════════════════════════════════════
 # PostService — Reposts & Saves
 # ══════════════════════════════════════════════════════════════════

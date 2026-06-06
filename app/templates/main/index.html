@@ -58,6 +58,9 @@
     {% if search_query %}<a href="{{ url_for('main.index', tag=tag_filter, sort=sort_by, followed=request.args.get('followed', '')) }}" class="btn-term" style="padding:6px 12px;text-decoration:none">[×]</a>{% endif %}
 </form>
 
+<!-- Search autocomplete dropdown -->
+<div id="search-ac" class="search-ac" style="display:none;background:var(--surface0);border:1px solid var(--border);border-radius:6px;margin-bottom:8px;max-height:280px;overflow-y:auto;font-size:0.82rem"></div>
+
 {# Trending tags #}
 {% if trending_tags %}
 <div class="trending-bar">
@@ -238,6 +241,84 @@ document.getElementById('posts-container')?.addEventListener('click', function(e
         }
     });
     observer.observe(sentinel);
+})();
+
+// Search autocomplete — shows users + tags
+(function() {
+    var input = document.querySelector('.search-bar input[name="q"]');
+    var ac = document.getElementById('search-ac');
+    if (!input || !ac) return;
+
+    var timer, curQuery;
+
+    function render(items) {
+        if (!items.length) { ac.style.display = 'none'; return; }
+        ac.innerHTML = '<div style="padding:4px 8px;opacity:.6;font-size:.75rem">— ' +
+            (items.some(function(i){return i.type==='user'}) ? '' : '') + ' —</div>' +
+            items.map(function(i) {
+                if (i.type === 'tag') {
+                    return '<div class="ac-item" data-tag="' + i.name + '" style="padding:5px 10px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;justify-content:space-between">' +
+                        '<span style="color:var(--teal)">#' + i.name + '</span>' +
+                        '<span style="opacity:.5">' + i.post_count + '</span></div>';
+                }
+                return '<div class="ac-item" data-user="' + i.username + '" style="padding:5px 10px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">' +
+                    '<img src="' + (i.profile_image ? window.STATIC_PROFILE_IMAGES + i.profile_image : window.STATIC_DEFAULT_PROFILE) + '" style="width:22px;height:22px;border-radius:50%;object-fit:cover">' +
+                    '<span>' + i.username + '</span>' +
+                    '<span style="margin-left:auto;opacity:.5;font-size:.75rem">' + (i.is_online ? 'online' : '') + '</span></div>';
+            }).join('');
+        ac.style.display = 'block';
+    }
+
+    function onPick(e) {
+        var item = e.target.closest('.ac-item');
+        if (!item) return;
+        ac.style.display = 'none';
+        if (item.dataset.tag) {
+            // Navigate to tag filter
+            var params = new URLSearchParams(window.location.search);
+            params.set('tag', item.dataset.tag);
+            params.delete('q');
+            window.location = '?' + params.toString();
+        } else if (item.dataset.user) {
+            // Fill search with @username
+            input.value = '@' + item.dataset.user;
+            input.form.submit();
+        }
+    }
+
+    function onInput() {
+        var v = input.value.trim();
+        if (v.length < 2) { ac.style.display = 'none'; return; }
+        curQuery = v;
+        clearTimeout(timer);
+        timer = setTimeout(function() {
+            var q = curQuery;
+            Promise.all([
+                fetch(window.API_USERS_SEARCH_URL + '?q=' + encodeURIComponent(v))
+                    .then(function(r){return r.json()})
+                    .then(function(d){return (d.users||[]).map(function(u){u.type='user';return u;})}),
+                fetch('/api/tags/search?q=' + encodeURIComponent(v))
+                    .then(function(r){return r.json()})
+                    .then(function(d){return (d.tags||[]).map(function(t){t.type='tag';return t;})})
+            ]).then(function(res) {
+                if (q !== curQuery) return; // stale
+                render(res[0].concat(res[1]));
+            });
+        }, 200);
+    }
+
+    // Close on outside click / Escape
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.search-bar') && !e.target.closest('#search-ac')) {
+            ac.style.display = 'none';
+        }
+    });
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') ac.style.display = 'none';
+    });
+
+    input.addEventListener('input', onInput);
+    ac.addEventListener('click', onPick);
 })();
 </script>
 {% endblock %}
