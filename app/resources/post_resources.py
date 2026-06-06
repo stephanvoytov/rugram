@@ -3,8 +3,7 @@ from flask_restful import Resource, reqparse
 from flask_login import login_required, current_user
 
 from app.models import Post
-from app.routes.helpers import cursor_paginate
-from app.services import PostService
+from app.services import PostService, FeedService
 from app.services.base import NotFoundError, ForbiddenError, ServiceError
 from extensions import db
 
@@ -22,7 +21,7 @@ def _get_post_or_404(post_id):
 
 class PostResource(Resource):
     def get(self, post_id):
-        """Get a single post by ID.
+        """Get a single post by ID with author info and interaction status.
         ---
         tags:
           - Posts
@@ -34,18 +33,55 @@ class PostResource(Resource):
             description: Post ID
         responses:
           200:
-            description: Post object
+            description: Post object with author info and interaction flags
             schema:
               type: object
               properties:
                 post:
                   type: object
                   properties:
-                    id: {type: integer}
-                    text: {type: string}
-                    author: {type: string}
-                    likes: {type: integer}
-                    comments: {type: integer}
+                    id:
+                      type: integer
+                      example: 42
+                    text:
+                      type: string
+                      example: Hello world!
+                    image:
+                      type: string
+                      nullable: true
+                      example: posts/1_1234567890_photo.jpg
+                    author_id:
+                      type: integer
+                      example: 1
+                    author:
+                      type: string
+                      example: alice
+                    author_image:
+                      type: string
+                      nullable: true
+                      example: profile_images/alice_avatar.jpg
+                    is_deleted:
+                      type: boolean
+                      example: false
+                    likes:
+                      type: integer
+                      example: 5
+                    comments:
+                      type: integer
+                      example: 2
+                    reposts:
+                      type: integer
+                      example: 1
+                    is_liked:
+                      type: boolean
+                      example: false
+                    is_saved:
+                      type: boolean
+                      example: false
+                    time:
+                      type: string
+                      format: date-time
+                      example: "2026-06-06T15:30:00"
           404:
             description: Post not found
         """
@@ -76,6 +112,8 @@ class PostResource(Resource):
         ---
         tags:
           - Posts
+        consumes:
+          - application/json
         security:
           - sessionAuth: []
         parameters:
@@ -83,25 +121,41 @@ class PostResource(Resource):
             name: post_id
             type: integer
             required: true
+            description: ID of the post to edit
           - in: body
             name: body
             required: true
             schema:
               type: object
+              required:
+                - text
               properties:
                 text:
                   type: string
-                  required: true
+                  example: Updated post text with #hashtag
+                  description: New text for the post (tags are auto-extracted)
         responses:
           200:
-            description: Post updated
+            description: Post updated successfully
             schema:
               type: object
               properties:
-                id: {type: integer}
-                text: {type: string}
+                id:
+                  type: integer
+                  example: 42
+                text:
+                  type: string
+                  example: Updated post text with #hashtag
+          400:
+            description: Invalid input (e.g. empty text)
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  example: Post text cannot be empty
           403:
-            description: Not the owner
+            description: Not the owner — only the post author can edit
           404:
             description: Post not found
         """
@@ -120,7 +174,7 @@ class PostResource(Resource):
 
     @login_required
     def delete(self, post_id):
-        """Delete a post (soft-delete, sets is_deleted=True).
+        """Soft-delete a post (sets is_deleted=True).
         ---
         tags:
           - Posts
@@ -131,15 +185,24 @@ class PostResource(Resource):
             name: post_id
             type: integer
             required: true
+            description: ID of the post to delete
         responses:
           200:
-            description: Post deleted
+            description: Post soft-deleted
             schema:
               type: object
               properties:
-                success: {type: string, example: OK}
+                success:
+                  type: string
+                  example: OK
           403:
-            description: Not the owner
+            description: Not the owner — only the post author can delete
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  example: You can only delete your own posts
           404:
             description: Post not found
         """
@@ -191,20 +254,31 @@ class PostListResource(Resource):
         parser.add_argument('cursor', type=int, default=None, location='args')
         parser.add_argument('limit', type=int, default=20, location='args')
         args = parser.parse_args()
-        query = Post.query.order_by(Post.id.desc())
-        posts, next_cursor, has_more = cursor_paginate(query, args['cursor'], args['limit'])
+        posts, next_cursor, has_more = FeedService.get_feed(cursor=args['cursor'], limit=args['limit'])
         return jsonify({
-            'posts': [item.to_dict(only=('id', 'author_id', 'text')) for item in posts],
+            'posts': [{
+                'id': p.id,
+                'author_id': p.author_id,
+                'author': p.author.username,
+                'text': p.text,
+                'image': p.image,
+                'likes': p.likes_count,
+                'comments': p.comments_count,
+                'reposts': p.reposts_count,
+                'time': p.created_date.isoformat(),
+            } for p in posts],
             'cursor': next_cursor,
             'has_more': has_more,
         })
 
     @login_required
     def post(self):
-        """Create a new post.
+        """Create a new post (hashtags auto-extracted from text).
         ---
         tags:
           - Posts
+        consumes:
+          - application/json
         security:
           - sessionAuth: []
         parameters:
@@ -213,24 +287,34 @@ class PostListResource(Resource):
             required: true
             schema:
               type: object
+              required:
+                - text
               properties:
                 text:
                   type: string
-                  required: true
-                  example: Hello world!
+                  example: Hello world! #introduction
+                  description: Post body — hashtags (#word) are auto-extracted and indexed
                 image:
                   type: string
                   required: false
                   description: Base64-encoded image (not yet supported via API)
         responses:
           200:
-            description: Post created
+            description: Post created successfully
             schema:
               type: object
               properties:
-                id: {type: integer}
+                id:
+                  type: integer
+                  example: 42
           400:
-            description: Missing text
+            description: Invalid input (e.g. empty text)
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  example: Post text cannot be empty
         """
         args = parser.parse_args()
         try:
