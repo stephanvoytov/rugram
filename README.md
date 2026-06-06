@@ -121,32 +121,34 @@ app/
 
 ### Test coverage
 
-**534 tests — all green**
+**558 tests — all green**
 
-| Category | File | Count | What it covers |
-|----------|------|-------|----------------|
-| Unit | `test_service.py` | 97 | PostService, FeedService, ChatService, NotificationService, SocialService — each method, edge cases, error paths |
-| Integration | `test_integration.py` | 18 | Full-stack flows: signup → login → post → chat → follow → notification |
-| Security | `test_security.py` | 19 | Auth guards, IDOR (post/chat/comment), admin access, rate limiting |
-| Feature | `test_chat.py` | 19 | Chat lifecycle, message CRUD, participants, images |
-| Feature | `test_posts.py` | 19 | Post CRUD, comments, likes, bookmarks, reposts |
-| Feature | `test_social.py` | 13 | Follow/unfollow, notifications, feed |
-| Routes | `test_routes.py` | 17 | Page rendering, form validation, redirects |
-| API | `test_api.py` | 10 | REST endpoints, pagination, JSON responses |
-| Translation | `test_translations.py` | 3 | RU dictionary covers all `_()` keys in source |
-| **JS** | `test_terminal.js` | **319** | All terminal commands, auth guards, edge cases |
+| Category | File(s) | Count | What it covers |
+|----------|---------|-------|----------------|
+| Unit | `tests/unit/test_services.py` | 116 | PostService, ChatService, SocialService, FeedService, NotificationService, AdminService, AuthService — mock-based |
+| Unit | `tests/unit/test_translations.py` | 3 | RU dictionary covers all `_()` keys in source |
+| Integration | `tests/integration/test_integration.py` | 18 | Full-stack flows: signup → login → post → chat → follow → notification |
+| Integration | `tests/integration/test_routes.py` | 17 | Page rendering, form validation, redirects |
+| Integration | `tests/integration/test_posts.py` | 19 | Post CRUD, comments, likes, bookmarks, reposts |
+| Integration | `tests/integration/test_chat.py` | 19 | Chat lifecycle, message CRUD, participants, images |
+| Integration | `tests/integration/test_social.py` | 13 | Follow/unfollow, notifications, feed |
+| Integration | `tests/integration/test_api.py` | 10 | REST endpoints, pagination, JSON responses |
+| Security | `tests/security/test_security.py` | 24 | Auth guards, IDOR (post/chat/comment), XSS, admin access, upload validation |
+| **JS** | `tests/test_terminal.js` | **319** | All terminal commands, auth guards, edge cases |
 
 ```
-Fast run with xdist (8 workers):
-  python -m pytest tests/ -n auto -q          # ~9s
+Fast run with xdist (6+ workers):
+  python -m pytest tests/ -n auto -q          # ~10s
 
 Sequential:
-  python -m pytest tests/ -q                  # ~19s
+  python -m pytest tests/ -q                  # ~20s
 
 JS terminal tests:
   node tests/test_terminal.js                 # ~2s
 
 In-memory SQLite per test, idempotent DB user registration.
+All API endpoints under /api/v1/*.
+Redis cache optional (set REDIS_URL in .env).
 ```
 
 ### API documentation
@@ -167,7 +169,7 @@ All messages encrypted at rest (Fernet, key rotation via MultiFernet).
 
 **Terminal-inspired GUI** — Bootstrap 5.3 + Catppuccin Mocha theme. Infinite feed, like animations, inline comments, bookmarks, reposts, dark/light mode, image lightbox, avatar upload, mobile-first.
 
-**REST API** — `/api/v1/posts`, `/api/feed`, `/api/notifications`, `/api/saved`.  
+**REST API** — `/api/v1/posts`, `/api/v1/feed`, `/api/v1/notifications`, `/api/v1/saved`.  
 Cursor-based pagination, JSON responses.
 
 **Admin panel** — `/admin/` dashboard with stats, user/post management, system events, structured log viewer.
