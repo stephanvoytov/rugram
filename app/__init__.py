@@ -3,6 +3,7 @@ import time
 
 from flasgger import Swagger
 from flask import Flask, jsonify, redirect, render_template, request, session, url_for
+from flask_cors import CORS
 from flask_login import LoginManager
 from flask_restful import Api
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -56,6 +57,8 @@ def create_app():
     login_manager.init_app(app)
 
     limiter.init_app(app)
+
+    CORS(app, resources={r"/api/*": {"origins": "*"}})
 
     Swagger(
         app,

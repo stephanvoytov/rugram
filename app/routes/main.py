@@ -1,4 +1,5 @@
 import os
+import threading
 
 from flask import (
     Blueprint,
@@ -129,12 +130,12 @@ def follow_toggle(username: str) -> Response:
         result = SocialService.toggle_follow(current_user.id, username)
         followed = result["followed"]
 
-        # Send push notification for new follows
         if followed:
-            try:
-                send_notification_push(target.id, current_user.username, "follow")
-            except Exception:
-                log.warning("push notification failed")
+            threading.Thread(
+                target=send_notification_push,
+                args=(target.id, current_user.id, "follow"),
+                daemon=True,
+            ).start()
 
         return jsonify(
             {

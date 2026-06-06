@@ -105,7 +105,7 @@ class User(db.Model, UserMixin, SerializerMixin):
         return str(self.id)
 
     def set_password(self, password):
-        self.hashed_password = generate_password_hash(password)
+        self.hashed_password = generate_password_hash(password, method="scrypt")
 
     def check_password(self, password: str):
         return check_password_hash(self.hashed_password, password)

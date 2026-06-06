@@ -10,6 +10,7 @@ from app.models import Comment, Post
 from app.repositories.notification_repository import NotificationRepository
 from app.repositories.post_repository import PostRepository
 from app.services.base import ForbiddenError, NotFoundError, ServiceError, cursor_paginate
+from app.services.feed_service import FeedService
 
 
 class PostService:
@@ -29,6 +30,7 @@ class PostService:
             PostRepository.sync_tags(post.id, tag_names)
 
         PostRepository.commit()
+        FeedService.invalidate_feed_cache()
         log.info("post_created", post_id=post.id, author_id=author_id)
         return post
 
@@ -60,6 +62,7 @@ class PostService:
         if tag_names is not None:
             PostRepository.sync_tags(post.id, tag_names)
         PostRepository.commit()
+        FeedService.invalidate_feed_cache()
         log.info("post_edited", post_id=post_id, author_id=user_id)
         return post
 
@@ -71,6 +74,7 @@ class PostService:
             raise ForbiddenError("You can only delete your own posts")
         post.is_deleted = True
         PostRepository.commit()
+        FeedService.invalidate_feed_cache()
         log.info("post_deleted", post_id=post_id, author_id=user_id)
 
     @staticmethod
