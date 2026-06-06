@@ -206,22 +206,39 @@ def send_message_push(chat_id, recipient_id, sender_username, message_preview):
     )
 
 
-def send_notification_push(user_id, actor_username, notification_type, post_id=None):
-    """Отправить push при новом уведомлении (лайк, комментарий, подписка)."""
-    type_labels = {
-        "like": "поставил(а) лайк",
-        "comment": "оставил(а) комментарий",
-        "follow": "подписался(ась) на вас",
-    }
-    label = type_labels.get(notification_type, notification_type)
-    body = f"{actor_username} {label}"
-    url = "/notifications"
+def send_notification_push(user_id, actor_id, notification_type, post_id=None):
+    """Отправить push при новом уведомлении (лайк, комментарий, подписка).
 
-    send_push_to_user(
-        user_id=user_id,
-        title="Rugram",
-        body=body,
-        url=url,
-        tag=f"notification-{notification_type}",
-        category=notification_type,
-    )
+    Safe to call from a background thread — creates its own app context.
+    """
+    from flask import Flask
+
+    # Build app context for thread safety
+    app: Flask | None = current_app._get_current_object() if current_app else None  # type: ignore[attr-defined]
+    if app is None:
+        log.warning("send_notification_push: no app context, skipping push")
+        return
+
+    with app.app_context():
+        actor = db.session.get(User, actor_id)
+        if not actor:
+            return
+        actor_username = actor.username
+
+        type_labels = {
+            "like": "поставил(а) лайк",
+            "comment": "оставил(а) комментарий",
+            "follow": "подписался(ась) на вас",
+        }
+        label = type_labels.get(notification_type, notification_type)
+        body = f"{actor_username} {label}"
+        url = "/notifications"
+
+        send_push_to_user(
+            user_id=user_id,
+            title="Rugram",
+            body=body,
+            url=url,
+            tag=f"notification-{notification_type}",
+            category=notification_type,
+        )

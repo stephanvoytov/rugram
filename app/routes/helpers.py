@@ -1,6 +1,6 @@
-import contextlib
 import os
 import re
+import threading
 import uuid
 
 from flask import jsonify
@@ -28,8 +28,11 @@ def _create_notification_and_push(
         type_=type_,
         post_id=post_id,
     )
-    with contextlib.suppress(Exception):
-        send_notification_push(user_id, notification.type)
+    threading.Thread(
+        target=send_notification_push,
+        args=(user_id, actor_id, type_),
+        daemon=True,
+    ).start()
     return notification
 
 
