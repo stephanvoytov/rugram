@@ -121,11 +121,32 @@ app/
 
 ### Test coverage
 
+**534 tests — all green**
+
+| Category | File | Count | What it covers |
+|----------|------|-------|----------------|
+| Unit | `test_service.py` | 97 | PostService, FeedService, ChatService, NotificationService, SocialService — each method, edge cases, error paths |
+| Integration | `test_integration.py` | 18 | Full-stack flows: signup → login → post → chat → follow → notification |
+| Security | `test_security.py` | 19 | Auth guards, IDOR (post/chat/comment), admin access, rate limiting |
+| Feature | `test_chat.py` | 19 | Chat lifecycle, message CRUD, participants, images |
+| Feature | `test_posts.py` | 19 | Post CRUD, comments, likes, bookmarks, reposts |
+| Feature | `test_social.py` | 13 | Follow/unfollow, notifications, feed |
+| Routes | `test_routes.py` | 17 | Page rendering, form validation, redirects |
+| API | `test_api.py` | 10 | REST endpoints, pagination, JSON responses |
+| Translation | `test_translations.py` | 3 | RU dictionary covers all `_()` keys in source |
+| **JS** | `test_terminal.js` | **319** | All terminal commands, auth guards, edge cases |
+
 ```
-81 Python tests (pytest) + 319 JS tests (Node/JSDOM)
-All green — run with:
-  python -m pytest tests/ -n auto -q
-  node tests/test_terminal.js
+Fast run with xdist (8 workers):
+  python -m pytest tests/ -n auto -q          # ~9s
+
+Sequential:
+  python -m pytest tests/ -q                  # ~19s
+
+JS terminal tests:
+  node tests/test_terminal.js                 # ~2s
+
+In-memory SQLite per test, idempotent DB user registration.
 ```
 
 ### API documentation

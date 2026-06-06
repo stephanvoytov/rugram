@@ -5,30 +5,16 @@ import json
 from flask.testing import FlaskClient
 from flask import Flask
 
-from app.models import User, Chat, Message, ChatParticipant
-from extensions import db
+from app.models import Message
+from tests.conftest import register_user_via_db
 
 
 def _login(client: FlaskClient, username: str = 'testuser',
            password: str = 'secret123') -> None:
-    client.post('/register', data={
-        'username': username, 'email': f'{username}@test.com',
-        'password': password, 'password2': password,
-    }, follow_redirects=True)
+    register_user_via_db(username, password)
     client.post('/login', data={
         'email_or_username': username, 'password': password,
     })
-
-
-def _create_user_direct(app: Flask, username: str,
-                         password: str = 'secret123') -> int:
-    """Create a user directly in DB (no registration flow). Returns user id."""
-    with app.app_context():
-        u = User(username=username, email=f'{username}@test.com')
-        u.set_password(password)
-        db.session.add(u)
-        db.session.commit()
-        return u.id
 
 
 def _start_chat(client: FlaskClient, username: str) -> int:
@@ -63,9 +49,9 @@ class TestChatAccess:
 class TestCreateChat:
     """Creating new conversations — POST /chat/start/<username>."""
 
-    def test_create_chat(self, client: FlaskClient, app: Flask) -> None:
+    def test_create_chat(self, client: FlaskClient) -> None:
         """Start chat with another user returns JSON with chat_id."""
-        _create_user_direct(app, 'friend')
+        register_user_via_db('friend')
         _login(client, username='starter')
         r = client.post('/chat/start/friend')
         assert r.status_code == 200
@@ -75,7 +61,7 @@ class TestCreateChat:
     def test_create_chat_reuses_existing(self, client: FlaskClient,
                                           app: Flask) -> None:
         """Starting chat with same user returns existing chat_id."""
-        _create_user_direct(app, 'pal')
+        register_user_via_db('pal')
         _login(client, username='reuser')
         r1 = client.post('/chat/start/pal')
         chat_id1 = r1.get_json()['chat_id']
@@ -106,7 +92,7 @@ class TestSendMessage:
 
     def test_send_message(self, client: FlaskClient, app: Flask) -> None:
         """Send a message via JSON returns success with message data."""
-        _create_user_direct(app, 'buddy')
+        register_user_via_db('buddy')
         _login(client, username='sender')
         chat_id = _start_chat(client, 'buddy')
 
@@ -119,7 +105,7 @@ class TestSendMessage:
     def test_send_empty_message_fails(self, client: FlaskClient,
                                        app: Flask) -> None:
         """Empty message returns 400."""
-        _create_user_direct(app, 'buddy2')
+        register_user_via_db('buddy2')
         _login(client, username='sender2')
         chat_id = _start_chat(client, 'buddy2')
         r = client.post(f'/chat/{chat_id}/send', json={'text': ''})
@@ -135,13 +121,13 @@ class TestSendMessage:
                                    app: Flask) -> None:
         """User not in the chat cannot send messages."""
         # Create users A and B, start a chat
-        _create_user_direct(app, 'user_a')
-        _create_user_direct(app, 'user_b')
+        register_user_via_db('user_a')
+        register_user_via_db('user_b')
         _login(client, username='user_a')
         chat_id = _start_chat(client, 'user_b')
 
         # Login as user C (not in the chat)
-        _create_user_direct(app, 'user_c')
+        register_user_via_db('user_c')
         _login(client, username='user_c')
         r = client.post(f'/chat/{chat_id}/send', json={'text': 'hack'})
         assert r.status_code in (403, 404, 400)
@@ -162,7 +148,7 @@ class TestChatList:
     def test_chat_list_with_conversation(self, client: FlaskClient,
                                           app: Flask) -> None:
         """Chat list shows conversation after starting one."""
-        _create_user_direct(app, 'other')
+        register_user_via_db('other')
         _login(client, username='mainuser')
         _start_chat(client, 'other')
         r = client.get('/api/chat/list')
@@ -176,7 +162,7 @@ class TestChatMessages:
 
     def test_get_messages(self, client: FlaskClient, app: Flask) -> None:
         """GET /chat/<id>/messages returns message list."""
-        _create_user_direct(app, 'responder')
+        register_user_via_db('responder')
         _login(client, username='asker')
         chat_id = _start_chat(client, 'responder')
         client.post(f'/chat/{chat_id}/send', json={'text': 'test msg'})
@@ -189,12 +175,12 @@ class TestChatMessages:
     def test_get_messages_not_participant(self, client: FlaskClient,
                                            app: Flask) -> None:
         """Non-participant cannot get messages."""
-        _create_user_direct(app, 'a')
-        _create_user_direct(app, 'b')
+        register_user_via_db('a')
+        register_user_via_db('b')
         _login(client, username='a')
         chat_id = _start_chat(client, 'b')
 
-        _create_user_direct(app, 'eavesdropper')
+        register_user_via_db('eavesdropper')
         _login(client, username='eavesdropper')
         r = client.get(f'/chat/{chat_id}/messages')
         assert r.status_code in (403, 404)
@@ -206,7 +192,7 @@ class TestMessagePersistence:
     def test_message_is_stored(self, client: FlaskClient,
                                 app: Flask) -> None:
         """Sent message persists in DB."""
-        _create_user_direct(app, 'buddy_p')
+        register_user_via_db('buddy_p')
         _login(client, username='persister')
         chat_id = _start_chat(client, 'buddy_p')
         client.post(f'/chat/{chat_id}/send', json={'text': 'persist me'})
@@ -218,7 +204,7 @@ class TestMessagePersistence:
 
     def test_edit_message(self, client: FlaskClient, app: Flask) -> None:
         """Author can edit their message via PATCH."""
-        _create_user_direct(app, 'buddy_e')
+        register_user_via_db('buddy_e')
         _login(client, username='editor')
         chat_id = _start_chat(client, 'buddy_e')
         r = client.post(f'/chat/{chat_id}/send', json={'text': 'original'})
@@ -232,7 +218,7 @@ class TestMessagePersistence:
 
     def test_delete_message(self, client: FlaskClient, app: Flask) -> None:
         """Author can delete their message via DELETE."""
-        _create_user_direct(app, 'buddy_d')
+        register_user_via_db('buddy_d')
         _login(client, username='deleter')
         chat_id = _start_chat(client, 'buddy_d')
         r = client.post(f'/chat/{chat_id}/send', json={'text': 'delete me'})

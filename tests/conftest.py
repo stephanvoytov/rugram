@@ -22,42 +22,55 @@ from flask import Flask
 from flask.testing import FlaskClient
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
+from sqlalchemy.pool import StaticPool
 
 from app import create_app
 from config import Config as BaseConfig
 from extensions import db as _db
 
 
-# ── worker-aware test DB path ────────────────────────────────────────────────
-# Each xdist worker (gw0, gw1, ...) gets its own DB file so they don't clash.
-# Without xdist the suffix is empty → test_db.sqlite as before.
-_WORKER_ID = os.environ.get('PYTEST_XDIST_WORKER', '')
-_DB_SUFFIX = f'_{_WORKER_ID}' if _WORKER_ID else ''
+# ── in-memory SQLite (≈5× faster than file-based) ───────────────────────────
+# Each xdist worker is a separate process with its own memory, so no clashes.
 _TEST_DIR = Path(__file__).parent
-_TEST_DB_PATH = _TEST_DIR / f'test_db{_DB_SUFFIX}.sqlite'
 
 
 class TestConfig(BaseConfig):
     """Configuration overrides for testing."""
     TESTING = True
     SECRET_KEY = 'test-secret-key-please-change'
-    SQLALCHEMY_DATABASE_URI = f'sqlite:///{_TEST_DB_PATH}'
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'poolclass': StaticPool,
+        'connect_args': {'check_same_thread': False},
+    }
     WTF_CSRF_ENABLED = False
     RATELIMIT_ENABLED = False
-    UPLOAD_FOLDER = str(_TEST_DIR / f'test_uploads{_DB_SUFFIX}')
-    CHAT_UPLOAD_FOLDER = str(_TEST_DIR / f'test_chat_uploads{_DB_SUFFIX}')
+    UPLOAD_FOLDER = str(_TEST_DIR / 'test_uploads')
+    CHAT_UPLOAD_FOLDER = str(_TEST_DIR / 'test_chat_uploads')
 
 
-def _wipe_test_db() -> None:
-    """Remove the test database file (and journal/WAL) so each test session
-    starts fresh and stale WAL state doesn't bleed between tests."""
-    for suffix in ('', '-journal', '-wal', '-shm'):
-        p = _TEST_DIR / f'test_db{_DB_SUFFIX}{suffix}.sqlite'
-        if p.exists():
-            try:
-                p.unlink()
-            except PermissionError:
-                pass
+def register_user_via_db(username: str,
+                          password: str = 'secret123',
+                          email: str | None = None) -> int:
+    """Create a user directly in the test database (no HTTP roundtrip).
+
+    Idempotent — skips if user already exists.
+    Use this in test setup instead of HTTP registration to speed up tests.
+    Returns the user id.
+    """
+    from app.models import User
+    existing = User.query.filter_by(username=username).first()
+    if existing:
+        return existing.id
+    from werkzeug.security import generate_password_hash
+    user = User(
+        username=username,
+        email=email or f'{username}@test.com',
+        hashed_password=generate_password_hash(password),
+    )
+    _db.session.add(user)
+    _db.session.commit()
+    return user.id
 
 
 def _delete_all_data() -> None:
@@ -94,6 +107,7 @@ def app() -> Flask:
         'TESTING': TestConfig.TESTING,
         'SECRET_KEY': TestConfig.SECRET_KEY,
         'SQLALCHEMY_DATABASE_URI': TestConfig.SQLALCHEMY_DATABASE_URI,
+        'SQLALCHEMY_ENGINE_OPTIONS': TestConfig.SQLALCHEMY_ENGINE_OPTIONS,
         'WTF_CSRF_ENABLED': TestConfig.WTF_CSRF_ENABLED,
         'RATELIMIT_ENABLED': TestConfig.RATELIMIT_ENABLED,
         'UPLOAD_FOLDER': TestConfig.UPLOAD_FOLDER,
@@ -103,8 +117,7 @@ def app() -> Flask:
     Path(TestConfig.UPLOAD_FOLDER).mkdir(parents=True, exist_ok=True)
     Path(TestConfig.CHAT_UPLOAD_FOLDER).mkdir(parents=True, exist_ok=True)
 
-    # Wipe stale DB file and create schema once
-    _wipe_test_db()
+    # Create schema once in the in-memory database
     with app.app_context():
         _db.create_all()
 

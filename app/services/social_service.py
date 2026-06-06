@@ -104,6 +104,11 @@ class SocialService:
         UserRepository.delete_user_cascade(user)
 
     @staticmethod
+    def get_user_counts_by_day(since):
+        """Get user registration counts grouped by day (for admin chart)."""
+        return UserRepository.get_user_counts_by_day(since)
+
+    @staticmethod
     def get_user_posts(user_id: int, cursor: Optional[int] = None,
                        limit: int = 15) -> tuple:
         """Get posts by a specific user with cursor pagination."""

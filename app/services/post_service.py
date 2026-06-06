@@ -199,3 +199,8 @@ class PostService:
                         limit: int = 15) -> tuple:
         query = PostRepository.get_saved_posts_query(user_id)
         return cursor_paginate(query, cursor, limit)
+
+    @staticmethod
+    def get_post_counts_by_day(since):
+        """Get post creation counts grouped by day (for admin chart)."""
+        return PostRepository.get_post_counts_by_day(since)

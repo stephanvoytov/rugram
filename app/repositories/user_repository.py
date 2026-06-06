@@ -8,6 +8,7 @@ from sqlalchemy.orm import joinedload
 
 from app.models import User, Follow
 from app.repositories.base import BaseRepository
+from extensions import db
 
 
 class UserRepository(BaseRepository):
