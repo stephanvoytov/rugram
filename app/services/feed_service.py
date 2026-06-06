@@ -1,12 +1,12 @@
-"""Feed service — feed queries, search, trending tags, cursor pagination."""
+"""Feed service — feed queries, search, trending tags, cursor pagination.
+
+Uses repositories for all data access — no direct db.session or Model.query calls.
+"""
 
 from typing import Optional
 
-from sqlalchemy import desc as sql_desc
-from sqlalchemy.orm import joinedload
-
-from app.models import Post, Tag, PostTag, Follow, db
 from app.services.base import cursor_paginate
+from app.repositories.post_repository import PostRepository
 
 
 class FeedService:
@@ -22,73 +22,29 @@ class FeedService:
         cursor: Optional[int] = None,
         limit: int = 15,
     ) -> tuple:
-        """Return (posts, next_cursor, has_more) for the main feed.
-
-        Args:
-            user_id: Current user (for followed-only filter).
-            followed_only: Only show posts from followed users.
-            tag_filter: Filter by hashtag (exact match).
-            search_query: Full-text search on post text.
-            sort_by: 'new' | 'hot' | 'top'
-            cursor: Last post ID for cursor pagination.
-            limit: Items per page.
-        """
-        base = Post.query.options(joinedload(Post.author)) \
-            .filter(Post.is_deleted == False)
-
-        # Followed-only filter
-        if followed_only and user_id:
-            followed_sub = db.session.query(Follow.followed_id).filter(
-                Follow.follower_id == user_id
-            ).scalar_subquery()
-            base = base.filter(
-                (Post.author_id.in_(followed_sub)) | (Post.author_id == user_id)
-            )
-
-        # Tag filter
-        if tag_filter:
-            base = base.join(PostTag).join(Tag).filter(Tag.name == tag_filter)
-
-        # Search
-        if search_query:
-            base = base.filter(Post.text.ilike(f'%{search_query}%'))
-
-        # Sorting
-        if sort_by == 'hot':
-            order = sql_desc(
-                Post.likes_count + Post.comments_count * 2 + Post.reposts_count * 3
-            )
-        elif sort_by == 'top':
-            order = sql_desc(
-                Post.likes_count + Post.comments_count + Post.reposts_count
-            )
-        else:
-            order = Post.id.desc()
-
-        query = base.order_by(order)
+        """Return (posts, next_cursor, has_more) for the main feed."""
+        query = PostRepository.get_feed_query(
+            user_id=user_id,
+            followed_only=followed_only,
+            tag_filter=tag_filter,
+            search_query=search_query,
+            sort_by=sort_by,
+        )
         return cursor_paginate(query, cursor, limit)
 
     @staticmethod
-    def get_trending_tags(limit: int = 10) -> list[Tag]:
+    def get_trending_tags(limit: int = 10) -> list:
         """Return most-used tags."""
-        return Tag.query.filter(Tag.post_count > 0) \
-            .order_by(Tag.post_count.desc()).limit(limit).all()
+        return PostRepository.get_trending_tags(limit)
 
     @staticmethod
-    def search_tags(query_str: str, limit: int = 10) -> list[Tag]:
+    def search_tags(query_str: str, limit: int = 10) -> list:
         """Search tags by prefix."""
-        if not query_str:
-            return []
-        return Tag.query.filter(
-            Tag.name.ilike(f'{query_str}%')
-        ).order_by(Tag.post_count.desc()).limit(limit).all()
+        return PostRepository.search_tags(query_str, limit)
 
     @staticmethod
     def get_posts_by_tag(tag_name: str, cursor: Optional[int] = None,
                          limit: int = 15) -> tuple:
         """Get posts filtered by exact tag."""
-        query = Post.query.options(joinedload(Post.author)) \
-            .filter(Post.is_deleted == False) \
-            .join(PostTag).join(Tag).filter(Tag.name == tag_name) \
-            .order_by(Post.id.desc())
+        query = PostRepository.get_posts_by_tag_query(tag_name)
         return cursor_paginate(query, cursor, limit)
