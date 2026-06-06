@@ -1,12 +1,11 @@
-import re
-
 from flask import Blueprint, Response, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 
 from app.forms import LoginForm, RegistrationForm
 from app.limiter import limiter
 from app.logger import log
-from app.repositories.user_repository import UserRepository
+from app.services import AuthService
+from app.services.base import ServiceError
 from app.translations import _
 
 auth_bp = Blueprint("auth", __name__, template_folder="../templates")
@@ -17,13 +16,13 @@ auth_bp = Blueprint("auth", __name__, template_folder="../templates")
 def login() -> Response:
     form = LoginForm()
     if form.validate_on_submit():
-        user = UserRepository.get_by_login(form.email_or_username.data)
-        if not user or not user.check_password(form.password.data):
+        try:
+            user = AuthService.authenticate(form.email_or_username.data, form.password.data)
+            login_user(user, remember=form.remember.data)
+            return redirect(url_for("main.index"))
+        except ServiceError:
             flash(_("Invalid email/username or password"), "danger")
             return redirect(url_for("auth.login"))
-
-        login_user(user, remember=form.remember.data)
-        return redirect(url_for("main.index"))
 
     return render_template("auth/login.html", form=form)
 
@@ -47,22 +46,23 @@ def api_login() -> Response:
     password = (data.get("password") or "").strip()
     if not login_or_email or not password:
         return jsonify({"ok": False, "error": "login/email and password required"}), 400
-    user = UserRepository.get_by_login(login_or_email)
-    if not user or not user.check_password(password):
-        return jsonify({"ok": False, "error": "Invalid login/email or password"}), 401
-    login_user(user)
-    return jsonify(
-        {
-            "ok": True,
-            "user": {
-                "id": user.id,
-                "username": user.username,
-                "email": user.email,
-                "profile_image": user.profile_image,
-                "description": user.description or "",
-            },
-        }
-    )
+    try:
+        user = AuthService.authenticate(login_or_email, password)
+        login_user(user)
+        return jsonify(
+            {
+                "ok": True,
+                "user": {
+                    "id": user.id,
+                    "username": user.username,
+                    "email": user.email,
+                    "profile_image": user.profile_image,
+                    "description": user.description or "",
+                },
+            }
+        )
+    except ServiceError as e:
+        return jsonify({"ok": False, "error": e.message}), 401
 
 
 @auth_bp.route("/auth/api/register", methods=["POST"])
@@ -76,22 +76,8 @@ def api_register() -> Response:
     password = (data.get("password") or "").strip()
     if not username or not email or not password:
         return jsonify({"ok": False, "error": "username, email and password required"}), 400
-    if len(username) < 3 or len(username) > 20:
-        return jsonify({"ok": False, "error": "Username must be 3-20 characters"}), 400
-    if not re.match(r"^[a-z0-9_]+$", username):
-        return jsonify(
-            {"ok": False, "error": "Username can only contain a-z, 0-9, underscore"}
-        ), 400
-    if len(password) < 6:
-        return jsonify({"ok": False, "error": "Password must be at least 6 characters"}), 400
-    if UserRepository.username_exists(username) or UserRepository.email_exists(email):
-        return jsonify({"ok": False, "error": _("This username is already taken")}), 409
-    user = UserRepository.create_user(username, email)
-    if not user:
-        return jsonify({"ok": False, "error": "Ошибка при регистрации"}), 500
-    user.set_password(password)
     try:
-        UserRepository.commit()
+        user = AuthService.register_user(username, email, password)
         login_user(user)
         return jsonify(
             {
@@ -103,9 +89,10 @@ def api_register() -> Response:
                 },
             }
         ), 201
-    except Exception:
-        UserRepository.rollback()
-        return jsonify({"ok": False, "error": "Ошибка при регистрации"}), 500
+    except ServiceError as e:
+        return jsonify({"ok": False, "error": e.message}), (
+            409 if "taken" in e.message or "registered" in e.message else 400
+        )
 
 
 @auth_bp.route("/auth/api/logout", methods=["POST"])
@@ -141,29 +128,14 @@ def register() -> Response:
         username = form.username.data.lower()
         email = form.email.data
 
-        u_exists = UserRepository.username_exists(username)
-        e_exists = UserRepository.email_exists(email)
-
-        if u_exists or e_exists:
-            if u_exists:
-                flash(_("This username is already taken"), "danger")
-            if e_exists:
-                flash(_("This email is already registered"), "danger")
-            return render_template("auth/register.html", form=form)
-
-        user = UserRepository.create_user(username, email)
-        if not user:
-            flash(_("Registration failed. Please try again."), "danger")
-            return render_template("auth/register.html", form=form)
-        user.set_password(form.password.data)
         try:
-            UserRepository.commit()
+            user = AuthService.register_user(username, email, form.password.data)
             log.info(
                 "user_registered", user_id=user.id, username=user.username, ip=request.remote_addr
             )
             flash(_("Registration successful! You can now log in."), "success")
             return redirect(url_for("auth.login"))
-        except Exception:
-            UserRepository.rollback()
-            flash(_("Registration failed. Please try again."), "danger")
+        except ServiceError as e:
+            flash(_(e.message), "danger")
+
     return render_template("auth/register.html", form=form)

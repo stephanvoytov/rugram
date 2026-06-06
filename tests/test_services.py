@@ -1058,3 +1058,221 @@ class TestNotificationService:
         with pytest.raises(ServiceError, match="notify yourself"):
             NotificationService.create_notification(1, 1, "like")
         mock_repo.create_notification.assert_not_called()
+
+
+# =============================================================================
+# AdminService
+# =============================================================================
+
+
+class TestAdminService:
+    """AdminService — dashboard stats, user management."""
+
+    @patch("app.services.admin_service.UserRepository")
+    @patch("app.services.admin_service.PostRepository")
+    @patch("app.services.admin_service.EventRepository")
+    def test_dashboard_stats(self, mock_event, mock_post, mock_user):
+        mock_user.count.return_value = 10
+        mock_user.get_users_today.return_value = 2
+        mock_post.get_active_posts_count.return_value = 100
+        mock_post.get_likes_count.return_value = 500
+        mock_post.get_comments_count.return_value = 200
+        mock_user.get_follows_count.return_value = 50
+        mock_event.get_tag_count.return_value = 25
+
+        from app.services.admin_service import AdminService
+
+        stats = AdminService.dashboard_stats()
+
+        assert stats["users_total"] == 10
+        assert stats["users_today"] == 2
+        assert stats["posts_total"] == 100
+        assert stats["likes_total"] == 500
+        assert stats["comments_total"] == 200
+        assert stats["follows_total"] == 50
+        assert stats["tags_total"] == 25
+
+    @patch("app.services.admin_service.UserRepository")
+    def test_toggle_admin_success(self, mock_user):
+        mock_user.get.return_value = MagicMock(id=2, is_admin=False)
+        mock_user.get_admin_count.return_value = 3
+
+        from app.services.admin_service import AdminService
+
+        AdminService.toggle_admin(actor_id=1, target_id=2)
+        mock_user.commit.assert_called_once()
+
+    @patch("app.services.admin_service.UserRepository")
+    def test_toggle_admin_self(self, mock_user):
+        mock_user.get.return_value = MagicMock(id=1, is_admin=False)
+
+        from app.services.admin_service import AdminService
+
+        with pytest.raises(ServiceError, match="Cannot change your own admin status"):
+            AdminService.toggle_admin(actor_id=1, target_id=1)
+
+    @patch("app.services.admin_service.UserRepository")
+    def test_toggle_admin_last_admin(self, mock_user):
+        mock_user.get.return_value = MagicMock(id=2, is_admin=True)
+        mock_user.get_admin_count.return_value = 1
+
+        from app.services.admin_service import AdminService
+
+        with pytest.raises(ServiceError, match="at least one admin must remain"):
+            AdminService.toggle_admin(actor_id=1, target_id=2)
+
+    @patch("app.services.admin_service.UserRepository")
+    def test_toggle_admin_not_found(self, mock_user):
+        mock_user.get.return_value = None
+
+        from app.services.admin_service import AdminService
+
+        with pytest.raises(NotFoundError):
+            AdminService.toggle_admin(actor_id=1, target_id=999)
+
+    @patch("app.services.admin_service.UserRepository")
+    def test_toggle_moderator_success(self, mock_user):
+        user = MagicMock(id=2, is_moderator=False)
+        mock_user.get.return_value = user
+
+        from app.services.admin_service import AdminService
+
+        AdminService.toggle_moderator(actor_id=1, target_id=2)
+        mock_user.commit.assert_called_once()
+
+    @patch("app.services.admin_service.UserRepository")
+    def test_toggle_moderator_self_removal_raises(self, mock_user):
+        mock_user.get.return_value = MagicMock(id=1, is_moderator=True)
+
+        from app.services.admin_service import AdminService
+
+        with pytest.raises(ServiceError, match="Cannot remove your own moderator status"):
+            AdminService.toggle_moderator(actor_id=1, target_id=1)
+
+    @patch("app.services.admin_service.UserRepository")
+    def test_delete_user_success(self, mock_user):
+        mock_user.get.return_value = MagicMock(id=2, is_admin=False)
+
+        from app.services.admin_service import AdminService
+
+        AdminService.delete_user(actor_id=1, target_id=2)
+        mock_user.delete_user_cascade.assert_called_once()
+
+    @patch("app.services.admin_service.UserRepository")
+    def test_delete_user_self_raises(self, mock_user):
+        mock_user.get.return_value = MagicMock(id=1, is_admin=False)
+
+        from app.services.admin_service import AdminService
+
+        with pytest.raises(ServiceError, match="Cannot delete your own account"):
+            AdminService.delete_user(actor_id=1, target_id=1)
+
+    @patch("app.services.admin_service.UserRepository")
+    def test_delete_user_last_admin_raises(self, mock_user):
+        mock_user.get.return_value = MagicMock(id=2, is_admin=True)
+        mock_user.get_admin_count.return_value = 1
+
+        from app.services.admin_service import AdminService
+
+        with pytest.raises(ServiceError, match="at least one admin must remain"):
+            AdminService.delete_user(actor_id=1, target_id=2)
+
+
+# =============================================================================
+# AuthService
+# =============================================================================
+
+
+class TestAuthService:
+    """AuthService — authenticate and register."""
+
+    @patch("app.services.auth_service.UserRepository")
+    def test_authenticate_success(self, mock_user):
+        user = MagicMock(username="alice")
+        user.check_password.return_value = True
+        mock_user.get_by_login.return_value = user
+
+        from app.services.auth_service import AuthService
+
+        result = AuthService.authenticate("alice", "pass123")
+        assert result.username == "alice"
+        mock_user.get_by_login.assert_called_once_with("alice")
+
+    @patch("app.services.auth_service.UserRepository")
+    def test_authenticate_user_not_found(self, mock_user):
+        mock_user.get_by_login.return_value = None
+
+        from app.services.auth_service import AuthService
+
+        with pytest.raises(ServiceError, match="Invalid email/username or password"):
+            AuthService.authenticate("nonexistent", "pass123")
+
+    @patch("app.services.auth_service.UserRepository")
+    def test_authenticate_wrong_password(self, mock_user):
+        user = MagicMock()
+        user.check_password.return_value = False
+        mock_user.get_by_login.return_value = user
+
+        from app.services.auth_service import AuthService
+
+        with pytest.raises(ServiceError, match="Invalid email/username or password"):
+            AuthService.authenticate("alice", "wrongpass")
+
+    @patch("app.services.auth_service.UserRepository")
+    def test_register_user_success(self, mock_user):
+        user = MagicMock(id=1, username="newuser")
+        mock_user.username_exists.return_value = False
+        mock_user.email_exists.return_value = False
+        mock_user.create_user.return_value = user
+
+        from app.services.auth_service import AuthService
+
+        result = AuthService.register_user("newuser", "new@x.com", "strongpass1")
+        assert result.username == "newuser"
+        mock_user.create_user.assert_called_once_with("newuser", "new@x.com")
+        user.set_password.assert_called_once_with("strongpass1")
+        mock_user.commit.assert_called_once()
+
+    @patch("app.services.auth_service.UserRepository")
+    def test_register_user_duplicate_username(self, mock_user):
+        mock_user.username_exists.return_value = True
+
+        from app.services.auth_service import AuthService
+
+        with pytest.raises(ServiceError, match="This username is already taken"):
+            AuthService.register_user("existing", "new@x.com", "strongpass1")
+
+    @patch("app.services.auth_service.UserRepository")
+    def test_register_user_short_username(self, mock_user):
+        from app.services.auth_service import AuthService
+
+        with pytest.raises(ServiceError, match="Username must be 3-20 characters"):
+            AuthService.register_user("ab", "new@x.com", "strongpass1")
+
+    @patch("app.services.auth_service.UserRepository")
+    def test_register_user_invalid_chars(self, mock_user):
+        from app.services.auth_service import AuthService
+
+        with pytest.raises(ServiceError, match="Username can only contain"):
+            AuthService.register_user("user name!", "new@x.com", "strongpass1")
+
+    @patch("app.services.auth_service.UserRepository")
+    def test_register_user_short_password(self, mock_user):
+        from app.services.auth_service import AuthService
+
+        with pytest.raises(ServiceError, match="Password must be at least 6 characters"):
+            AuthService.register_user("newuser", "new@x.com", "ab")
+
+    @patch("app.services.auth_service.UserRepository")
+    def test_register_user_commit_failure(self, mock_user):
+        user = MagicMock(id=1, username="newuser")
+        mock_user.username_exists.return_value = False
+        mock_user.email_exists.return_value = False
+        mock_user.create_user.return_value = user
+        mock_user.commit.side_effect = Exception("DB error")
+
+        from app.services.auth_service import AuthService
+
+        with pytest.raises(ServiceError, match="Registration failed"):
+            AuthService.register_user("newuser", "new@x.com", "strongpass1")
+        mock_user.rollback.assert_called_once()

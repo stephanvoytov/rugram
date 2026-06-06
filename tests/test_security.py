@@ -285,17 +285,109 @@ class TestAdminGuards:
         from app.models import User
 
         user = User.query.filter_by(username="admin").first()
+        admin_id = user.id
         user.is_admin = True
         db.session.commit()
         _logout(client)
 
         # Try to toggle admin off — should be protected
         _login(client, "admin", "admin1234")
-        r = client.post("/admin/users/1/toggle-admin", follow_redirects=True)
+        r = client.post(f"/admin/users/{admin_id}/toggle-admin", follow_redirects=True)
         # The last admin protection should prevent this
         # Either stays authenticated (admin active) or shows error
         r = client.get("/admin/")
         assert r.status_code == 200  # Still an admin
+
+    def _make_admin(self, client: FlaskClient, username: str, password: str):
+        """Register a user and promote to admin via DB (helper).
+
+        Returns (user_id, user) tuple for the admin user.
+        """
+        from app.models import User
+        from extensions import db
+
+        _create_user(client, username, f"{username}@x.com", password)
+        user = User.query.filter_by(username=username).first()
+        user.is_admin = True
+        db.session.commit()
+        _logout(client)
+        _login(client, username, password)
+        return user.id
+
+    def _find_user_id(self, username: str) -> int:
+        """Look up user id by username (safe across test cleanup)."""
+        from app.models import User
+
+        user = User.query.filter_by(username=username).first()
+        return user.id
+
+    def test_admin_toggle_admin_grant(self, client: FlaskClient):
+        """Admin can grant admin to another user."""
+        self._make_admin(client, "admin1", "pass1234")
+        _create_user(client, "bob", "bob@x.com", "bobpass")
+        bob_id = self._find_user_id("bob")
+        _login(
+            client, "admin1", "pass1234"
+        )  # Re-login as admin after bob's _create_user logs in as bob
+        r = client.post(f"/admin/users/{bob_id}/toggle-admin", follow_redirects=True)
+        assert r.status_code == 200
+        from app.models import User
+
+        bob = User.query.filter_by(username="bob").first()
+        assert bob.is_admin is True
+
+    def test_admin_toggle_moderator(self, client: FlaskClient):
+        """Admin can grant and revoke moderator."""
+        self._make_admin(client, "admin1", "pass1234")
+        _create_user(client, "bob", "bob@x.com", "bobpass")
+        bob_id = self._find_user_id("bob")
+        _login(client, "admin1", "pass1234")  # Re-login as admin
+        # Grant mod
+        r = client.post(f"/admin/users/{bob_id}/toggle-mod", follow_redirects=True)
+        assert r.status_code == 200
+        from app.models import User
+
+        bob = User.query.filter_by(username="bob").first()
+        assert bob.is_moderator is True
+        # Revoke mod
+        r = client.post(f"/admin/users/{bob_id}/toggle-mod", follow_redirects=True)
+        assert r.status_code == 200
+        bob = User.query.filter_by(username="bob").first()
+        assert bob.is_moderator is False
+
+    def test_admin_delete_user(self, client: FlaskClient):
+        """Admin can delete a regular user."""
+        self._make_admin(client, "admin1", "pass1234")
+        _create_user(client, "bob", "bob@x.com", "bobpass")
+        bob_id = self._find_user_id("bob")
+        _login(client, "admin1", "pass1234")  # Re-login as admin
+        r = client.post(f"/admin/users/{bob_id}/delete", follow_redirects=True)
+        assert r.status_code == 200
+        from app.models import User
+
+        bob = User.query.filter_by(username="bob").first()
+        assert bob is None  # Deleted
+
+    def test_admin_cannot_self_delete(self, client: FlaskClient):
+        """Admin cannot delete their own account."""
+        admin_id = self._make_admin(client, "admin1", "pass1234")
+        r = client.post(f"/admin/users/{admin_id}/delete", follow_redirects=True)
+        assert r.status_code == 200
+        from app.models import User
+
+        admin = User.query.filter_by(username="admin1").first()
+        assert admin is not None  # Still exists
+
+    def test_admin_dashboard_loads(self, client: FlaskClient):
+        """Dashboard renders with stats and chart data."""
+        self._make_admin(client, "admin1", "pass1234")
+        # Create some posts first
+        client.post("/create", data={"text": "First post"}, follow_redirects=True)
+        client.post("/create", data={"text": "Second post"}, follow_redirects=True)
+        r = client.get("/admin/")
+        assert r.status_code == 200
+        content = r.data.decode("utf-8").lower()
+        assert "2" in content or "second" in content  # Posts show up somewhere
 
 
 # =============================================================================
