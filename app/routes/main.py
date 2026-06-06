@@ -1021,7 +1021,9 @@ def settings() -> Response:
                 flash(_('Account deleted'), 'success')
                 return redirect(url_for('auth.login'))
 
-            return redirect(url_for('main.settings', saved='1'))
+            # Preserve active tab across redirect
+            active_tab = request.form.get('active_tab', 'account')
+            return redirect(url_for('main.settings', saved='1', tab=active_tab))
 
         except Exception:
             db.session.rollback()
