@@ -94,8 +94,6 @@ RU: dict[str, str] = {
     # ── Misc ──
     'search posts…':
         'поиск постов…',
-    'search':
-        'поиск',
     'Type something...':
         'Напишите что-нибудь...',
     'Write a comment...':
@@ -114,8 +112,6 @@ RU: dict[str, str] = {
         'Все уведомления',
     'Error loading chats':
         'Ошибка загрузки чатов',
-    'log in':
-        'войти',
     'to leave a comment':
         'чтобы оставить комментарий',
 
@@ -124,12 +120,8 @@ RU: dict[str, str] = {
         'Справочник TTY-терминала',
     'TTY (Teletype) is an alternative interface for Rugram. All functionality is available through a terminal emulator with commands like':
         'TTY (Teletype) — альтернативный интерфейс управления Rugram. Весь функционал доступен через эмуляцию терминала с командами',
-    'cd, ls, grep, echo, man, history, export and more — each works as close as possible to a real Unix terminal.':
-        'cd, ls, grep, echo, man, history, export и другие — каждая команда работает максимально близко к реальному Unix-терминалу.',
     'This mode is for those who prefer the keyboard: arrow key history, --help on every command.':
         'Режим для тех, кто привык к клавиатуре: история стрелками, --help на каждой команде.',
-    'Open TTY':
-        'Открыть TTY',
     'Keyboard Shortcuts':
         'Горячие клавиши',
     'Focus input':
@@ -165,16 +157,10 @@ RU: dict[str, str] = {
     # ── TTY intro fragments ──
     'Use the':
         'Используйте кнопку',
-    'button in the top bar to open the terminal, or':
-        'в верхней панели чтобы открыть терминал, или',
-    'to return.':
-        'чтобы вернуться.',
     'All commands are in English — type':
         'Все команды на английском — введите',
     'in the terminal to get started.':
         'в терминале чтобы начать.',
-    'and more — each works as close as possible to a real Unix terminal.':
-        'и другие — каждая команда работает максимально близко к реальному Unix-терминалу.',
 
     # ── TTY command descriptions ──
     'All commands behave like a real Unix terminal: cd, ls, grep, echo, man, history, export and more.':
@@ -254,9 +240,6 @@ RU: dict[str, str] = {
 
     # ── Help page ──
     'Rugram Help': 'Справка Rugram',
-    'about': 'о проекте',
-    'commands': 'команды',
-    'filesystem': 'файловая система',
     'All commands are in English': 'Все команды на английском',
     'button in the top bar to open the terminal.': 'в верхней панели чтобы открыть терминал.',
 

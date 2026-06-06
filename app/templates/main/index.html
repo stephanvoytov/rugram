@@ -54,7 +54,7 @@
     {% if tag_filter %}<input type="hidden" name="tag" value="{{ tag_filter }}">{% endif %}
     {% if request.args.get('followed') %}<input type="hidden" name="followed" value="1">{% endif %}
     <input type="hidden" name="sort" value="{{ sort_by }}">
-    <button type="submit" class="btn-term" style="padding:6px 12px">[{{ _('search') }}]</button>
+    <button type="submit" class="btn-term" style="padding:6px 12px">[search]</button>
     {% if search_query %}<a href="{{ url_for('main.index', tag=tag_filter, sort=sort_by, followed=request.args.get('followed', '')) }}" class="btn-term" style="padding:6px 12px;text-decoration:none">[×]</a>{% endif %}
 </form>
 
