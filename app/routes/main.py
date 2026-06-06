@@ -940,6 +940,10 @@ def settings() -> Response:
 
     if form.validate_on_submit():
         try:
+            # Lowercase username before any checks so validator doesn't reject current value
+            if form.new_username.data:
+                form.new_username.data = form.new_username.data.lower()
+
             # Проверка текущего пароля
             if not current_user.check_password(form.current_password.data):
                 flash(_('Current password is incorrect'), 'danger')
