@@ -18,7 +18,7 @@
             <span class="post-stat">↻ {{ post.reposts_count }}</span>
         </span>
     </div>
-    <div class="post-body">{{- post.text | linkify_tags -}}{%- if post.image %}
+    <div class="post-body"><p class="post-text">{{- post.text | linkify_tags -}}</p>{%- if post.image %}
         <img src="{{ url_for('static', filename='uploads/posts/thumb_' + post.image) }}"
              data-full-img="{{ url_for('static', filename='uploads/posts/' + post.image) }}"
              alt="Post image" class="post-img-clickable" loading="lazy">
