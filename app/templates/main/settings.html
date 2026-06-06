@@ -189,24 +189,7 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // ════════════ TOAST ON SAVE + RESTORE TAB ════════════
-    var params = new URLSearchParams(window.location.search);
-    if (params.get('saved') === '1') {
-        // Show toast
-        if (typeof window.showToast === 'function') {
-            window.showToast('[*] settings', 'settings saved', 'success');
-        }
-        // Restore active tab
-        var tabParam = params.get('tab');
-        if (tabParam && ['account','appearance','notifications','danger'].indexOf(tabParam) !== -1) {
-            switchTab(tabParam);
-        }
-        // Clean URL (remove ?saved & ?tab) without page reload
-        var url = window.location.pathname + window.location.hash;
-        window.history.replaceState({}, '', url);
-    }
-
-    // ════════════ TAB SWITCHING ════════════
+    // ════════════ TAB SWITCHING (defined FIRST, used by restore code below) ════════════
     var tabs = document.querySelectorAll('.st-tab');
     var panels = {
         account:      document.getElementById('panel-account'),
@@ -231,6 +214,23 @@ document.addEventListener('DOMContentLoaded', function() {
     tabs.forEach(function(tab) {
         tab.addEventListener('click', function() { switchTab(tab.dataset.tab); });
     });
+
+    // ════════════ TOAST ON SAVE + RESTORE TAB ════════════
+    var params = new URLSearchParams(window.location.search);
+    if (params.get('saved') === '1') {
+        // Show toast
+        if (typeof window.showToast === 'function') {
+            window.showToast('[*] settings', 'settings saved', 'success');
+        }
+        // Restore active tab (switchTab already defined above)
+        var tabParam = params.get('tab');
+        if (tabParam && ['account','appearance','notifications','danger'].indexOf(tabParam) !== -1) {
+            switchTab(tabParam);
+        }
+        // Clean URL (remove ?saved & ?tab) without page reload
+        var url = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, '', url);
+    }
 
     // ════════════ DELETE ACCOUNT MODAL ════════════
     var deleteCheckbox = document.getElementById('delete_account');
