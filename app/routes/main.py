@@ -1,19 +1,17 @@
 import os
-import logging
 from datetime import datetime
 
 from flask import render_template, flash, redirect, url_for, Blueprint, request, jsonify, abort, current_app, Response, send_from_directory, session
 from flask_login import login_required, current_user, logout_user
-from sqlalchemy.orm import joinedload, load_only
 
 from app.translations import _
 from app.forms import ProfileForm, SettingsForm
-from app.models import User, Post, Like, Comment, Follow, Notification, PushSubscription, Chat, ChatParticipant, Message, SavedPost, Repost, Tag, PostTag, utcnow
-from app.crypto import encrypt, decrypt
 from app.limiter import limiter
-from app.push import send_message_push, send_notification_push
-from extensions import db
-from app.routes.helpers import logger, process_avatar, process_chat_image, is_allowed_image, _create_notification_and_push, _require_chat_participant
+from app.logger import log
+from app.routes.helpers import process_avatar, process_chat_image, is_allowed_image, _require_chat_participant
+from app.push import send_notification_push
+from app.services import PostService, FeedService, ChatService, NotificationService, SocialService
+from app.services.base import ServiceError, NotFoundError, ForbiddenError
 
 main_bp = Blueprint('main', __name__, template_folder='../templates')
 
@@ -22,6 +20,9 @@ main_bp = Blueprint('main', __name__, template_folder='../templates')
 @main_bp.route('/index')
 def index() -> Response:
     from sqlalchemy import case, desc as sql_desc
+    from sqlalchemy.orm import joinedload
+    from extensions import db
+    from app.models import Post, Tag, PostTag, Follow
     search_query = request.args.get('q', '').strip().lower()
     tag_filter = request.args.get('tag', '').strip().lower()
     sort_by = request.args.get('sort', 'new').strip().lower()
@@ -64,8 +65,7 @@ def index() -> Response:
             .paginate(page=page, per_page=per_page)
 
     # Trending tags for sidebar
-    trending_tags = Tag.query.filter(Tag.post_count > 0) \
-        .order_by(Tag.post_count.desc()).limit(10).all()
+    trending_tags = FeedService.get_trending_tags()
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.args.get('ajax') == '1':
         return render_template(
@@ -87,22 +87,21 @@ def index() -> Response:
 
 @main_bp.route('/profile/<user_id_or_username>')
 def profile(user_id_or_username: str) -> Response:
-    # Try ID first, fall back to username (to handle digit-only usernames like "12345")
     try:
-        user = User.query.get(int(user_id_or_username))
-    except (ValueError, TypeError):
-        user = None
-    if not user:
-        user = User.query.filter(User.username == user_id_or_username).first()
-    if user:
-        is_following = user.is_followed_by(current_user) if current_user.is_authenticated else False
-        return render_template('main/profile.html', user=user, is_following=is_following)
-    return abort(404, description='Такого пользователя не существует')
+        try:
+            user = SocialService.get_user(int(user_id_or_username))
+        except (ValueError, TypeError):
+            user = SocialService.get_user_by_username(user_id_or_username)
+    except NotFoundError:
+        abort(404, description='Такого пользователя не существует')
+    is_following = user.is_followed_by(current_user) if current_user.is_authenticated else False
+    return render_template('main/profile.html', user=user, is_following=is_following)
 
 
 @main_bp.route('/edit_profile', methods=['GET', 'POST'])
 @login_required
 def edit_profile() -> Response:
+    from extensions import db
     form = ProfileForm()
 
     if form.validate_on_submit():
@@ -120,7 +119,7 @@ def edit_profile() -> Response:
             flash(_('Profile updated!'), 'success')
             return redirect(url_for('main.profile', user_id_or_username=current_user.username))
 
-        except Exception as e:
+        except Exception:
             db.session.rollback()
             flash(_('Error updating profile'), 'danger')
 
@@ -134,40 +133,33 @@ def edit_profile() -> Response:
 @login_required
 @limiter.limit("20/minute")
 def follow_toggle(username: str) -> Response:
-    target = User.query.filter(User.username == username).first()
-    if not target:
+    try:
+        # Look up target first for push notification and followers_count
+        target = SocialService.get_user_by_username(username)
+        result = SocialService.toggle_follow(current_user.id, username)
+        followed = result['followed']
+
+        # Send push notification for new follows
+        if followed:
+            try:
+                send_notification_push(target.id, current_user.username, 'follow')
+            except Exception:
+                log.warning('push notification failed')
+
+        return jsonify({
+            'status': 'followed' if followed else 'unfollowed',
+            'followers_count': target.followers_count
+        })
+    except NotFoundError:
         return jsonify({'error': 'Пользователь не найден'}), 404
-    if target == current_user:
-        return jsonify({'error': 'Нельзя подписаться на себя'}), 400
-
-    existing = Follow.query.filter_by(
-        follower_id=current_user.id,
-        followed_id=target.id
-    ).first()
-
-    if existing:
-        db.session.delete(existing)
-        db.session.commit()
-        return jsonify({'status': 'unfollowed', 'followers_count': target.followers_count})
-    else:
-        follow = Follow(follower_id=current_user.id, followed_id=target.id)
-        db.session.add(follow)
-
-        # Создаем уведомление для пользователя, на которого подписались
-        notification = _create_notification_and_push(user_id=target.id, actor_id=current_user.id, type_='follow')
-
-        db.session.commit()
-
-        # Push-уведомление
-        try:
-            send_notification_push(target.id, current_user.username, 'follow')
-        except Exception:
-            logger.warning('push notification failed')
-        return jsonify({'status': 'followed', 'followers_count': target.followers_count})
+    except ServiceError as e:
+        return jsonify({'error': e.message}), e.status_code
 
 
 @main_bp.route('/followers/<username>')
 def followers_page(username: str) -> Response:
+    from app.models import User, Follow
+    from sqlalchemy.orm import joinedload
     user = User.query.filter(User.username == username).first()
     if not user:
         return abort(404)
@@ -179,6 +171,8 @@ def followers_page(username: str) -> Response:
 
 @main_bp.route('/following/<username>')
 def following_page(username: str) -> Response:
+    from app.models import User, Follow
+    from sqlalchemy.orm import joinedload
     user = User.query.filter(User.username == username).first()
     if not user:
         return abort(404)
@@ -191,6 +185,7 @@ def following_page(username: str) -> Response:
 @main_bp.route('/saved')
 @login_required
 def saved_posts() -> Response:
+    from app.models import SavedPost
     page = request.args.get('page', 1, type=int)
     saved = SavedPost.query.filter_by(user_id=current_user.id)\
         .order_by(SavedPost.created_date.desc())\
@@ -208,38 +203,38 @@ def chat() -> Response:
 @main_bp.route('/api/notifications/unread-count')
 @login_required
 def notifications_unread_count() -> Response:
-    count = Notification.query.filter_by(user_id=current_user.id, is_read=False).count()
+    count = NotificationService.unread_count(current_user.id)
     return jsonify({'count': count})
 
 
 @main_bp.route('/api/notifications')
 @login_required
 def notifications_list() -> Response:
-    page = request.args.get('page', 1, type=int)
-    per_page = current_app.config.get('NOTIFICATIONS_PER_PAGE', 10)
+    """Get notifications for the current user (cursor-based pagination)."""
+    cursor = request.args.get('cursor', None, type=int)
+    limit = min(request.args.get('limit', 10, type=int) or 10, 50)
 
-    notifications = Notification.query.filter_by(user_id=current_user.id)\
-        .options(joinedload(Notification.actor))\
-        .order_by(Notification.created_date.desc())\
-        .paginate(page=page, per_page=per_page)
+    notifications, next_cursor, has_more = NotificationService.get_notifications(
+        current_user.id, cursor=cursor, limit=limit
+    )
 
     return jsonify({
         'notifications': [{
             'id': n.id,
             'type': n.type,
             'actor': {
-                'id': n.actor.id,
-                'username': n.actor.username,
-                'profile_image': n.actor.profile_image
-            },
+                'id': n._actor.id,
+                'username': n._actor.username,
+                'profile_image': n._actor.profile_image
+            } if getattr(n, '_actor', None) else None,
             'post_id': n.post_id,
             'text': n.text,
             'is_read': n.is_read,
             'created_date': n.created_date.isoformat()
-        } for n in notifications.items],
-        'total': notifications.total,
-        'pages': notifications.pages,
-        'current_page': notifications.page
+        } for n in notifications],
+        'cursor': next_cursor,
+        'has_more': has_more,
+        'limit': limit,
     })
 
 
@@ -247,11 +242,14 @@ def notifications_list() -> Response:
 @main_bp.route('/api/saved')
 @login_required
 def api_saved_posts() -> Response:
-    page = request.args.get('page', 1, type=int)
-    saved = SavedPost.query.filter_by(user_id=current_user.id)\
-        .options(joinedload(SavedPost.post).joinedload(Post.author))\
-        .order_by(SavedPost.created_date.desc())\
-        .paginate(page=page, per_page=current_app.config.get('POSTS_PER_PAGE', 15))
+    """Get saved posts for the current user."""
+    cursor = request.args.get('cursor', None, type=int)
+    limit = min(request.args.get('limit', 15, type=int) or 15, 50)
+
+    saved, next_cursor, has_more = PostService.get_saved_posts(
+        current_user.id, cursor=cursor, limit=limit
+    )
+
     return jsonify({
         'posts': [{
             'id': s.post.id,
@@ -266,22 +264,26 @@ def api_saved_posts() -> Response:
             'is_saved': True,
             'time': s.post.created_date.isoformat(),
             'saved_date': s.created_date.isoformat()
-        } for s in saved.items],
-        'page': saved.page,
-        'pages': saved.pages,
-        'total': saved.total
+        } for s in saved],
+        'cursor': next_cursor,
+        'has_more': has_more,
+        'limit': limit,
     })
 
 
 # API endpoint for feed (JSON, for terminal inline — independent from GUI DOM)
 @main_bp.route('/api/feed')
 def api_feed() -> Response:
-    page = request.args.get('page', 1, type=int)
-    per_page = min(request.args.get('per_page', 20, type=int) or 20, 100)
-    pagination = Post.query.filter(Post.is_deleted == False)\
-        .options(joinedload(Post.author))\
-        .order_by(Post.id.desc())\
-        .paginate(page=page, per_page=per_page, error_out=False)
+    """Public feed — list non-deleted posts (cursor-based pagination)."""
+    cursor = request.args.get('cursor', None, type=int)
+    limit = min(request.args.get('limit', 20, type=int) or 20, 100)
+
+    posts, next_cursor, has_more = FeedService.get_feed(
+        user_id=current_user.id if current_user.is_authenticated else None,
+        cursor=cursor,
+        limit=limit,
+    )
+
     return jsonify({
         'posts': [{
             'id': p.id,
@@ -296,11 +298,10 @@ def api_feed() -> Response:
             'is_liked': p.is_liked_by(current_user) if current_user.is_authenticated else False,
             'is_saved': p.is_saved_by(current_user) if current_user.is_authenticated else False,
             'time': p.created_date.isoformat()
-        } for p in pagination.items],
-        'page': pagination.page,
-        'pages': pagination.pages,
-        'total': pagination.total,
-        'has_next': pagination.has_next
+        } for p in posts],
+        'cursor': next_cursor,
+        'has_more': has_more,
+        'limit': limit,
     })
 
 
@@ -308,6 +309,8 @@ def api_feed() -> Response:
 @main_bp.route('/api/followers/<username>')
 @login_required
 def api_followers(username: str) -> Response:
+    from app.models import User, Follow
+    from sqlalchemy.orm import joinedload
     user = User.query.filter(User.username == username).first()
     if not user:
         return jsonify({'error': 'User not found'}), 404
@@ -331,6 +334,8 @@ def api_followers(username: str) -> Response:
 @main_bp.route('/api/following/<username>')
 @login_required
 def api_following(username: str) -> Response:
+    from app.models import User, Follow
+    from sqlalchemy.orm import joinedload
     user = User.query.filter(User.username == username).first()
     if not user:
         return jsonify({'error': 'User not found'}), 404
@@ -353,23 +358,18 @@ def api_following(username: str) -> Response:
 @main_bp.route('/notifications/mark-all-read', methods=['POST'])
 @login_required
 def notifications_mark_all_read() -> Response:
-    Notification.query.filter_by(user_id=current_user.id, is_read=False).update({'is_read': True})
-    db.session.commit()
+    NotificationService.mark_all_read(current_user.id)
     return jsonify({'status': 'success'})
 
 
 @main_bp.route('/notifications/<int:notification_id>/mark-read', methods=['POST'])
 @login_required
 def notification_mark_read(notification_id: int) -> Response:
-    notification = Notification.query.filter_by(
-        id=notification_id,
-        user_id=current_user.id
-    ).first_or_404()
-
-    notification.is_read = True
-    db.session.commit()
-
-    return jsonify({'status': 'success'})
+    try:
+        NotificationService.mark_read(notification_id, current_user.id)
+        return jsonify({'status': 'success'})
+    except NotFoundError:
+        abort(404)
 
 
 @main_bp.route('/notifications')
@@ -383,6 +383,9 @@ def notifications_page() -> Response:
 @login_required
 def push_subscribe() -> Response:
     """Сохранить подписку на push-уведомления."""
+    from app.models import PushSubscription
+    from extensions import db
+
     try:
         data = request.get_json()
         if not data:
@@ -431,6 +434,9 @@ def push_subscribe() -> Response:
 @login_required
 def push_unsubscribe() -> Response:
     """Удалить подписку на push-уведомления."""
+    from app.models import PushSubscription
+    from extensions import db
+
     try:
         data = request.get_json()
         endpoint = data.get('endpoint') if data else None
@@ -458,254 +464,123 @@ def push_unsubscribe() -> Response:
 @login_required
 def chat_start(username: str) -> Response:
     try:
-        target = User.query.filter(User.username == username).first()
-        if not target:
-            return jsonify({'error': 'Пользователь не найден'}), 404
-
-        # Ищем существующий чат между двумя пользователями
-        my_chat_ids = [cp.chat_id for cp in ChatParticipant.query.filter_by(user_id=current_user.id).all()]
-        if my_chat_ids:
-            common = ChatParticipant.query.filter(
-                ChatParticipant.chat_id.in_(my_chat_ids),
-                ChatParticipant.user_id == target.id
-            ).first()
-            if common:
-                return jsonify({'chat_id': common.chat_id})
-
-        # Создаем новый чат
-        chat = Chat()
-        db.session.add(chat)
-        db.session.flush()
-
-        participant1 = ChatParticipant(chat_id=chat.id, user_id=current_user.id)
-        participant2 = ChatParticipant(chat_id=chat.id, user_id=target.id)
-
-        db.session.add(participant1)
-        db.session.add(participant2)
-
-        db.session.commit()
-
-        return jsonify({'chat_id': chat.id})
-    except Exception as e:
-        db.session.rollback()
-        logger.exception('chat_start failed')
+        result = ChatService.start_or_get_chat(current_user.id, username)
+        return jsonify(result)
+    except NotFoundError as e:
+        return jsonify({'error': e.message}), 404
+    except ServiceError as e:
+        return jsonify({'error': e.message}), e.status_code
+    except Exception:
+        log.exception('chat_start failed')
         return jsonify({'error': 'Internal server error'}), 500
 
 
 @main_bp.route('/chat/<int:chat_id>/messages')
 @login_required
 def chat_messages(chat_id: int) -> Response:
-    chat = Chat.query.get_or_404(chat_id)
+    try:
+        after = request.args.get('after', 0, type=int)
+        before = request.args.get('before', 0, type=int)
+        ts = request.args.get('ts', '', type=str)
+        limit = min(request.args.get('limit', 50, type=int) or 50, 200)
 
-    participant, err = _require_chat_participant(chat_id)
-    if err:
-        return err
+        result = ChatService.get_messages(
+            chat_id=chat_id,
+            user_id=current_user.id,
+            after=after,
+            before=before,
+            ts=ts,
+            limit=limit,
+        )
 
-    after = request.args.get('after', 0, type=int)
-    before = request.args.get('before', 0, type=int)
-    ts = request.args.get('ts', '', type=str)
-    limit = min(request.args.get('limit', 50, type=int) or 50, 200)
+        # Enrich messages with author info (who is not available from service)
+        other_user_info = result.get('other_user')
+        for msg_list_key in ('messages', 'updates'):
+            for msg in result[msg_list_key]:
+                if msg['author_id'] == current_user.id:
+                    msg['author'] = {
+                        'id': current_user.id,
+                        'username': current_user.username,
+                        'profile_image': current_user.profile_image,
+                    }
+                elif other_user_info:
+                    msg['author'] = {
+                        'id': other_user_info['id'],
+                        'username': other_user_info['username'],
+                        'profile_image': other_user_info['profile_image'],
+                    }
+                if msg.get('image'):
+                    msg['image_url'] = url_for(
+                        'main.chat_image', chat_id=chat_id, filename=msg['image']
+                    )
 
-    # Отмечаем чужие непрочитанные сообщения как прочитанные (только первая загрузка, не пагинация)
-    if not before and not after:
-        now = utcnow()
-        unread = Message.query.filter(
-            Message.chat_id == chat_id,
-            Message.author_id != current_user.id,
-            Message.is_read == False
-        ).update({'is_read': True, 'read_at': now})
-        if unread:
-            db.session.commit()
+        return jsonify(result)
 
-    query = Message.query.filter(Message.chat_id == chat_id)
-
-    if before:
-        # Старые сообщения (пагинация вверх)
-        query = query.filter(Message.id < before)
-        query = query.order_by(Message.created_date.desc())
-    elif after:
-        # Новые сообщения (polling)
-        query = query.filter(Message.id > after)
-        query = query.order_by(Message.created_date.asc())
-    else:
-        # Первая загрузка — с конца
-        query = query.order_by(Message.created_date.desc())
-
-    # Запрашиваем limit+1 чтобы точно знать, есть ли ещё
-    messages = query.limit(limit + 1).all()
-    has_more = len(messages) > limit
-    if has_more:
-        messages = messages[:limit]
-
-    # Если грузили старые — переворачиваем в хронологическом порядке
-    if before:
-        messages.reverse()
-    elif not after and not before:
-        messages.reverse()
-
-    # ── Updates: edits/deletes to already-known messages ──
-    updates = []
-    if ts and after:
-        try:
-            ts_dt = datetime.fromisoformat(ts)
-            if ts_dt.tzinfo:
-                ts_dt = ts_dt.replace(tzinfo=None)
-            updates = Message.query.filter(
-                Message.chat_id == chat_id,
-                Message.id <= after,
-                Message.updated_at > ts_dt
-            ).order_by(Message.created_date.asc()).all()
-        except ValueError:
-            pass
-
-    # Обновляем время последнего чтения и онлайн-статус (только при загрузке первых сообщений)
-    # last_seen обновляется не чаще 30 секунд — write throttle
-    if not before and not after:
-        participant.last_read_at = utcnow()
-        now = utcnow()
-        if not current_user.last_seen or (now - current_user.last_seen).total_seconds() > 30:
-            current_user.last_seen = now
-        db.session.commit()
-
-    # Информация о собеседнике
-    other_participant = ChatParticipant.query.filter(
-        ChatParticipant.chat_id == chat_id,
-        ChatParticipant.user_id != current_user.id
-    ).first()
-    other_user_info = None
-    is_other_typing = False
-    if other_participant:
-        other = other_participant.user
-        other_user_info = {
-            'id': other.id,
-            'username': other.username,
-            'profile_image': other.profile_image,
-            'is_online': other.is_online,
-            'last_seen': other.last_seen_str()
-        }
-        # Проверяем, печатает ли собеседник
-        if other_participant.last_typing_at:
-            typing_delta = utcnow() - other_participant.last_typing_at
-            is_other_typing = typing_delta.total_seconds() < 4
-
-    return jsonify({
-        'messages': [{
-            'id': msg.id,
-            'author_id': msg.author.id,
-            'text': decrypt(msg.text) if msg.text else '',
-            'image': msg.image,
-            'image_url': url_for('main.chat_image', chat_id=chat_id, filename=msg.image) if msg.image else None,
-            'created_date': msg.created_date.isoformat(),
-            'edited_at': msg.edited_at.isoformat() if msg.edited_at else None,
-            'is_read': msg.is_read,
-            'is_deleted': msg.text == '' and msg.image is None,
-            'author': {
-                'id': msg.author.id,
-                'username': msg.author.username,
-                'profile_image': msg.author.profile_image
-            }
-        } for msg in messages],
-        'updates': [{
-            'id': msg.id,
-            'author_id': msg.author.id,
-            'text': decrypt(msg.text) if msg.text else '',
-            'image': msg.image,
-            'image_url': url_for('main.chat_image', chat_id=chat_id, filename=msg.image) if msg.image else None,
-            'created_date': msg.created_date.isoformat(),
-            'edited_at': msg.edited_at.isoformat() if msg.edited_at else None,
-            'is_read': msg.is_read,
-            'is_deleted': msg.text == '' and msg.image is None,
-            'author': {
-                'id': msg.author.id,
-                'username': msg.author.username,
-                'profile_image': msg.author.profile_image
-            }
-        } for msg in updates],
-        'other_user': other_user_info,
-        'is_typing': is_other_typing,
-        'has_more': has_more
-    })
+    except ForbiddenError:
+        return jsonify({'error': 'Access denied'}), 403
 
 
 @main_bp.route('/chat/<int:chat_id>/send', methods=['POST'])
 @login_required
 @limiter.limit("60/minute")
 def chat_send(chat_id: int) -> Response:
-    chat = Chat.query.get_or_404(chat_id)
-
-    participant, err = _require_chat_participant(chat_id)
-    if err:
-        return err
-
-    text = None
-    image_filename = None
-
-    if request.content_type and 'multipart/form-data' in request.content_type:
-        # Multipart: может быть текст + файл
-        text = request.form.get('text', '').strip()
-        image_file = request.files.get('image')
-        if image_file and image_file.filename:
-            if not is_allowed_image(image_file.filename):
-                return jsonify({'error': _('Invalid file type')}), 400
-            image_filename = process_chat_image(image_file)
-            if not image_filename:
-                return jsonify({'error': _('Failed to process image')}), 400
-    else:
-        # JSON: только текст
-        data = request.get_json(silent=True)
-        if data:
-            text = data.get('text', '').strip()
-
-    if not text and not image_filename:
-        return jsonify({'error': _('Message cannot be empty')}), 400
-
-    encrypted_text = encrypt(text) if text else ''
-
-    new_message = Message(
-        chat_id=chat_id,
-        author_id=current_user.id,
-        text=encrypted_text,
-        image=image_filename
-    )
-
-    current_user.last_seen = utcnow()
-    db.session.add(new_message)
-    db.session.commit()
-
-    # Отправляем push-уведомление получателю
     try:
-        other_participant = ChatParticipant.query.filter(
-            ChatParticipant.chat_id == chat_id,
-            ChatParticipant.user_id != current_user.id
-        ).first()
-        if other_participant:
-            preview = text or '[image]'
-            send_message_push(
-                chat_id=chat_id,
-                recipient_id=other_participant.user_id,
-                sender_username=current_user.username,
-                message_preview=preview
-            )
-    except Exception as e:
-        logger.warning('Push notification failed in chat_send: %s', e)
+        text = None
+        image_filename = None
 
-    return jsonify({
-        'message': {
-            'id': new_message.id,
-            'text': text or '',
-            'image': image_filename,
-            'image_url': url_for('main.chat_image', chat_id=chat_id, filename=image_filename) if image_filename else None,
-            'created_date': new_message.created_date.isoformat(),
-            'is_read': new_message.is_read,
-            'edited_at': None,
-            'is_deleted': False,
-            'author': {
-                'id': current_user.id,
-                'username': current_user.username,
-                'profile_image': current_user.profile_image
+        if request.content_type and 'multipart/form-data' in request.content_type:
+            # Multipart: может быть текст + файл
+            text = request.form.get('text', '').strip()
+            image_file = request.files.get('image')
+            if image_file and image_file.filename:
+                if not is_allowed_image(image_file.filename):
+                    return jsonify({'error': _('Invalid file type')}), 400
+                image_filename = process_chat_image(image_file)
+                if not image_filename:
+                    return jsonify({'error': _('Failed to process image')}), 400
+        else:
+            # JSON: только текст
+            data = request.get_json(silent=True)
+            if data:
+                text = data.get('text', '').strip()
+
+        if not text and not image_filename:
+            return jsonify({'error': _('Message cannot be empty')}), 400
+
+        # Verify chat exists before calling service (service raises ForbiddenError for non-existent chats)
+        from extensions import db
+        from app.models import Chat
+        if not db.session.get(Chat, chat_id):
+            return jsonify({'error': _('Chat not found')}), 404
+
+        msg = ChatService.send_message(
+            chat_id, current_user.id, text=text, image_filename=image_filename
+        )
+
+        return jsonify({
+            'message': {
+                'id': msg.id,
+                'text': text or '',
+                'image': image_filename,
+                'image_url': url_for('main.chat_image', chat_id=chat_id, filename=image_filename) if image_filename else None,
+                'created_date': msg.created_date.isoformat(),
+                'is_read': msg.is_read,
+                'edited_at': None,
+                'is_deleted': False,
+                'author': {
+                    'id': current_user.id,
+                    'username': current_user.username,
+                    'profile_image': current_user.profile_image,
+                }
             }
-        }
-    })
+        })
+
+    except ForbiddenError:
+        return jsonify({'error': _('Access denied')}), 403
+    except NotFoundError:
+        abort(404)
+    except ServiceError as e:
+        return jsonify({'error': e.message}), e.status_code
 
 
 @main_bp.route('/chat/<int:chat_id>/image/<filename>')
@@ -734,160 +609,82 @@ def chat_image(chat_id: int, filename: str) -> Response:
 @login_required
 def chat_edit_message(chat_id: int, message_id: int) -> Response:
     """Edit a message text (author only)."""
-    participant, err = _require_chat_participant(chat_id)
-    if err:
-        return err
-    msg = Message.query.filter_by(id=message_id, chat_id=chat_id).first_or_404()
-    if msg.author_id != current_user.id:
-        return jsonify({'error': _('Access denied')}), 403
-    data = request.get_json(silent=True)
-    if not data:
-        return jsonify({'error': _('Invalid request')}), 400
-    text = data.get('text', '').strip()
-    if not text:
-        return jsonify({'error': _('Message cannot be empty')}), 400
-    msg.text = encrypt(text)
-    msg.edited_at = utcnow()
-    msg.updated_at = utcnow()
-    db.session.commit()
-    return jsonify({
-        'message': {
-            'id': msg.id,
-            'text': text,
-            'image': msg.image,
-            'image_url': url_for('main.chat_image', chat_id=chat_id, filename=msg.image) if msg.image else None,
-            'created_date': msg.created_date.isoformat(),
-            'edited_at': msg.edited_at.isoformat() if msg.edited_at else None,
-            'is_read': msg.is_read,
-            'author': {
-                'id': current_user.id,
-                'username': current_user.username,
-                'profile_image': current_user.profile_image
+    try:
+        data = request.get_json(silent=True)
+        if not data:
+            return jsonify({'error': _('Invalid request')}), 400
+        text = data.get('text', '').strip()
+        if not text:
+            return jsonify({'error': _('Message cannot be empty')}), 400
+
+        msg = ChatService.edit_message(chat_id, message_id, current_user.id, text)
+
+        return jsonify({
+            'message': {
+                'id': msg.id,
+                'text': text,
+                'image': msg.image,
+                'image_url': url_for('main.chat_image', chat_id=chat_id, filename=msg.image) if msg.image else None,
+                'created_date': msg.created_date.isoformat(),
+                'edited_at': msg.edited_at.isoformat() if msg.edited_at else None,
+                'is_read': msg.is_read,
+                'author': {
+                    'id': current_user.id,
+                    'username': current_user.username,
+                    'profile_image': current_user.profile_image,
+                }
             }
-        }
-    })
+        })
+
+    except ForbiddenError:
+        return jsonify({'error': _('Access denied')}), 403
+    except NotFoundError:
+        abort(404)
+    except ServiceError as e:
+        return jsonify({'error': e.message}), e.status_code
 
 
 @main_bp.route('/chat/<int:chat_id>/messages/<int:message_id>', methods=['DELETE'])
 @login_required
 def chat_delete_message(chat_id: int, message_id: int) -> Response:
     """Delete a message (author only)."""
-    participant, err = _require_chat_participant(chat_id)
-    if err:
-        return err
-    msg = Message.query.filter_by(id=message_id, chat_id=chat_id).first_or_404()
-    if msg.author_id != current_user.id:
+    try:
+        ChatService.delete_message(chat_id, message_id, current_user.id)
+        return jsonify({'status': 'deleted'})
+    except ForbiddenError:
         return jsonify({'error': _('Access denied')}), 403
-    msg.text = ''
-    msg.image = None
-    msg.updated_at = utcnow()
-    db.session.commit()
-    return jsonify({'status': 'deleted'})
+    except NotFoundError:
+        abort(404)
+
 
 @main_bp.route('/chat/<int:chat_id>/typing', methods=['POST'])
 @login_required
 def chat_typing(chat_id: int) -> Response:
-    participant, err = _require_chat_participant(chat_id)
-    if err:
-        return err
-
-    participant.last_typing_at = utcnow()
-    db.session.commit()
-
-    return jsonify({'status': 'ok'})
+    try:
+        ChatService.set_typing(chat_id, current_user.id)
+        return jsonify({'status': 'ok'})
+    except ForbiddenError:
+        return jsonify({'error': 'Access denied'}), 403
 
 
 @main_bp.route('/api/chat/list')
 @login_required
 def chat_list() -> Response:
     try:
-        # Собираем ID чатов одним запросом
-        participations = ChatParticipant.query.filter_by(user_id=current_user.id)\
-            .options(joinedload(ChatParticipant.user)).all()
-        chat_ids = [p.chat_id for p in participations]
-
-        # Загружаем всех других участников одним запросом
-        other_by_chat = {}
-        if chat_ids:
-            other_participations = ChatParticipant.query.filter(
-                ChatParticipant.chat_id.in_(chat_ids),
-                ChatParticipant.user_id != current_user.id
-            ).options(joinedload(ChatParticipant.user)).all()
-            other_by_chat = {p.chat_id: p for p in other_participations}
-
-        # Загружаем последние сообщения для всех чатов одним подзапросом
-        from sqlalchemy import func
-        latest_by_chat = {}
-        if chat_ids:
-            latest_sub = db.session.query(
-                func.max(Message.id).label('max_id')
-            ).filter(Message.chat_id.in_(chat_ids))\
-             .group_by(Message.chat_id).subquery()
-            latest_msgs = Message.query.filter(
-                Message.id.in_(db.session.query(latest_sub.c.max_id))
-            ).all()
-            latest_by_chat = {m.chat_id: m for m in latest_msgs}
-
-        # Загружаем количество непрочитанных для всех чатов одним запросом
-        unread_counts = {}
-        if chat_ids:
-            unread_rows = db.session.query(
-                Message.chat_id,
-                func.count(Message.id).label('cnt')
-            ).filter(
-                Message.chat_id.in_(chat_ids),
-                Message.author_id != current_user.id,
-                Message.is_read == False
-            ).group_by(Message.chat_id).all()
-            unread_counts = {r.chat_id: r.cnt for r in unread_rows}
-
-        chats = []
-        for participation in participations:
-            other_p = other_by_chat.get(participation.chat_id)
-            if not other_p or not other_p.user:
-                continue
-
-            other_user = other_p.user
-            last_message = latest_by_chat.get(participation.chat_id)
-            unread_count = unread_counts.get(participation.chat_id, 0)
-
-            chats.append({
-                'chat_id': participation.chat_id,
-                'other_user': {
-                    'id': other_user.id,
-                    'username': other_user.username,
-                    'profile_image': other_user.profile_image,
-                    'is_online': other_user.is_online,
-                    'last_seen': other_user.last_seen_str()
-                },
-                'last_message': (
-                    decrypt(last_message.text) if last_message and last_message.text
-                    else '[image]' if last_message and last_message.image
-                    else None
-                ),
-                'last_message_date': last_message.created_date.isoformat() if last_message else None,
-                'unread_count': unread_count
-            })
-
-        # Сортируем по последнему сообщению
-        chats.sort(key=lambda x: x['last_message_date'] or '1970-01-01', reverse=True)
-
+        chats = ChatService.get_chat_list(current_user.id)
         return jsonify({'chats': chats})
     except Exception:
-        logger.exception('chat_list failed')
+        log.exception('chat_list failed')
         return jsonify({'error': 'Internal server error'}), 500
 
 
 @main_bp.route('/api/users/search')
 def search_users() -> Response:
     query = request.args.get('q', '').strip().lower()
-
     if not query:
         return jsonify({'users': []})
 
-    users = User.query.filter(
-        User.username.ilike(f'%{query}%')
-    ).limit(10).all()
+    users = SocialService.search_users(query, limit=10)
 
     return jsonify({
         'users': [{
@@ -903,11 +700,7 @@ def search_users() -> Response:
 def tags_search() -> Response:
     """Автодополнение тегов (начинается с)."""
     query = request.args.get('q', '').strip().lower()
-    if not query:
-        return jsonify({'tags': []})
-    tags = Tag.query.filter(
-        Tag.name.ilike(f'{query}%')
-    ).order_by(Tag.post_count.desc()).limit(10).all()
+    tags = FeedService.search_tags(query, limit=10)
     return jsonify({
         'tags': [{'name': t.name, 'post_count': t.post_count} for t in tags]
     })
@@ -916,8 +709,7 @@ def tags_search() -> Response:
 @main_bp.route('/api/tags/trending')
 def tags_trending() -> Response:
     """Топ-10 популярных тегов."""
-    tags = Tag.query.filter(Tag.post_count > 0) \
-        .order_by(Tag.post_count.desc()).limit(10).all()
+    tags = FeedService.get_trending_tags(limit=10)
     return jsonify({
         'tags': [{'name': t.name, 'post_count': t.post_count} for t in tags]
     })
@@ -926,6 +718,10 @@ def tags_trending() -> Response:
 @main_bp.route('/settings', methods=['GET', 'POST'])
 @login_required
 def settings() -> Response:
+    from app.models import User, PushSubscription
+    from app.models import Like, Comment, Follow, Notification, ChatParticipant, Message, Repost, SavedPost
+    from extensions import db
+
     form = SettingsForm()
 
     # Pre-populate form with current user data
@@ -1006,8 +802,6 @@ def settings() -> Response:
             if form.delete_account.data:
                 uid = current_user.id
                 # Bulk-delete связанных записей перед удалением пользователя.
-                # Все FK имеют ondelete='CASCADE' в БД + PRAGMA foreign_keys=ON,
-                # но bulk .delete() эффективнее ORM-каскадов (не загружает объекты в память).
                 Like.query.filter(Like.user_id == uid).delete()
                 Comment.query.filter(Comment.author_id == uid).delete()
                 Follow.query.filter((Follow.follower_id == uid) | (Follow.followed_id == uid)).delete()
@@ -1066,6 +860,7 @@ def sitemap_xml() -> Response:
     """Generate dynamic sitemap.xml with posts and profiles."""
     from xml.etree.ElementTree import Element, SubElement, tostring
     from xml.dom import minidom
+    from app.models import User, Post
 
     base_url = request.url_root.rstrip('/')
 
@@ -1090,7 +885,7 @@ def sitemap_xml() -> Response:
 
     # Public profiles (users with at least one non-deleted post)
     users_with_posts = (
-        db.session.query(User)
+        User.query
         .join(Post, Post.author_id == User.id)
         .filter(Post.is_deleted == False)
         .distinct()

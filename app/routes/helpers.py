@@ -1,7 +1,6 @@
 import os
 import re
 import uuid
-import logging
 from typing import Optional
 
 from PIL import Image
@@ -10,7 +9,7 @@ from flask import jsonify, current_app
 from flask_login import current_user
 from werkzeug.datastructures import FileStorage
 
-logger = logging.getLogger(__name__)
+from app.logger import log
 
 from config import Config
 from app.translations import _
@@ -68,8 +67,8 @@ def process_avatar(image_file: FileStorage) -> Optional[str]:
         img.save(save_path, "JPEG", quality=85, optimize=True)
         return filename
     except Exception:
-        logger.exception('process_avatar failed')
-        log_system_event('error', 'upload', f'Avatar processing failed for user {current_user.id}')
+        log.exception('process_avatar failed')
+        log.system_event('error', 'upload', f'Avatar processing failed for user {current_user.id}')
         return None
 
 
@@ -105,8 +104,8 @@ def process_post_image(image_file: FileStorage, filename: str) -> Optional[str]:
 
         return filename
     except Exception:
-        logger.exception('process_post_image failed')
-        log_system_event('error', 'upload', f'Post image processing failed: {filename}')
+        log.exception('process_post_image failed')
+        log.system_event('error', 'upload', f'Post image processing failed: {filename}')
         return None
 
 
@@ -132,8 +131,8 @@ def process_chat_image(image_file: FileStorage) -> Optional[str]:
         img.save(save_path, 'JPEG', quality=85, optimize=True)
         return filename
     except Exception:
-        logger.exception('process_chat_image failed')
-        log_system_event('error', 'upload', 'Chat image processing failed')
+        log.exception('process_chat_image failed')
+        log.system_event('error', 'upload', 'Chat image processing failed')
         return None
 
 
@@ -193,6 +192,36 @@ def sync_post_tags(post_id: int, tag_names: list[str]) -> None:
         Tag.query.update({'post_count': 0})
 
 
+def cursor_paginate(query, cursor_id, limit=20, id_col=None):
+    """Cursor-based pagination helper (faster than OFFSET for large datasets).
+
+    Args:
+        query: SQLAlchemy query ordered by id DESC.
+        cursor_id: Last seen ID (None = first page).
+        limit: Items per page (max 100).
+        id_col: ID column to filter on (default: model's 'id').
+
+    Returns:
+        (items, next_cursor, has_more)
+    """
+    max_limit = 100
+    limit = min(limit, max_limit)
+
+    if id_col is None:
+        model = query.column_descriptions[0]['expr']
+        id_col = model.id
+
+    if cursor_id:
+        query = query.filter(id_col < cursor_id)
+
+    raw = query.limit(limit + 1).all()
+    has_more = len(raw) > limit
+    items = raw[:limit]
+    next_cursor = items[-1].id if items else None
+
+    return items, next_cursor, has_more
+
+
 def log_system_event(level, category, message, details=None):
     """Записать системное событие в БД (для панели администратора).
 
@@ -207,4 +236,4 @@ def log_system_event(level, category, message, details=None):
         db.session.add(event)
         db.session.commit()
     except Exception:
-        logger.exception('Failed to log system event')
+        log.exception('Failed to log system event')

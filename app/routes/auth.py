@@ -1,5 +1,4 @@
 import re
-import logging
 
 from flask import render_template, flash, redirect, url_for, Blueprint, request, jsonify, Response
 from flask_login import login_user, login_required, logout_user, current_user
@@ -8,8 +7,8 @@ from app.translations import _
 from app.forms import LoginForm, RegistrationForm
 from app.models import User
 from app.limiter import limiter
+from app.logger import log
 from extensions import db, csrf
-from app.routes.helpers import logger
 
 auth_bp = Blueprint('auth', __name__, template_folder='../templates')
 
@@ -158,12 +157,7 @@ def register() -> Response:
         try:
             db.session.add(user)
             db.session.commit()
-            logger.info('REGISTER', extra={
-                'action': 'register',
-                'user_id': user.id,
-                'username': user.username,
-                'ip': request.remote_addr,
-            })
+            log.info('user_registered', user_id=user.id, username=user.username, ip=request.remote_addr)
             flash(_('Registration successful! You can now log in.'), 'success')
             return redirect(url_for('auth.login'))
         except Exception:

@@ -11,7 +11,9 @@ from sqlalchemy import func
 
 from app.translations import _
 from app.models import User, Post, Tag, Like, Comment, Follow, SystemEvent, utcnow
-from app.routes.helpers import log_system_event
+from app.services import PostService
+from app.services.base import NotFoundError, ServiceError
+from app.logger import log
 from extensions import db
 
 logger = logging.getLogger(__name__)
@@ -198,29 +200,24 @@ def posts():
 @admin_bp.route('/posts/<int:post_id>/delete', methods=['POST'])
 @mod_or_admin_required
 def delete_post(post_id):
-    post = db.session.get(Post, post_id)
-    if not post:
+    try:
+        PostService.admin_delete_post(post_id)
+        flash(f'Post #{post_id} deleted', 'success')
+    except NotFoundError:
         flash('Post not found', 'error')
-        return redirect(url_for('admin.posts'))
-    post.is_deleted = True
-    db.session.commit()
-    flash(f'Post #{post_id} deleted', 'success')
     return redirect(url_for('admin.posts', page=request.args.get('page', 1)))
 
 
 @admin_bp.route('/posts/<int:post_id>/restore', methods=['POST'])
 @mod_or_admin_required
 def restore_post(post_id):
-    post = db.session.get(Post, post_id)
-    if not post:
+    try:
+        PostService.admin_restore_post(post_id)
+        flash(f'Post #{post_id} restored', 'success')
+    except NotFoundError:
         flash('Post not found', 'error')
-        return redirect(url_for('admin.posts'))
-    if not post.is_deleted:
-        flash('Post is not deleted', 'error')
-        return redirect(url_for('admin.posts'))
-    post.is_deleted = False
-    db.session.commit()
-    flash(f'Post #{post_id} restored', 'success')
+    except ServiceError as e:
+        flash(e.message, 'error')
     return redirect(url_for('admin.posts', page=request.args.get('page', 1)))
 
 
@@ -302,3 +299,48 @@ def mark_all_events_read():
     db.session.commit()
     flash('All events marked as read', 'success')
     return redirect(url_for('admin.events'))
+
+
+# ── Structured logs (from file) ──
+
+@admin_bp.route('/logs')
+@admin_required
+def logs_view():
+    """Display recent structlog entries from the JSON log file."""
+    import json as _json
+
+    from app.logger import LOG_FILE
+
+    entries = []
+    if LOG_FILE.exists():
+        with open(LOG_FILE, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    try:
+                        entries.append(_json.loads(line))
+                    except _json.JSONDecodeError:
+                        entries.append({'event': line, 'level': 'info'})
+
+    # Show last 200 entries (newest first)
+    entries.reverse()
+    entries = entries[:200]
+
+    level_filter = request.args.get('level', '').lower()
+    q = request.args.get('q', '').lower().strip()
+
+    if level_filter:
+        entries = [e for e in entries if e.get('level', '').lower() == level_filter]
+    if q:
+        entries = [e for e in entries if q in _json.dumps(e).lower()]
+
+    # Prettify timestamps
+    for e in entries:
+        ts = e.get('timestamp', '')
+        if ts:
+            try:
+                e['_time'] = ts[11:19] if 'T' in ts else ts
+            except Exception:
+                e['_time'] = ts
+
+    return render_template('admin/logs.html', entries=entries, level=level_filter, q=q)

@@ -40,6 +40,35 @@ watch -n 5 feed
 
 ---
 
+## Быстрый старт
+
+```bash
+git clone https://github.com/stephanvoytov/rugram
+cd rugram
+
+# Сгенерировать SECRET_KEY (обязательно)
+python -c "import secrets; print(f'SECRET_KEY={secrets.token_hex(32)}')" > .env
+
+# Установить зависимости
+pip install -r requirements.txt
+
+# Засеять демо-данные (alice/pass123, bob/pass123)
+python seed.py
+
+# Запустить dev-сервер
+python run.py
+# → http://localhost:5000
+```
+
+### Продакшн (Docker)
+
+```bash
+docker compose up -d
+# → http://localhost:8000 (gunicorn)
+```
+
+---
+
 ## Команды (неполный список — полный через `help` в терминале)
 
 | Команда | Что делает |
@@ -69,17 +98,57 @@ watch -n 5 feed
 
 ---
 
+## Архитектура
+
+```
+app/
+├── routes/           # 3 blueprint: auth, main, posts + admin
+│   ├── helpers.py    # Утилиты (обработка изображений, cursor-пагинация, system events)
+│   └── admin.py      # Панель администратора (пользователи, посты, теги, события, логи)
+├── resources/        # REST API (/api/v1/posts)
+├── services/         # Слой бизнес-логики (планируется)
+├── models.py         # SQLAlchemy модели (User, Post, Chat, Message, …)
+├── logger.py         # Структурированное логирование (structlog → консоль + файл + БД)
+├── crypto.py         # Шифрование чата (Fernet/MultiFernet)
+├── push.py           # Web Push уведомления (VAPID)
+├── limiter.py        # Rate limiting
+├── translations.py   # Перевод EN/RU
+├── forms.py          # WTForms
+├── filters.py        # Jinja2 фильтры
+├── templates/        # Шаблоны (auth, main, posts, errors, admin)
+└── static/           # CSS, JS (эмулятор терминала), uploads, sw.js
+```
+
+### Тесты
+
+```
+81 тест Python (pytest) + 319 тестов JS (Node/JSDOM)
+Всё зелёное:
+  python -m pytest tests/ -n auto -q
+  node tests/test_terminal.js
+```
+
+### API документация
+
+Swagger/OpenAPI доступен по `/apidocs/` на запущенном сервере.
+
+---
+
 ## Возможности
 
-**Два языка (EN + RU)** — английский по умолчанию, русский через `?lang=ru` в любом URL.  
-Переводятся флеш-сообщения, пустые состояния, формы, страницы помощи и описания команд — но сами команды остаются на английском, а часть интерфейса намеренно не переведена, чтобы сохранить атмосферу терминала.  
-Переключить на лету внутри терминала: `export LANG=en_US`.
+**Два языка (EN + RU)** — английский по умолчанию, русский через `?lang=ru`.  
+Переводятся флеш-сообщения, пустые состояния, формы, страницы помощи. Переключить на лету: `export LANG=en_US`.
 
-**Мессенджер с шифрованием** — real-time polling, онлайн-статус, индикатор «печатает…», даты-разделители («Сегодня», «Вчера»), отметки о прочтении, **отправка изображений**. Все сообщения зашифрованы в базе (Fernet, ключ от `SECRET_KEY`).
+**Мессенджер с шифрованием** — real-time polling, онлайн-статус, индикатор «печатает…», отметки о прочтении, отправка изображений. Все сообщения зашифрованы в БД (Fernet, поддержка key rotation).
 
-**Push-уведомления** — через Service Worker + Web Push API (VAPID). Новые сообщения, лайки, комментарии, подписки — приходят, даже когда сайт закрыт.
+**Push-уведомления** — через Service Worker + Web Push API (VAPID). Новые сообщения, лайки, комментарии, подписки.
 
-**Интерфейс в стиле терминала** — Bootstrap 5.3 (сетка и утилиты) под кастомной темой Catppuccin. Бесконечная лента с фильтром «Все / Подписки», анимация лайков (Web Animations API), inline-комментарии с auto-expand textarea, закладки сеткой, репосты, тёмная/светлая тема (учитывает `prefers-color-scheme`), lightbox для изображений, загрузка аватара с кропом 500×500, адаптивный дизайн (mobile-first), REST API (`/api/v1/posts`).
+**Интерфейс в стиле терминала** — Bootstrap 5.3 + Catppuccin Mocha. Бесконечная лента, анимация лайков, inline-комментарии, закладки, репосты, тёмная/светлая тема, lightbox, загрузка аватара, mobile-first.
+
+**REST API** — `/api/v1/posts`, `/api/feed`, `/api/notifications`, `/api/saved`.  
+Cursor-based пагинация, JSON-ответы.
+
+**Панель администратора** — `/admin/`: дашборд со статистикой, управление пользователями/постами, системные события, просмотр логов.
 
 ---
 
@@ -88,9 +157,11 @@ watch -n 5 feed
 | Слой | Технологии |
 |------|-----------|
 | Backend | Python 3.12, Flask, SQLAlchemy, Flask-Login, Flask-WTF, SQLite |
-| Frontend | Jinja2, **Bootstrap 5.3**, Vanilla JS, CSS Custom Properties (Catppuccin Mocha) |
-| Security | cryptography (Fer­net), pywebpush (VAPID) |
-| Infra | Alembic, Gunicorn |
+| Frontend | Jinja2, Bootstrap 5.3, Vanilla JS, CSS Custom Properties (Catppuccin Mocha) |
+| Security | cryptography (Fernet), pywebpush (VAPID), Flask-Limiter |
+| Логирование | structlog (консоль + ротируемый JSON + SystemEvent в БД) |
+| Инфра | Alembic, Gunicorn, Docker Compose |
+| Тесты | pytest (xdist), Node.js (JSDOM) |
 
 ---
 

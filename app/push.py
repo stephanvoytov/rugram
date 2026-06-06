@@ -5,18 +5,15 @@ VAPID-ключи генерируются лениво при первой от�
 """
 
 import json
-import logging
 import os
 
 from flask import current_app
 from py_vapid import Vapid
 from pywebpush import webpush, WebPushException
 
+from app.logger import log
 from app.models import PushSubscription, User, utcnow
-from app.routes.helpers import log_system_event
 from extensions import db
-
-logger = logging.getLogger(__name__)
 
 # Кешируем Vapid Instance — создаётся один раз
 _vapid_instance: Vapid | None = None
@@ -71,7 +68,7 @@ def _ensure_vapid_keys() -> bool:
                     _f.write('\n'.join(_lines) + '\n')
         return True
     except Exception:
-        logger.warning('Failed to auto-generate VAPID keys — push disabled')
+        log.warning('Failed to auto-generate VAPID keys — push disabled')
         return False
 
 
@@ -91,7 +88,7 @@ def _get_vapid() -> Vapid | None:
         _vapid_instance = Vapid.from_string(key)
         return _vapid_instance
     except Exception as e:
-        logger.error(f'Failed to create Vapid instance: {e}')
+        log.error(f'Failed to create Vapid instance: {e}')
         return None
 
 
@@ -107,11 +104,11 @@ def send_push_to_user(user_id, title, body, url='/', tag=None, chat_id=None, not
         category: Notification subtype ('like', 'comment', 'follow', 'message', or None).
                   If set, the user's notify_on_<category> flag is checked.
     """
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     if not user:
         return False
     if not user.notifications_enabled:
-        logger.debug(f'Push notifications disabled for user {user_id}')
+        log.debug(f'Push notifications disabled for user {user_id}')
         return False
     # Per-type check
     if category:
@@ -123,12 +120,12 @@ def send_push_to_user(user_id, title, body, url='/', tag=None, chat_id=None, not
         }
         flag = flag_map.get(category, True)
         if not flag:
-            logger.debug(f'Push category "{category}" disabled for user {user_id}')
+            log.debug(f'Push category "{category}" disabled for user {user_id}')
             return False
 
     subscriptions = PushSubscription.query.filter_by(user_id=user_id).all()
     if not subscriptions:
-        logger.debug(f'No push subscriptions for user {user_id}')
+        log.debug(f'No push subscriptions for user {user_id}')
         return False
 
     payload = {
@@ -143,7 +140,7 @@ def send_push_to_user(user_id, title, body, url='/', tag=None, chat_id=None, not
 
     vapid = _get_vapid()
     if not vapid:
-        logger.debug(f'VAPID not configured, skipping push to user {user_id}')
+        log.debug(f'VAPID not configured, skipping push to user {user_id}')
         return False
 
     sent_any = False
@@ -166,15 +163,15 @@ def send_push_to_user(user_id, title, body, url='/', tag=None, chat_id=None, not
         except WebPushException as e:
             # If subscription expired or invalid — remove it
             if e.response and e.response.status_code in (404, 410):
-                logger.info(f'Removing expired push subscription for user {user_id}')
+                log.info(f'Removing expired push subscription for user {user_id}')
                 db.session.delete(sub)
                 db.session.commit()
             else:
-                logger.warning(f'Push send failed for user {user_id}: {e}')
-                log_system_event('warning', 'push', f'Push send failed for user {user_id}: {e}')
+                log.warning(f'Push send failed for user {user_id}: {e}')
+                log.system_event('warning', 'push', f'Push send failed for user {user_id}: {e}')
         except Exception as e:
-            logger.error(f'Unexpected push error for user {user_id}: {e}')
-            log_system_event('error', 'push', f'Unexpected push error for user {user_id}: {e}',
+            log.error(f'Unexpected push error for user {user_id}: {e}')
+            log.system_event('error', 'push', f'Unexpected push error for user {user_id}: {e}',
                              details=str(e)[:500])
 
     return sent_any

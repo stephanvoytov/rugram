@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}logs · rugram admin{% endblock %}
+{% block robots %}noindex,nofollow{% endblock %}
+
+{% block content %}
+<h1 style="margin-bottom:4px">[*] structured logs</h1>
+<p class="text-secondary" style="font-size:0.85rem;margin-bottom:20px">
+  <a href="{{ url_for('admin.dashboard') }}">dashboard</a> ·
+  <a href="{{ url_for('admin.users') }}">users</a> ·
+  <a href="{{ url_for('admin.posts') }}">posts</a> ·
+  <a href="{{ url_for('admin.tags') }}">tags</a> ·
+  <a href="{{ url_for('admin.events') }}">events</a> ·
+  logs
+</p>
+
+<!-- Filters -->
+<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+  <a href="{{ url_for('admin.logs_view') }}" class="lg-filter {% if not level and not q %}active{% endif %}">all</a>
+  <a href="{{ url_for('admin.logs_view', level='critical') }}" class="lg-filter lg-critical {% if level == 'critical' %}active{% endif %}">critical</a>
+  <a href="{{ url_for('admin.logs_view', level='error') }}" class="lg-filter lg-error {% if level == 'error' %}active{% endif %}">error</a>
+  <a href="{{ url_for('admin.logs_view', level='warning') }}" class="lg-filter lg-warning {% if level == 'warning' %}active{% endif %}">warning</a>
+  <a href="{{ url_for('admin.logs_view', level='info') }}" class="lg-filter lg-info {% if level == 'info' %}active{% endif %}">info</a>
+  <a href="{{ url_for('admin.logs_view', level='debug') }}" class="lg-filter {% if level == 'debug' %}active{% endif %}">debug</a>
+  <span style="color:var(--subtle);font-size:0.72rem;margin:0 4px">|</span>
+  <form method="GET" action="{{ url_for('admin.logs_view') }}" style="display:inline-flex;gap:4px;align-items:center">
+    {% if level %}<input type="hidden" name="level" value="{{ level }}">{% endif %}
+    <input type="text" name="q" value="{{ q }}" placeholder="search logs"
+           style="background:var(--bg);border:1px solid var(--border);color:var(--fg);padding:2px 8px;font-size:0.72rem;font-family:var(--font);width:160px">
+    <button type="submit" class="btn-term" style="font-size:0.65rem">[search]</button>
+    {% if q %}<a href="{{ url_for('admin.logs_view', level=level) }}" class="btn-term" style="font-size:0.65rem">[clear]</a>{% endif %}
+  </form>
+</div>
+
+<!-- Log entries -->
+<div class="lg-table">
+  <div class="lg-header">
+    <span class="lg-col lg-col-level">level</span>
+    <span class="lg-col lg-col-time">time</span>
+    <span class="lg-col lg-col-event">event</span>
+    <span class="lg-col lg-col-ctx">context</span>
+  </div>
+  {% for entry in entries %}
+  <div class="lg-row lg-{{ entry.get('level', 'info').lower() }}">
+    <span class="lg-col lg-col-level">
+      <span class="lg-lvl lg-lvl-{{ entry.get('level', 'info').lower() }}">{{ entry.get('level', 'info') }}</span>
+    </span>
+    <span class="lg-col lg-col-time">{{ entry.get('_time', '') }}</span>
+    <span class="lg-col lg-col-event">{{ entry.get('event', '') }}</span>
+    <span class="lg-col lg-col-ctx">
+      {% set ctx = {} %}
+      {% for k, v in entry.items() %}
+        {% if k not in ('event', 'level', 'timestamp', 'logger', '_time') %}
+          {% set _ = ctx.update({k: v}) %}
+        {% endif %}
+      {% endfor %}
+      {% if ctx %}
+        <button class="lg-ctx-btn" onclick="toggleCtx(this)" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:0.65rem;padding:0 4px">[ctx]</button>
+        <pre class="lg-ctx" style="display:none;font-size:0.65rem;color:var(--subtle);margin-top:2px;white-space:pre-wrap;max-height:120px;overflow-y:auto">{{ ctx | tojson(indent=2) }}</pre>
+      {% endif %}
+    </span>
+  </div>
+  {% else %}
+  <div class="lg-empty">no matching log entries</div>
+  {% endfor %}
+</div>
+
+<div style="margin-top:12px;color:var(--subtle);font-size:0.65rem">
+  showing up to 200 most recent entries from logs/rugram.jsonl
+</div>
+
+<script>
+function toggleCtx(btn) {
+  var pre = btn.nextElementSibling;
+  if (pre && pre.tagName === 'PRE') {
+    pre.style.display = pre.style.display === 'none' ? 'block' : 'none';
+  }
+}
+</script>
+
+<style>
+.lg-filter {
+  font-size:0.72rem; color:var(--subtle); padding:2px 8px;
+  border:1px solid transparent; text-decoration:none; transition:all 0.1s;
+}
+.lg-filter:hover { color:var(--fg); border-color:var(--border); }
+.lg-filter.active { color:var(--accent); border-color:var(--accent); }
+.lg-filter.lg-critical.active { color:var(--red); border-color:var(--red); }
+.lg-filter.lg-error.active { color:var(--peach); border-color:var(--peach); }
+.lg-filter.lg-warning.active { color:var(--yellow); border-color:var(--yellow); }
+.lg-filter.lg-info.active { color:var(--green); border-color:var(--green); }
+
+.lg-table {
+  border:1px solid var(--border); font-family:var(--font); font-size:0.78rem;
+}
+.lg-header {
+  display:flex; align-items:center; padding:4px 8px;
+  background:var(--surface); border-bottom:1px solid var(--border);
+  color:var(--subtle); font-size:0.6rem; text-transform:uppercase; letter-spacing:0.05em;
+}
+.lg-row {
+  display:flex; align-items:flex-start; padding:4px 8px;
+  border-bottom:1px solid var(--border); transition:background 0.1s;
+}
+.lg-row:last-child { border-bottom:none; }
+.lg-row:hover { background:var(--surface); }
+.lg-row.lg-critical { border-left:2px solid var(--red); }
+.lg-row.lg-error { border-left:2px solid var(--peach); }
+.lg-row.lg-warning { border-left:2px solid var(--yellow); }
+.lg-col { padding:1px 6px; }
+.lg-col-level { width:70px; flex-shrink:0; }
+.lg-col-time { width:70px; flex-shrink:0; color:var(--subtle); font-size:0.65rem; }
+.lg-col-event { flex:1; min-width:0; word-break:break-word; }
+.lg-col-ctx { width:50px; flex-shrink:0; text-align:right; }
+
+.lg-lvl { font-size:0.6rem; padding:1px 5px; border-radius:3px; text-transform:uppercase; font-weight:600; }
+.lg-lvl.lg-lvl-critical { background:rgba(243,139,168,0.15); color:var(--red); }
+.lg-lvl.lg-lvl-error { background:rgba(250,179,135,0.15); color:var(--peach); }
+.lg-lvl.lg-lvl-warning { background:rgba(249,226,175,0.15); color:var(--yellow); }
+.lg-lvl.lg-lvl-info { background:rgba(166,227,161,0.15); color:var(--green); }
+.lg-lvl.lg-lvl-debug { background:rgba(148,226,213,0.1); color:var(--teal); }
+
+.lg-empty { padding:24px; text-align:center; color:var(--subtle); font-size:0.82rem; }
+</style>
+{% endblock %}

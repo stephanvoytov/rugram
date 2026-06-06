@@ -1,0 +1,60 @@
+name: 🔧 Refactor / Architecture
+description: Code quality, architecture improvements, tech debt
+labels: [refactor]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Improve the codebase without changing external behavior.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What to change
+      description: Which part of the code needs improvement and why?
+      placeholder: e.g. "Move feed query logic from routes/main.py to a PostService class"
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Why is this change worth doing?
+      placeholder: e.g. "Routes/main.py has 1200+ lines, makes it hard to test"
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - Low — nice to have
+        - Medium — should do this sprint
+        - High — blocking other work
+        - Critical — security/stability
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options:
+        - Terminal / Commands
+        - GUI / Frontend
+        - API (REST)
+        - Chat
+        - Admin panel
+        - Auth / Security
+        - Database
+        - Tests
+        - Infrastructure / Docker
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-flight
+      options:
+        - label: Current tests pass (pytest + JS)
+        - label: I'll update tests if interfaces change
