@@ -800,7 +800,7 @@
       name: 'image',
       content: function(out) {
         if (!post.image) { out('<span class="tp-err">cat: ' + T._('нет изображения', 'no image') + '</span>'); return; }
-        T.imageToAscii(post.image, 60, function(ascii) { out(ascii); });
+        T.imageToAscii('/static/uploads/posts/' + post.image, 80, function(ascii) { out(ascii); });
       },
     });
   }

@@ -897,16 +897,20 @@
         T.addOutputLine('  <span class="tp-post-author">@' + T.escapeHtml(p.author) + '</span>  <span class="tp-post-time">' + T.escapeHtml(timeDisplay) + '</span>');
         T.addOutputLine('');
         T.addOutputLine('  ' + T.escapeHtml(p.text));
-        if (p.image) {
-          T.addOutputLine('<span class="tp-section">  -- ' + T._('изображение', 'image') + ' --</span>');
-          T.imageToAscii(p.image, 60, function(ascii) {
-            T.addOutput(ascii);
-          });
-        }
-        T.addOutputLine('');
         var liked = p.is_liked ? '<span class="tp-ok">♥</span>' : '♡';
         var saved = p.is_saved ? '<span class="tp-ok">★</span>' : '☆';
-        T.addOutputLine('  ' + liked + ' ' + p.likes + '  ' + T._('лайков', 'likes') + '  c:' + p.comments + '  r:' + p.reposts + '  ' + saved);
+        var statsLine = '  ' + liked + ' ' + p.likes + '  ' + T._('лайков', 'likes') + '  c:' + p.comments + '  r:' + p.reposts + '  ' + saved;
+        if (p.image) {
+          T.imageToAscii('/static/uploads/posts/' + p.image, 80, function(ascii) {
+            T.addOutputLine('');
+            T.addOutput(ascii);
+            T.addOutputLine('');
+            T.addOutputLine(statsLine);
+          });
+        } else {
+          T.addOutputLine('');
+          T.addOutputLine(statsLine);
+        }
       })
       .catch(function() {
         T.hideLoading();
@@ -1406,7 +1410,7 @@
               T.addOutputLine('<span class="tp-err">cat --img: post #' + postId + ' has no image</span>');
               return;
             }
-            T.imageToAscii(p.image, 60, function(ascii) {
+            T.imageToAscii('/static/uploads/posts/' + p.image, 80, function(ascii) {
               T.addOutputLine('<span class="tp-section">' + T._('Пост #', 'Post #') + postId + ' ' + T._('— изображение', '— image') + '</span>');
               T.addOutput(ascii);
               if (p.text) T.addOutputLine('<span class="tp-desc">' + T.escapeHtml(p.text.substring(0, 200)) + '</span>');
@@ -1419,7 +1423,7 @@
         return;
       }
       T.showLoading(T._('Загрузка изображения...', 'Loading image...'));
-      T.imageToAscii(post.image, 60, function(ascii) {
+      T.imageToAscii('/static/uploads/posts/' + post.image, 80, function(ascii) {
         T.hideLoading();
         T.addOutputLine('<span class="tp-section">' + T._('Пост #', 'Post #') + postId + ' ' + T._('— изображение', '— image') + '</span>');
         T.addOutput(ascii);
