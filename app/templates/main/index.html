@@ -45,6 +45,19 @@
     {% endif %}
 </div>
 
+<!-- Search bar -->
+<form action="{{ url_for('main.index') }}" method="GET" class="search-bar" style="display:flex;gap:6px;margin-bottom:8px;align-items:center">
+    <input type="search" name="q" value="{{ search_query }}"
+           placeholder="{{ _('search posts…') }}"
+           aria-label="Search posts"
+           style="flex:1;background:var(--surface0);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-family:var(--font);font-size:0.82rem">
+    {% if tag_filter %}<input type="hidden" name="tag" value="{{ tag_filter }}">{% endif %}
+    {% if request.args.get('followed') %}<input type="hidden" name="followed" value="1">{% endif %}
+    <input type="hidden" name="sort" value="{{ sort_by }}">
+    <button type="submit" class="btn-term" style="padding:6px 12px">[{{ _('search') }}]</button>
+    {% if search_query %}<a href="{{ url_for('main.index', tag=tag_filter, sort=sort_by, followed=request.args.get('followed', '')) }}" class="btn-term" style="padding:6px 12px;text-decoration:none">[×]</a>{% endif %}
+</form>
+
 {# Trending tags #}
 {% if trending_tags %}
 <div class="trending-bar">

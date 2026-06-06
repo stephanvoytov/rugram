@@ -92,6 +92,10 @@ RU: dict[str, str] = {
         'Войдите, чтобы оставить комментарий',
 
     # ── Misc ──
+    'search posts…':
+        'поиск постов…',
+    'search':
+        'поиск',
     'Type something...':
         'Напишите что-нибудь...',
     'Write a comment...':
