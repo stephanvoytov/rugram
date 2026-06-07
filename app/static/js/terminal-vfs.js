@@ -6,7 +6,20 @@
 
   // ── Node classes ──
 
+  /**
+   * @typedef {Object} VfsDirOpts
+   * @property {function(string): void} [content] - Async callback accepting a `write(line)` fn
+   */
+
+  /**
+   * Virtual directory node. Children are resolved synchronously from in-memory data;
+   * dynamic directories (e.g. followers/) use `content()` callback.
+   */
   class VfsDir {
+    /**
+     * @param {Array<VfsDir|VfsFile>} [children] - Child nodes
+     * @param {VfsDirOpts} [opts] - Options
+     */
     constructor(children, opts) {
       this.type = 'dir';
       this.children = children || [];
@@ -14,7 +27,27 @@
     }
   }
 
+  /**
+   * @typedef {Object} VfsFileOpts
+   * @property {function(string): void} [content] - Render content callback (`write(line)`)
+   * @property {function(): void} [remove]     - Delete/move-to-trash handler
+   * @property {function(): void} [edit]       - Open in nano overlay
+   * @property {string}        [name]          - Display name (falls back to constructor arg)
+   * @property {number}        [id]            - Post ID
+   * @property {string}        [author]        - Post author username
+   * @property {string}        [text]          - Post text
+   * @property {string}        [image]         - Post image URL
+   */
+
+  /**
+   * Virtual file node. Extra properties from `opts` (id, author, text, etc.)
+   * are copied directly onto the instance.
+   */
   class VfsFile {
+    /**
+     * @param {string} name - File name
+     * @param {VfsFileOpts} opts - Options (all extra props copied to instance)
+     */
     constructor(name, opts) {
       this.type = 'file';
       this.name = name || '';

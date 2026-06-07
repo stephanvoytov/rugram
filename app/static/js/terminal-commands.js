@@ -972,7 +972,7 @@
         sendReply('127.0.0.1', '127.0.0.1', 64, ms);
         setTimeout(sendLocal, Math.random() * 200 + 50);
       }
-      sendLocal();
+      setTimeout(sendLocal, Math.random() * 200 + 100);
       return;
     }
 
@@ -1034,7 +1034,7 @@
         setTimeout(sendUser, Math.random() * 200 + 50);
       }
 
-      setTimeout(sendUser, 50);
+      setTimeout(sendUser, Math.random() * 200 + 100);
     })
     .catch(function() {
       T.addOutputLine('<span class="tp-err">ping: ' + T.escapeHtml(target) + ': Temporary failure in name resolution</span>');
@@ -1225,8 +1225,10 @@
       if (T.watchInterval) {
         clearInterval(T.watchInterval);
         T.watchInterval = null;
-        T.el.bar.style.display = 'block';
-        T.el.terminal.style.bottom = '49px';
+        if (T.mode !== 'tty') {
+          T.el.bar.style.display = 'block';
+          T.el.terminal.style.bottom = '49px';
+        }
         T.clearOutput();
         T.addOutputLine('<span class="tp-ok">watch stopped</span>');
       } else {
@@ -1246,10 +1248,12 @@
       cmd = m[2];
     }
 
-    // Fullscreen: hide command bar like program view
-    T.el.bar.style.display = 'none';
-    T.el.terminal.style.bottom = '0';
-    T.el.input.blur();
+    // Fullscreen: hide command bar like program view (only in GUI mode)
+    if (T.mode !== 'tty') {
+      T.el.bar.style.display = 'none';
+      T.el.terminal.style.bottom = '0';
+      T.el.input.blur();
+    }
 
     T.clearOutput();
     T.addOutputLine('<span class="tp-ok">watch: every ' + interval + 's — ' + T.escapeHtml(cmd) + '</span>');
@@ -1279,6 +1283,31 @@
 
     function renderTopData() {
       if (!running) return;
+
+      if (T.mode === 'tty' && T._xtermReady) {
+        // TTY mode: re-render full output via ANSI (clear + rewrite)
+        T.clearOutput();
+        T.addOutputLine('<span class="tp-output-header">-- top --</span>');
+        T.addOutputLine('<span class="tp-muted">' + T.feedData.length + ' posts | ' + T.commandHistory.length + ' commands | uptime ' + T.uptimeStr() + '</span>');
+        T.addOutputLine('');
+        var sorted = T.feedData.slice().sort(function(a, b) { return b.likes - a.likes; });
+        T.addOutputLine('<span class="tp-section">Posts (by likes):</span>');
+        sorted.slice(0, 5).forEach(function(p, i) {
+          var heart = p.liked ? '+' : '-';
+          T.addOutputLine('  ' + (i+1) + '. <span class="tp-post-author">@' + p.author + '</span> ' + heart + ' ' + p.likes + '  <span class="tp-desc">#' + p.id + '</span>');
+        });
+        T.addOutputLine('');
+        T.addOutputLine('<span class="tp-section">Recent commands:</span>');
+        var recent = T.commandHistory.slice(-5);
+        recent.forEach(function(c) {
+          T.addOutputLine('  <span class="tp-cmd">' + T.escapeHtml(c) + '</span>');
+        });
+        T.addOutputLine('');
+        T.addOutputLine('<span class="tp-desc"># press any key to exit top</span>');
+        return;
+      }
+
+      // GUI mode: update DOM elements in-place
       var meta = T.el.output ? T.el.output.querySelector('#top-meta') : null;
       if (meta) {
         meta.innerHTML = '<span class="tp-muted">' + T.feedData.length + ' posts | ' + T.commandHistory.length + ' commands | uptime ' + T.uptimeStr() + '</span>';

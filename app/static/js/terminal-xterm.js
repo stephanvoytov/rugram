@@ -906,7 +906,8 @@
     var welcome = '\x1b[1;33mWelcome to Rugram Terminal v' + T.APP_VERSION + '\x1b[0m';
     term.writeln(welcome);
 
-    var server = '\x1b[2mServer: ' + window.location.host + '  |  User: @' + T.username + '\x1b[0m';
+    var userLabel = T.isLoggedIn ? '@' + T.username : 'guest \x1b[2m(not logged in)\x1b[0m';
+    var server = '\x1b[2mServer: ' + window.location.host + '  |  User: ' + userLabel + '\x1b[0m';
     term.writeln(server);
 
     term.writeln('');
@@ -921,7 +922,11 @@
 
     term.writeln('');
 
-    term.writeln('\x1b[2m# \x1b[97mhelp\x1b[2m — all commands  |  \x1b[97mfeed\x1b[2m — browse feed  |  \x1b[97msaved\x1b[2m — saved posts  |  \x1b[97mchat\x1b[2m — messages\x1b[0m');
+    if (T.isLoggedIn) {
+      term.writeln('\x1b[2m# \x1b[97mhelp\x1b[2m — all commands  |  \x1b[97mfeed\x1b[2m — browse feed  |  \x1b[97msaved\x1b[2m — saved posts  |  \x1b[97mchat\x1b[2m — messages\x1b[0m');
+    } else {
+      term.writeln('\x1b[2m# \x1b[97mhelp\x1b[2m — all commands  |  \x1b[97mfeed\x1b[2m — browse feed  |  \x1b[97mlogin\x1b[2m — sign in  |  \x1b[97mregister\x1b[2m — create account\x1b[0m');
+    }
 
     term.writeln('');
 

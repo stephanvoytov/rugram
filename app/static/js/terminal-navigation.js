@@ -77,7 +77,7 @@
   T.cmdLs = function(args) {
     args = args || '';
     var detailed = /-l/.test(args);
-    var rawTarget = (args.replace(/-l/g, '').trim());
+    var rawTarget = args.replace(/-\w+/g, '').trim();
     var target = rawTarget || '.';
     var isRoot = !rawTarget && (!T.cwd || T.cwd === '');
 
@@ -141,7 +141,8 @@
     T.addSysLine('<span class="tp-muted">' + children.length + ' ' + T._('элемент(а/ов)', 'item(s)') + '</span>');
 
     if (isRoot && !T.isLoggedIn) {
-      T.addOutputLine('<span class="tp-muted">  ' + T._('★ — без входа', '★ — works as guest') + ': posts, followers --of, neofetch, cat</span>');
+      T.addOutputLine('<span class="tp-muted">  ' + T._('без входа доступно: ls, cd, cat, neofetch, help', 'guest: ls, cd, cat, neofetch, help') + '</span>');
+      T.addOutputLine('<span class="tp-muted">  ' + T._('авторизуйтесь: login или register', 'sign in: <span class="tp-cmd">login</span>  |  create account: <span class="tp-cmd">register</span>') + '</span>');
     }
   };
 

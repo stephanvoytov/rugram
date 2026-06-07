@@ -312,7 +312,7 @@ async function test_watch_stop(dom) {
 
 async function test_ping_local(dom) {
   runCommand(dom, 'ping');
-  await nextTick(); await wait(30);
+  await nextTick(); await wait(500);
   hasOutput(dom, 'PING 127.0.0.1', 'ping localhost shows header');
   hasOutput(dom, 'icmp_seq=1', 'ping localhost shows seq starting at 1');
   hasOutput(dom, '56(84) bytes of data', 'ping shows unix-style header');
@@ -323,7 +323,7 @@ async function test_ping_user(dom) {
     { username: 'alice', is_online: true },
   ]});
   runCommand(dom, 'ping alice');
-  await nextTick(); await wait(30);
+  await nextTick(); await wait(300);
   hasOutput(dom, 'PING @alice', 'ping user shows header');
 }
 
