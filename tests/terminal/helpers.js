@@ -21,12 +21,6 @@ const LOAD_ORDER = [
   'terminal-commands.js',
 ];
 
-// ── Shared stats (mutable, shared across all test files) ──
-const stats = { passed: 0, failed: 0, failures: [] };
-let verbose = false;
-
-function setVerbose(v) { verbose = v; }
-
 // ── DOM & Helpers ──
 
 function createDOM() {
@@ -140,11 +134,15 @@ function nextTick() {
   return new Promise(r => process.nextTick(r));
 }
 
-// ── Assertions ──
+// Backward compat: old runner expects stats / setVerbose
+const stats = { passed: 0, failed: 0, failures: [] };
+function setVerbose(v) {}
+
+// ── Assertions (dual-mode: track stats for old runner, throw for Jest/vitest) ──
 
 function check(cond, msg) {
-  if (cond) { stats.passed++; if (verbose) console.log('  \u2713', msg); }
-  else { stats.failed++; const s = '  \u2717 FAIL: ' + msg; stats.failures.push(s); console.error(s); }
+  if (cond) { stats.passed++; }
+  else { stats.failed++; throw new Error(msg || 'assertion failed'); }
 }
 
 function hasOutput(dom, text, msg) {
@@ -152,12 +150,22 @@ function hasOutput(dom, text, msg) {
   const txt = outputText(dom);
   const normHtml = html.replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
   const normTxt = txt.replace(/\s+/g, ' ');
-  check(normHtml.includes(text) || normTxt.includes(text), msg || 'output contains "' + text + '"');
+  if (normHtml.includes(text) || normTxt.includes(text)) {
+    stats.passed++;
+  } else {
+    stats.failed++;
+    throw new Error(msg || 'output does not contain "' + text + '"');
+  }
 }
 
 function notOutput(dom, text, msg) {
   const html = outputHTML(dom);
-  check(!html.includes(text), msg || 'output does NOT contain "' + text + '"');
+  if (!html.includes(text)) {
+    stats.passed++;
+  } else {
+    stats.failed++;
+    throw new Error(msg || 'output should NOT contain "' + text + '"');
+  }
 }
 
 // ── Mock data factory ──
@@ -181,9 +189,27 @@ function setupLoggedIn(dom) {
   T.commandHistory = ['help', 'ls', 'feed'];
 }
 
+// ── State reset for Jest beforeEach ──
+
+function resetTerminal(dom) {
+  const T = dom.window.__RT;
+  T.isLoggedIn = false;
+  T.username = 'guest';
+  T.currentUserId = 0;
+  T.feedData = [];
+  T.commandHistory = [];
+  T.watchInterval = null;
+  T.topInterval = null;
+  T.cwd = '';
+  T._pingAborted = false;
+  dom.window.fetch.__clear();
+  dom.window.document.getElementById('termOutput').innerHTML = '';
+}
+
 module.exports = {
-  stats, setVerbose, LOAD_ORDER, JS_DIR,
+  LOAD_ORDER, JS_DIR,
   createDOM, setupGlobals, loadJSFiles, setupTerminal,
   runCommand, outputHTML, outputText, wait, nextTick,
-  check, hasOutput, notOutput, makePost, setupLoggedIn,
+  check, hasOutput, notOutput, makePost, setupLoggedIn, resetTerminal,
+  stats, setVerbose,
 };

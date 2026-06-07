@@ -102,6 +102,28 @@
       // async: handler receives (arg, onComplete), calls onComplete when done.
       // sync: handler receives (arg), onComplete called automatically after.
       const self = this;
+
+      /**
+       * @typedef {Object} CommandOptions
+       * @property {function(...*): *} handler     - Handler function
+       * @property {boolean}          [async]     - If true, handler gets (arg, onComplete)
+       * @property {boolean}          [auth]      - If true, requires login
+       * @property {string}           [category]  - Group name (auth, system, navigation, …)
+       * @property {string}           [match]     - 'exact' | 'prefix' | 'regex'
+       * @property {RegExp}           [regex]     - Custom regex (auto-generated from name otherwise)
+       * @property {function(string): *} [parse]  - Custom arg parser
+       * @property {string}           [description] - Human-readable help text
+       * @property {string}           [usage]     - Usage example
+       */
+
+      /**
+       * Registered terminal command with auto-dispatch.
+       * Sync handlers: `onComplete` called automatically after handler returns.
+       * Async handlers: receive `onComplete` as last arg and must call it.
+       *
+       * @param {string} name - Command name (used for matching)
+       * @param {CommandOptions} options - Command configuration
+       */
       this.Command = function(name, options) {
         this.name = name;
         this.handler = options.handler;
@@ -1013,7 +1035,8 @@
       }
       this.addOutputLine('');
       this.addOutputLine('Welcome to <span class="tp-section">Rugram Terminal v' + this.APP_VERSION + '</span>');
-      this.addOutputLine('<span class="tp-muted">Server: ' + this.escapeHtml(window.location.host) + '  |  User: @' + this.escapeHtml(this.username) + '</span>');
+      var userLabel = this.isLoggedIn ? '@' + this.escapeHtml(this.username) : 'guest <span class="tp-muted">(not logged in)</span>';
+this.addOutputLine('<span class="tp-muted">Server: ' + this.escapeHtml(window.location.host) + '  |  User: ' + userLabel + '</span>');
       this.addOutputLine('');
       var unread = typeof this.unreadNotifs !== 'undefined' ? this.unreadNotifs : 0;
       if (unread > 0) {
