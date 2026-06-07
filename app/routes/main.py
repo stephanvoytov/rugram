@@ -17,7 +17,7 @@ from flask import (
 )
 from flask_login import current_user, login_required, logout_user
 
-from app.forms import ProfileForm, SettingsForm
+from app.forms import ProfileForm
 from app.limiter import limiter
 from app.logger import log
 from app.push import send_notification_push
@@ -707,98 +707,113 @@ def tags_trending() -> Response:
     return jsonify({"tags": [{"name": t.name, "post_count": t.post_count} for t in tags]})
 
 
-@main_bp.route("/settings", methods=["GET", "POST"])
+# ── Settings API ──────────────────────────────────────────────────────────────
+
+
+@main_bp.route("/api/v1/settings/account", methods=["PATCH"])
+@login_required
+def settings_account() -> Response:
+    """Update username, email, language. Requires current_password if changing login/email."""
+    data = request.get_json(silent=True) or {}
+    username = data.get("username", "").strip().lower()
+    email = data.get("email", "").strip()
+    language = data.get("language", "")
+    password = data.get("current_password", "")
+
+    has_login_changes = (username and username != current_user.username) or (
+        email and email != current_user.email
+    )
+
+    # Password required for login/email changes
+    if has_login_changes and (not password or not current_user.check_password(password)):
+        return jsonify({"error": _("Current password is incorrect")}), 401
+
+    if username and username != current_user.username:
+        if len(username) < 3 or len(username) > 20:
+            return jsonify({"error": _("Username must be 3-20 characters")}), 400
+        if not all(c.isascii() and (c.islower() or c.isdigit() or c == "_") for c in username):
+            return jsonify({"error": _("Only a-z, 0-9, underscore")}), 400
+        if UserRepository.username_exists(username):
+            return jsonify({"error": _("This username is already taken")}), 409
+        current_user.username = username
+
+    if email and email != current_user.email:
+        if UserRepository.email_exists(email):
+            return jsonify({"error": _("This email is already registered")}), 409
+        current_user.email = email
+
+    if language in ("en", "ru"):
+        session["lang"] = language
+
+    UserRepository.commit()
+    return jsonify({"ok": True})
+
+
+@main_bp.route("/api/v1/settings/password", methods=["POST"])
+@login_required
+def settings_password() -> Response:
+    """Change password. Requires current_password + new_password."""
+    data = request.get_json(silent=True) or {}
+    current_pw = data.get("current_password", "")
+    new_pw = data.get("new_password", "")
+    confirm_pw = data.get("confirm_password", "")
+
+    if not current_pw or not current_user.check_password(current_pw):
+        return jsonify({"error": _("Current password is incorrect")}), 401
+
+    if not new_pw or len(new_pw) < 6:
+        return jsonify({"error": _("Password must be at least 6 characters")}), 400
+
+    if new_pw != confirm_pw:
+        return jsonify({"error": _("Passwords do not match")}), 400
+
+    current_user.set_password(new_pw)
+    UserRepository.commit()
+    return jsonify({"ok": True})
+
+
+@main_bp.route("/api/v1/settings/notifications", methods=["PATCH"])
+@login_required
+def settings_notifications() -> Response:
+    """Update notification preferences (push toggle + types)."""
+    data = request.get_json(silent=True) or {}
+
+    notif_enabled = data.get("notifications_enabled")
+    if notif_enabled is not None:
+        old_value = current_user.notifications_enabled
+        current_user.notifications_enabled = bool(notif_enabled)
+        if not current_user.notifications_enabled and old_value:
+            PushRepository.delete_all_user(current_user.id)
+
+    for field in ("notify_on_like", "notify_on_comment", "notify_on_follow", "notify_on_message"):
+        val = data.get(field)
+        if val is not None:
+            setattr(current_user, field, bool(val))
+
+    UserRepository.commit()
+    return jsonify({"ok": True})
+
+
+@main_bp.route("/api/v1/settings/delete-account", methods=["POST"])
+@login_required
+def settings_delete_account() -> Response:
+    """Delete account. Requires password confirmation."""
+    data = request.get_json(silent=True) or {}
+    password = data.get("password", "")
+
+    if not password or not current_user.check_password(password):
+        return jsonify({"error": _("Password is incorrect")}), 401
+
+    SocialService.delete_user_account(current_user.id)
+    logout_user()
+    return jsonify({"ok": True})
+
+
+@main_bp.route("/settings")
 @login_required
 def settings() -> Response:
-    form = SettingsForm()
-
-    # Pre-populate form with current user data
-    form.new_username.data = current_user.username
-    form.new_email.data = current_user.email
-    form.language.data = session.get("lang", "en")
-    form.notifications_enabled.data = current_user.notifications_enabled
-    form.notify_on_like.data = current_user.notify_on_like
-    form.notify_on_comment.data = current_user.notify_on_comment
-    form.notify_on_follow.data = current_user.notify_on_follow
-    form.notify_on_message.data = current_user.notify_on_message
-
-    if form.validate_on_submit():
-        try:
-            # Lowercase username before any checks so validator doesn't reject current value
-            if form.new_username.data:
-                form.new_username.data = form.new_username.data.lower()
-
-            # Проверка текущего пароля
-            if not current_user.check_password(form.current_password.data):
-                flash(_("Current password is incorrect"), "danger")
-                return render_template("main/settings.html", form=form)
-
-            # Обновление логина
-            if form.new_username.data and form.new_username.data != current_user.username:
-                if UserRepository.username_exists(form.new_username.data):
-                    flash(_("This username is already taken"), "danger")
-                    return render_template("main/settings.html", form=form)
-
-                current_user.username = form.new_username.data.lower()
-                flash(_("Username changed"), "success")
-
-            # Обновление email
-            if form.new_email.data and form.new_email.data != current_user.email:
-                if UserRepository.email_exists(form.new_email.data):
-                    flash(_("This email is already registered"), "danger")
-                    return render_template("main/settings.html", form=form)
-
-                current_user.email = form.new_email.data
-                flash(_("Email updated"), "success")
-
-            # Обновление пароля
-            if form.new_password.data:
-                current_user.set_password(form.new_password.data)
-                flash(_("Password changed"), "success")
-
-            # Обновление языка
-            lang = form.language.data
-            if lang in ("en", "ru"):
-                session["lang"] = lang
-
-            # Обновление настроек уведомлений
-            new_value = form.notifications_enabled.data
-            old_value = current_user.notifications_enabled
-            current_user.notifications_enabled = new_value
-
-            if new_value != old_value:
-                if new_value:
-                    flash(_("Notifications enabled"), "success")
-                else:
-                    PushRepository.delete_all_user(current_user.id)
-                    flash(_("Notifications disabled"), "info")
-
-            # Обновление типов уведомлений
-            current_user.notify_on_like = form.notify_on_like.data
-            current_user.notify_on_comment = form.notify_on_comment.data
-            current_user.notify_on_follow = form.notify_on_follow.data
-            current_user.notify_on_message = form.notify_on_message.data
-
-            UserRepository.commit()
-
-            flash(_("Settings saved"), "success")
-
-            # Удаление аккаунта
-            if form.delete_account.data:
-                SocialService.delete_user_account(current_user.id)
-                logout_user()
-                flash(_("Account deleted"), "success")
-                return redirect(url_for("auth.login"))
-
-            # Preserve active tab across redirect
-            active_tab = request.form.get("active_tab", "account")
-            return redirect(url_for("main.settings", saved="1", tab=active_tab))
-
-        except Exception:
-            UserRepository.rollback()
-            flash(_("Error updating settings"), "danger")
-
-    return render_template("main/settings.html", form=form)
+    """Render settings page (mutation via API endpoints above)."""
+    return render_template("main/settings.html")
 
 
 @main_bp.route("/health")

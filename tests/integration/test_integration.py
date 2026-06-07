@@ -285,18 +285,17 @@ class TestSettingsFlow:
         _register_user(client, "alice", "alice@x.com", "oldpass")
         _login(client, "alice", "oldpass")
 
+        # Change password via API
         r = client.post(
-            "/settings",
-            data={
+            "/api/v1/settings/password",
+            json={
                 "current_password": "oldpass",
                 "new_password": "newpass123",
                 "confirm_password": "newpass123",
-                "language": "en",
-                "active_tab": "account",
             },
-            follow_redirects=True,
         )
         assert r.status_code == 200
+        assert r.get_json() == {"ok": True}
 
         client.get("/logout", follow_redirects=True)
 
@@ -312,6 +311,122 @@ class TestSettingsFlow:
 
         r = client.get("/settings")
         assert r.status_code == 200
+
+    def test_account_settings_api(self, client: FlaskClient):
+        """Update username and email via API."""
+        _register_user(client, "alice", "alice@x.com", "pass123")
+        _login(client, "alice", "pass123")
+
+        r = client.patch(
+            "/api/v1/settings/account",
+            json={
+                "username": "alice_new",
+                "email": "alice_new@x.com",
+                "language": "ru",
+                "current_password": "pass123",
+            },
+        )
+        assert r.status_code == 200
+        assert r.get_json() == {"ok": True}
+
+        # Verify changes persisted
+        r = client.get("/settings")
+        assert r.status_code == 200
+        assert b"alice_new" in r.data
+
+    def test_account_settings_wrong_password(self, client: FlaskClient):
+        """Account API rejects wrong password."""
+        _register_user(client, "bob", "bob@x.com", "pass123")
+        _login(client, "bob", "pass123")
+
+        r = client.patch(
+            "/api/v1/settings/account",
+            json={
+                "username": "bob_new",
+                "current_password": "wrongpass",
+            },
+        )
+        assert r.status_code == 401
+
+    def test_account_settings_no_password_for_lang_only(self, client: FlaskClient):
+        """Language-only change doesn't need password."""
+        _register_user(client, "carol", "carol@x.com", "pass123")
+        _login(client, "carol", "pass123")
+
+        r = client.patch(
+            "/api/v1/settings/account",
+            json={"language": "ru"},
+        )
+        assert r.status_code == 200
+        assert r.get_json() == {"ok": True}
+
+    def test_notifications_api(self, client: FlaskClient):
+        """Toggle notification preferences via API."""
+        _register_user(client, "dave", "dave@x.com", "pass123")
+        _login(client, "dave", "pass123")
+
+        r = client.patch(
+            "/api/v1/settings/notifications",
+            json={
+                "notifications_enabled": True,
+                "notify_on_like": False,
+                "notify_on_comment": False,
+                "notify_on_follow": True,
+                "notify_on_message": True,
+            },
+        )
+        assert r.status_code == 200
+        assert r.get_json() == {"ok": True}
+
+        # Verify persisted
+        r = client.get("/settings")
+        assert r.status_code == 200
+
+    def test_password_wrong_current_rejected(self, client: FlaskClient):
+        """Password change with wrong current password rejected."""
+        _register_user(client, "eve", "eve@x.com", "pass123")
+        _login(client, "eve", "pass123")
+
+        r = client.post(
+            "/api/v1/settings/password",
+            json={
+                "current_password": "wrong",
+                "new_password": "newpass123",
+                "confirm_password": "newpass123",
+            },
+        )
+        assert r.status_code == 401
+
+    def test_password_too_short_rejected(self, client: FlaskClient):
+        """Password change with too short password rejected."""
+        _register_user(client, "frank", "frank@x.com", "pass123")
+        _login(client, "frank", "pass123")
+
+        r = client.post(
+            "/api/v1/settings/password",
+            json={
+                "current_password": "pass123",
+                "new_password": "ab",
+                "confirm_password": "ab",
+            },
+        )
+        assert r.status_code == 400
+
+    def test_delete_account(self, client: FlaskClient):
+        """Delete account via API, verify redirect to login."""
+        _register_user(client, "grace", "grace@x.com", "pass123")
+        _login(client, "grace", "pass123")
+
+        r = client.post(
+            "/api/v1/settings/delete-account",
+            json={"password": "pass123"},
+        )
+        assert r.status_code == 200
+        assert r.get_json() == {"ok": True}
+
+        # Should be logged out — try accessing settings
+        r = client.get("/settings")
+        assert r.status_code == 302  # redirect to login
 
 
 # =============================================================================
