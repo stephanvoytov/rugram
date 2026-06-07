@@ -612,8 +612,8 @@
   function _mnt(sub) {
     if (sub.length === 0) {
       return _dir([
-        { name: 'settings', type: 'file', desc: T._('Настройки (GUI)', 'Settings (GUI)') },
-        { name: 'edit_profile', type: 'file', desc: T._('Редактор профиля (GUI)', 'Edit profile (GUI)') },
+        { name: 'settings', type: 'file', desc: T._('Настройки', 'Settings') },
+        { name: 'edit_profile', type: 'file', desc: T._('Редактирование профиля', 'Edit profile') },
       ]);
     }
     if (sub[0] === 'settings') {
@@ -621,9 +621,27 @@
         name: 'settings',
         content: function(out) {
           out('<span class="tp-section">' + T._('Настройки', 'Settings') + '</span>');
-          out('<span class="tp-muted">  ' + T._('Открыть в GUI:', 'Open in GUI:') + ' <a href="' + T.escapeHtml(window.SETTINGS_URL || '/settings') + '" target="_blank" class="tp-cmd">' + T._('Настройки', 'Settings') + '</a></span>');
-          out('<span class="tp-desc">  # <span class="tp-cmd">gui</span> ' + T._('для перехода в GUI', 'to switch to GUI') + '</span>');
-          out('<span class="tp-desc">  # ' + T._('или используйте nano profile/info', 'or use nano profile/info') + '</span>');
+          if (!T.isLoggedIn) {
+            out('<span class="tp-err">' + T._('Требуется вход.', 'Login required.') + '</span>');
+            return;
+          }
+          // Show what we have locally, then fetch fresh data
+          out('<span class="tp-desc">username: <b>' + T.escapeHtml(T.username) + '</b></span>');
+          var theme = window.GUI_THEME ? GUI_THEME.getTheme() : '—';
+          var fontSize = window.GUI_THEME ? GUI_THEME.getFontSize() : '—';
+          out('<span class="tp-desc">theme: <b>' + T.escapeHtml(theme) + '</b></span>');
+          out('<span class="tp-desc">terminal font: <b>' + T.escapeHtml(fontSize) + '</b></span>');
+
+          T.vfsFetch(window.API_ME_URL, { credentials: 'same-origin' })
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            if (data.authenticated) {
+              out('<span class="tp-desc">email: <b>' + T.escapeHtml(data.user.email || '—') + '</b></span>');
+              out('<span class="tp-desc">bio: <b>' + T.escapeHtml(data.user.description || '—') + '</b></span>');
+            }
+          })
+          .catch(function() {});
+          out('<span class="tp-desc" style="margin-top:8px"># <span class="tp-cmd">gui</span> ' + T._('полные настройки', 'full settings page') + '</span>');
         },
       });
     }
@@ -631,10 +649,21 @@
       return _file({
         name: 'edit_profile',
         content: function(out) {
-          out('<span class="tp-section">' + T._('Редактирование профиля', 'Edit profile') + '</span>');
-          out('<span class="tp-muted">  ' + T._('Открыть в GUI:', 'Open in GUI:') + ' <a href="' + T.escapeHtml(window.EDIT_PROFILE_URL || '/edit_profile') + '" target="_blank" class="tp-cmd">' + T._('Редактор профиля', 'Edit profile') + '</a></span>');
-          out('<span class="tp-desc">  # <span class="tp-cmd">nano profile/info</span> ' + T._('редактировать из терминала', 'to edit from terminal') + '</span>');
-          out('<span class="tp-desc">  # <span class="tp-cmd">profile/info</span> ' + T._('чтобы увидеть текущий', 'to see current') + '</span>');
+          if (!T.isLoggedIn) {
+            out('<span class="tp-err">' + T._('Требуется вход.', 'Login required.') + '</span>');
+            return;
+          }
+          T.cmdWhoami();
+        },
+        edit: function(out, newText) {
+          if (!T.isLoggedIn) { out('<span class="tp-err">' + T._('Требуется вход.', 'Login required.') + '</span>'); return; }
+          T.vfsFetch(window.EDIT_PROFILE_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': T.csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
+            body: 'description=' + encodeURIComponent(newText),
+          }).then(function(r) {
+            out(r.ok ? '<span class="tp-ok">' + T._('Профиль обновлён', 'Profile updated') + '</span>' : '<span class="tp-err">' + T._('Ошибка', 'Error') + '</span>');
+          });
         },
       });
     }

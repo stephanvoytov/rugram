@@ -59,7 +59,7 @@
           body: 'text=' + encodeURIComponent(newText)
         });
       };
-    } else if (args === 'info' || args === 'profile/info') {
+    } else if (args === 'info' || args === 'profile/info' || args === 'edit_profile' || args === 'mnt/edit_profile') {
       // Профиль (bio)
       editorType = 'profile';
       initialText = '';
