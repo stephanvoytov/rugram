@@ -40,3 +40,6 @@ ignore = [
 python_version = "3.12"
 ignore_missing_imports = true
 exclude = ["migrations/"]
+
+[tool.pytest.ini_options]
+addopts = "-n auto --tb=short -q"
