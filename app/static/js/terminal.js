@@ -1,1597 +1,1163 @@
 // ── Rugram Terminal Mode ──
 // Dual-mode: GUI (обычный) + TTY (терминальный)
 // Переключение: кнопка в навбаре или команда `gui`/`exit`
-// CORE module — defines window.TERMINAL with all shared state and utilities
+// @ts-check
+// CORE module — defines window.__RT with all shared state and utilities
 
 (function() {
   'use strict';
 
-  var T = window.TERMINAL = {};
+  class Terminal {
+    constructor() {
+      // ── State ──
+      this.APP_VERSION = '0.3.0';
+      this.mode = 'gui';
+      this.lastCmd = '';
+      this.commandHistory = [];
+      this.historyIdx = -1;
+      this.username = 'guest';
+      this.isLoggedIn = false;
+      this.feedData = [];
+      this._fetchingFeed = false;
+      this.bootShown = false;
+      this.loadingEl = null;
+      this.cwd = '';
+      this.prevCmd = '';
 
-  T.APP_VERSION = '0.3.0';
+      // ── Command Registry (system metadata) ──
+      this.registry = {};
+      this._regOrder = 0;
 
-  // ── State ──
-  T.mode = 'gui';
-  T.lastCmd = '';
-  T.commandHistory = [];
-  T.historyIdx = -1;
-  T.username = 'guest';
-  T.isLoggedIn = false;
-  T.feedData = [];
-  T._fetchingFeed = false;
-  T.bootShown = false;
-  T.loadingEl = null;
-  T.cwd = '';
-  T.prevCmd = '';
+      // ── DOM refs (set on init) ──
+      this.el = {};
 
-  // ── Command Registry (system metadata) ──
-  T.registry = {};
-  T._regOrder = 0;
+      // ── Enhanced state ──
+      this.savedLang = localStorage.getItem('rugram_lang');
+      this.env = { LANG: this.savedLang || 'ru_RU', EDITOR: 'vim', THEME: 'dark', MATRIX: '0' };
+      this.startTime = Date.now();
 
-  T.register = function(name, meta) {
-    meta._order = T._regOrder++;
-    // Default: exact match with no args (must be set BEFORE regex auto-generation)
-    if (!meta.match) meta.match = 'exact';
-    if (!meta.auth) meta.auth = false;
-    // Auto-generate match regex
-    if (meta.match === 'exact' && !meta.regex) {
-      meta.regex = new RegExp('^' + name + '$', 'i');
-    } else if (meta.match === 'prefix' && !meta.regex) {
-      meta.regex = new RegExp('^' + name + '\\b', 'i');
-    } else if (meta.match === 'regex' && !meta.regex) {
-      meta.regex = new RegExp(name, 'i');
-    }
-    T.registry[name] = meta;
-  };
+      // ── Notification / watch / fortune state ──
+      this.unreadNotifs = 0;
+      this.watchInterval = null;
+      this.fortuneQuotes = [];
+      this.manPages = {};
 
-  T.unauthError = function(cmdName) {
-    T.addOutputLine('<span class="tp-err">' + cmdName + ': ' + T._('Требуется вход.', 'Login required.') + '</span>');
-    T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
-  };
+      // ── Matrix rain ──
+      this.matrixEnabled = this.env.MATRIX === '1' || Math.random() < 0.3;
 
-  T.onceKey = function(key, callback) {
-    var handler = function(e) {
-      if (e.key === key || (key === 'q' && (e.key === 'Q' || e.key === 'Escape'))) {
-        document.removeEventListener('keydown', handler);
-        e.preventDefault();
-        callback();
-      }
-    };
-    setTimeout(function() { document.addEventListener('keydown', handler); }, 100);
-  };
-  // ── DOM refs (set on init) ──
-  T.el = {};
+      // ── Section route map for cd command ──
+      this.sectionUrls = {
+        'settings': window.SETTINGS_URL,
+        'edit_profile': window.EDIT_PROFILE_URL,
+      };
 
-  // ── Enhanced state ──
-  T.savedLang = localStorage.getItem('rugram_lang');
-  T.env = { LANG: T.savedLang || 'ru_RU', EDITOR: 'vim', THEME: 'dark', MATRIX: '0' };
-  T.startTime = Date.now();
+      // ── Chat state ──
+      this.chatPollInterval = null;
+      this.lastMessageId = 0;
+      this.currentChatUser = '';
+      this.chatContext = null;
+      this.currentUserId = window.CURRENT_USER_ID || 0;
+      this.isLoggedIn = window.isAuthenticated === true && this.currentUserId > 0;
 
-  // ── Bilingual helper ──
-  T._ = function(ru, en) {
-    return (T.env.LANG || '').toLowerCase().startsWith('ru') ? ru : en;
-  };
+      // ── Nano overlay state ──
+      this.nanoOverlay = null;
 
-  T.unreadNotifs = 0;
-  T.watchInterval = null;
+      // ── Reverse-i-search state ──
+      this._reverseSearchActive = false;
+      this._reverseSearchQuery = '';
 
-  T.fortuneQuotes = [];
-  T.manPages = {};
+      // ── Program view stack (save/restore terminal output) ──
+      this._programStack = [];
+      this._programDepth = 0;
 
-  // ── ASCII art from image → terminal-ascii.js ──
+      // ── Less mode state ──
+      this._lessActive = false;
+      this._lessItems = [];
+      this._lessTitle = '';
+      this._lessPos = 0;
+      this._lessPerPage = 15;
+      this._lessSearchQuery = '';
+      this._lessSearchResults = [];
+      this._lessFilteredItems = [];
+      this._lessOnEnter = null;
+      this._lessGPress = false;
+      this._lessAwaitingSearch = false;
+      this._lessSearchHandler = null;
+      this._lessKeyHandler = null;
+      this._lessTouchHandler = null;
+      this._lessTouchStartY = 0;
+      this._lessTouchStartPos = 0;
+      this._lessType = 'generic';
 
-  // ── Matrix rain ──
-  T.matrixEnabled = T.env.MATRIX === '1' || Math.random() < 0.3;
+      // ── Top / ping state ──
+      this.topInterval = null;
+      this._pingAborted = undefined;
+      this._topExitListener = null;
 
-  // ── Section route map for cd command ──
-  T.sectionUrls = {
-    'settings': window.SETTINGS_URL,
-    'edit_profile': window.EDIT_PROFILE_URL,
-  };
+      // ── AbortController for Ctrl+C ──
+      this._abortController = null;
 
-  // ── Chat state ──
-  T.chatPollInterval = null;
-  T.lastMessageId = 0;
-  T.currentChatUser = '';
-  T.chatContext = null;
-  T.currentUserId = window.CURRENT_USER_ID || 0;
-  T.isLoggedIn = window.isAuthenticated === true && T.currentUserId > 0;
-
-  // ── Nano overlay state ──
-  T.nanoOverlay = null;
-
-  // ── Reverse-i-search state ──
-  T._reverseSearchActive = false;
-  T._reverseSearchQuery = '';
-
-  // ── Update prompt ──
-  T.updatePrompt = function() {
-    if (!T.el.prompt) return;
-    var user = T.escapeHtml(T.username || 'guest');
-    var dir = T.cwd ? '~/' + T.escapeHtml(T.cwd) : '~';
-    var badge = T.unreadNotifs > 0 ? ' <span class="tp-notif-badge">' + T.unreadNotifs + '</span>' : '';
-    T.el.prompt.innerHTML = user + '@tty:' + dir + badge + '$';
-  };
-
-  // ── Mode switching (fullscreen overlay, body scroll locked) ──
-  T.setMode = function(newMode) {
-    T.mode = newMode;
-    if (T.mode === 'tty') {
-      document.body.style.overflow = 'hidden';
-      T.el.terminal.style.display = 'flex';
-      T.el.bar.style.display = 'block';
-      if (T.el.toggleIcon) T.el.toggleIcon.innerHTML = '[>_ TTY]';
-      if (T.el.toggleBtn) { T.el.toggleBtn.classList.add('active'); T.el.toggleBtn.title = 'Switch to GUI'; }
-      localStorage.setItem('rugram_mode', 'tty');
-      sessionStorage.setItem('tty_session', '1');
-      // Refresh feed from API on re-entry
-      T.fetchFeedFromAPI();
-      if (!T.el.output.querySelector('.term-post') && !T.el.output.querySelector('.term-boot')) {
-        if (!T.bootShown) {
-          T.showBootScreen();
-        } else {
-          T.clearOutput();
-          T.addSysLine('<span class="tp-muted">session restored — use <span class="tp-cmd">feed</span> to view feed</span>');
-          T.updatePrompt();
-        }
-      }
-      setTimeout(function() { if (T.el.input) T.el.input.focus(); }, 100);
-    } else {
-      document.body.style.overflow = '';
-      T.el.terminal.style.display = 'none';
-      T.el.bar.style.display = 'none';
-      setTimeout(function() { T.cacheFeedFromDOM(); }, 200);
-      if (T.el.toggleIcon) T.el.toggleIcon.innerHTML = '[>_ TTY]';
-      if (T.el.toggleBtn) { T.el.toggleBtn.classList.remove('active'); T.el.toggleBtn.title = 'Terminal mode'; }
-      localStorage.setItem('rugram_mode', 'gui');
-      sessionStorage.removeItem('tty_session');
-    }
-  };
-
-  T.toggleMode = function() {
-    T.setMode(T.mode === 'gui' ? 'tty' : 'gui');
-  };
-
-  // ── Fetch feed posts from API (terminal-independent) ──
-  T.fetchFeedFromAPI = function(callback) {
-    T.vfsFetch(window.API_FEED_URL + '?per_page=50', { credentials: 'same-origin' })
-      .then(function(r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json();
-      })
-      .then(function(data) {
-        T.feedData = (data.posts || []).map(function(p) {
-          return {
-            id: p.id,
-            author: p.author,
-            time: p.time,
-            text: p.text,
-            liked: p.is_liked,
-            likes: p.likes,
-            comments: p.comments,
-            image: p.image
-          };
-        });
-        if (callback) callback();
-      })
-      .catch(function() {
-        if (callback) callback();
-      });
-  };
-
-  // ── Cache feed posts from DOM (GUI fallback — only when switching to GUI) ──
-  T.cacheFeedFromDOM = function() {
-    var cards = document.querySelectorAll('.post-card');
-    if (!cards.length) return;
-    T.feedData = [];
-    cards.forEach(function(card) {
-      var id = card.dataset.postUrl ? card.dataset.postUrl.split('/').pop() : (card.dataset.postId || '');
-      var authorEl = card.querySelector('.post-author');
-      var timeEl = card.querySelector('.post-time');
-      var textEl = card.querySelector('.post-body');
-      var likeBtn = card.querySelector('.like-btn');
-      var imgEl = card.querySelector('.post-img-clickable');
-
-      var likeCount = 0;
-      if (likeBtn) {
-        var lm = likeBtn.textContent.match(/♥\s*(\d+)/);
-        if (lm) likeCount = parseInt(lm[1], 10);
-      }
-
-      var commentCount = 0;
-      var commentEl = card.querySelector('a[href*="#comments"]');
-      if (!commentEl) commentEl = card.querySelector('.post-action');
-      if (commentEl) {
-        var cm = commentEl.textContent.match(/💬\s*(\d+)/);
-        if (cm) commentCount = parseInt(cm[1], 10);
-      }
-
-      T.feedData.push({
-        id: parseInt(id, 10) || 0,
-        author: authorEl ? authorEl.textContent.trim().replace(/^@/, '') : 'unknown',
-        time: timeEl ? (timeEl.title || timeEl.textContent.trim()) : '',
-        text: textEl ? textEl.textContent.trim() : '',
-        liked: likeBtn ? likeBtn.dataset.liked === 'true' : false,
-        likes: likeCount,
-        comments: commentCount,
-        image: imgEl ? (imgEl.dataset.fullImg || imgEl.src || null) : null
-      });
-    });
-  };
-
-  // ── Alias system ──
-  T._loadAliases = function() {
-    try { return JSON.parse(localStorage.getItem('rugram_aliases')) || {}; }
-    catch(e) { return {}; }
-  };
-
-  T._saveAliases = function(aliases) {
-    localStorage.setItem('rugram_aliases', JSON.stringify(aliases));
-  };
-
-  T._expandAliases = function(cmd) {
-    var aliases = T._loadAliases();
-    var firstWord = cmd.split(/\s+/)[0];
-    if (aliases[firstWord] !== undefined) {
-      return aliases[firstWord] + cmd.substring(firstWord.length);
-    }
-    return cmd;
-  };
-
-  // ── Check if command should be stored in history (filter passwords) ──
-  T._shouldAddToHistory = function(cmd) {
-    var lower = cmd.toLowerCase().trim();
-    // Never store login/register commands — they contain passwords
-    if (/^(login|register)\s/i.test(lower)) return false;
-    return true;
-  };
-
-  // ── Command Processing ──
-  T.processCommand = function(cmd) {
-    cmd = cmd.trim();
-    if (!cmd) return;
-
-    // Expand aliases before any processing
-    cmd = T._expandAliases(cmd);
-
-    var addToHistory = T._shouldAddToHistory(cmd);
-
-    // ── Chaining: ; (always), || (if exit code), && (if exit code) ──
-    // Since we don't track exit codes, all three just run sequentially.
-    // Split precedence: ; first, then ||, then && (like bash precedence).
-    var chainOp = null;
-    if (cmd.indexOf(';') >= 0) chainOp = ';';
-    else if (cmd.indexOf('||') >= 0) chainOp = '||';
-    else if (cmd.indexOf('&&') >= 0) chainOp = '&&';
-
-    if (chainOp) {
-      var parts = cmd.split(chainOp);
-      if (parts.length > 5) {
-        T.addOutputLine('<span class="tp-err">bash: too many chained commands (max 5)</span>');
-        return;
-      }
-      if (addToHistory) {
-        T.commandHistory.push(cmd);
-        if (T.commandHistory.length > 50) T.commandHistory.shift();
-      }
-      T.historyIdx = T.commandHistory.length;
-      T.prevCmd = T.lastCmd;
-      T.lastCmd = cmd;
-      for (var i = 0; i < parts.length; i++) {
-        var part = parts[i].trim();
-        if (part) T._dispatchCommand(part);
-      }
-      return;
-    }
-
-    if (addToHistory) {
-      T.commandHistory.push(cmd);
-      if (T.commandHistory.length > 50) T.commandHistory.shift();
-    }
-    T.historyIdx = T.commandHistory.length;
-    T.prevCmd = T.lastCmd;
-    T.lastCmd = cmd;
-
-    T._dispatchCommand(cmd);
-  };
-
-  // ── AbortController for Ctrl+C ──
-  T._abortController = null;
-
-  T._newAbort = function() {
-    if (T._abortController) T._abortController.abort();
-    T._abortController = new AbortController();
-    return T._abortController.signal;
-  };
-
-  T._cancelCommand = function() {
-    if (T._abortController) {
-      T._abortController.abort();
-      T._abortController = null;
-    }
-    if (T._programStack && T._programStack.length > 0) {
-      while (T._programStack.length > 0) T.exitProgramView();
-    }
-  };
-
-  // ── fetch wrapper with abort support ──
-  // All VFS fetches should use this instead of raw fetch.
-  // On abort (Ctrl+C), rejects silently — callers should handle
-  // by checking .catch or the special error name.
-  T.vfsFetch = function(url, options) {
-    options = options || {};
-    if (!options.signal && T._abortController) {
-      options.signal = T._abortController.signal;
-    }
-    return fetch(url, options);
-  };
-
-  // ── $VAR expansion for all commands ──
-  T._expandEnv = function(text) {
-    return text.replace(/\$(\w+)/g, function(m, key) {
-      return T.env[key] !== undefined ? T.env[key] : m;
-    });
-  };
-
-  // ── VFS tab completion ──
-  T._completeVFSPath = function(partial, cwd) {
-    // Split into parent path + partial last segment
-    var hasSlash = partial.lastIndexOf('/') >= 0;
-    var parentPath = hasSlash ? partial.substring(0, partial.lastIndexOf('/')) : '';
-    var lastName = hasSlash ? partial.substring(partial.lastIndexOf('/') + 1) : partial;
-    var prefix = hasSlash ? parentPath + '/' : '';
-
-    // Resolve the parent directory
-    var node;
-    if (parentPath) {
-      // Resolve parent relative to cwd
-      var parts = T.vfs.normalize(parentPath, cwd);
-      node = T.vfs.route(parts);
-    } else {
-      // No parent — resolve current directory to get its children
-      var curParts = cwd ? T.vfs.normalize(cwd, '') : [];
-      node = T.vfs.route(curParts);
-    }
-
-    if (!node || node.error || node.type !== 'dir') return [];
-
-    var children = node.children || [];
-    var results = [];
-    var seen = {};
-
-    for (var i = 0; i < children.length; i++) {
-      var name = children[i].name;
-      if (name.toLowerCase().startsWith(lastName.toLowerCase())) {
-        var suffix = children[i].type === 'dir' ? '/' : '';
-        var full = prefix + name + suffix;
-        if (!seen[full]) { seen[full] = true; results.push(full); }
-      }
-    }
-
-    // Also complete @usernames at root level (or when at /users)
-    if (lastName.startsWith('@') && (!parentPath || parentPath === 'users')) {
-      var userPartial = lastName.toLowerCase().replace('@', '');
-      (T.feedData || []).forEach(function(p) {
-        if (p.author.toLowerCase().startsWith(userPartial)) {
-          var at = prefix + '@' + p.author + '/';
-          if (!seen[at]) { seen[at] = true; results.push(at); }
-        }
-      });
-    }
-
-    return results.sort();
-  };
-
-  T._dispatchCommand = function(cmd) {
-    // Expand $VAR in the entire command line before dispatching
-    cmd = T._expandEnv(cmd);
-
-    // --help flag (generic — works for any command)
-    if (/\s--help$|^--help$/.test(cmd)) {
-      var hlpName = cmd.replace(/\s*--help$/, '').trim().split(' ')[0];
-      T.showCmdHelp(hlpName || 'help');
-      return;
-    }
-
-    // Special commands that DON'T use the registry
-    // (non-standard dispatch, command history, mode switch, cd)
-
-    // cd <section>
-    if (cmd.toLowerCase().startsWith('cd ') || cmd.toLowerCase() === 'cd') {
-      var cdTarget = cmd.trim().length > 2 ? cmd.slice(cmd.indexOf(' ') + 1).trim() : '';
-      T.processCd(cdTarget);
-      return;
-    }
-
-    // gui / exit
-    if (cmd.toLowerCase() === 'gui' || cmd.toLowerCase() === 'exit') {
-      // На отдельной странице /terminal — редирект на главную
-      if (window.location.pathname === '/terminal') {
-        window.location.href = '/';
-        return;
-      }
-      T.setMode('gui');
-      return;
-    }
-
-    // sudo !! — repeat previous command
-    if (cmd.toLowerCase() === 'sudo !!') {
-      if (T.prevCmd) { T._dispatchCommand(T.prevCmd); return; }
-      T.addOutputLine('<span class="tp-err">sudo: no previous command</span>');
-      return;
-    }
-
-    // ── Registry dispatch ──
-    // Iterate in registration order (entries registered first = matched first)
-    var names = Object.keys(T.registry);
-    for (var i = 0; i < names.length; i++) {
-      var entry = T.registry[names[i]];
-      var m = cmd.match(entry.regex);
-      if (!m) continue;
-
-      // Auth middleware
-      if (entry.auth && !T.isLoggedIn) {
-        T.unauthError(names[i]);
-        return;
-      }
-
-      if (entry.match === 'regex' && entry.parse) {
-        // Regex with captured args + parser
-        entry.handler.apply(null, entry.parse(m));
-      } else if (entry.match === 'prefix') {
-        // Prefix match — pass rest of string after command name
-        entry.handler(cmd.substring(names[i].length).trim());
-      } else {
-        // Exact match — no args or simple args
-        if (m[1] !== undefined && entry.parse) {
-          entry.handler.apply(null, entry.parse(m));
-        } else {
-          entry.handler();
-        }
-      }
-      return;
-    }
-
-    // Unknown command
-    T.cmdUnknown(cmd);
-  };
-
-  // ── Input handler ──
-  T.onInputKey = function(e) {
-    // Ctrl+C — interrupt
-    if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) {
-      // Let nano handle its own Ctrl+C
-      if (T.nanoOverlay) return;
-      e.preventDefault();
-      T._cancelCommand();
-      T.addOutputLine('<span class="tp-muted">^C</span>');
-      T.el.input.value = '';
-      T.updatePrompt();
-      if (T.el.input) { setTimeout(function() { T.el.input.focus(); }, 10); }
-      return;
-    }
-
-    // Ctrl+R — reverse-i-search
-    if (e.ctrlKey && (e.key === 'r' || e.key === 'R')) {
-      e.preventDefault();
-      if (T._reverseSearchActive) {
-        // Cycle to previous (older) match
-        var q = T._reverseSearchQuery.toLowerCase();
-        var found = false;
-        for (var i = T._reverseSearchMatchIdx - 1; i >= 0; i--) {
-          if (T.commandHistory[i].toLowerCase().indexOf(q) >= 0) {
-            T.el.input.value = T.commandHistory[i];
-            T._reverseSearchMatchIdx = i;
-            found = true;
-            break;
+      // ── Command class ──
+      // Wraps handler with execute() that handles sync/async completion.
+      // async: handler receives (arg, onComplete), calls onComplete when done.
+      // sync: handler receives (arg), onComplete called automatically after.
+      const self = this;
+      this.Command = function(name, options) {
+        this.name = name;
+        this.handler = options.handler;
+        this.async = !!options.async;
+        this.auth = !!options.auth;
+        this.category = options.category || 'system';
+        this.match = options.match || 'exact';
+        this.regex = options.regex || null;
+        this.parse = options.parse || null;
+        this.description = options.description || '';
+        this.usage = options.usage || '';
+        this._order = self._regOrder++;
+        // Auto-generate regex from name + match type
+        if (!this.regex) {
+          if (this.match === 'exact') {
+            this.regex = new RegExp('^' + name + '$', 'i');
+          } else if (this.match === 'prefix') {
+            this.regex = new RegExp('^' + name + '\\b', 'i');
+          } else if (this.match === 'regex') {
+            this.regex = new RegExp(name, 'i');
           }
         }
-        if (!found) { /* beep silently */ }
-      } else {
-        T._reverseSearchActive = true;
-        T._reverseSearchQuery = '';
-        T._reverseSearchMatchIdx = -1;
-        T.el.input.value = '';
-        T.el.input.placeholder = '(reverse-i-search) ``\'';
-      }
-      return;
+      };
+
+      this.Command.prototype.execute = function(handlerArg, onComplete) {
+        // Normalize handlerArg to an array of args for .apply()
+        var args;
+        if (handlerArg === null || handlerArg === undefined) {
+          args = [];
+        } else if (Array.isArray(handlerArg)) {
+          args = handlerArg;
+        } else {
+          args = [handlerArg];
+        }
+
+        if (this.async) {
+          // Append onComplete as last arg; handler must call it when done
+          args.push(onComplete);
+          this.handler.apply(self, args);
+        } else {
+          this.handler.apply(self, args);
+          if (typeof onComplete === 'function') onComplete();
+        }
+      };
+
+      // ── Context bindings for public callback methods ──
+      // All methods that can be called as callbacks (setTimeout, event handlers,
+      // fetch .then/.catch) MUST be bound here so `this` stays correct.
+      this.init = this.init.bind(this);
+      this.onInputKey = this.onInputKey.bind(this);
+      this.processCommand = this.processCommand.bind(this);
+      this._dispatchCommand = this._dispatchCommand.bind(this);
+      this._cancelCommand = this._cancelCommand.bind(this);
+      this.setMode = this.setMode.bind(this);
+      this.toggleMode = this.toggleMode.bind(this);
+      this.addOutput = this.addOutput.bind(this);
+      this.addOutputLine = this.addOutputLine.bind(this);
+      this.clearOutput = this.clearOutput.bind(this);
+      this.addSysLine = this.addSysLine.bind(this);
+      this.showLoading = this.showLoading.bind(this);
+      this.hideLoading = this.hideLoading.bind(this);
+      this.updatePrompt = this.updatePrompt.bind(this);
+      this.enterProgramView = this.enterProgramView.bind(this);
+      this.exitProgramView = this.exitProgramView.bind(this);
+      // enterLessMode, _exitLessMode, _renderLess, _renderFeedItem are bound
+      // externally in terminal-less.js (IIFE assigns to T with T.xxx = fn)
+      this.exec = this.exec.bind(this);
+      this.showCmdHelp = this.showCmdHelp.bind(this);
     }
 
-    // If reverse search is active, intercept keys
-    if (T._reverseSearchActive) {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        var matchedCmd = T.el.input.value;
-        T._reverseSearchActive = false;
-        T.el.input.placeholder = '';
-        T._reverseSearchQuery = '';
-        T.el.input.value = '';
-        if (matchedCmd.trim()) {
-          var fullPrompt = T.escapeHtml(T.username) + '@tty:' + (T.cwd ? '~/' + T.escapeHtml(T.cwd) : '~');
-          T.addOutputLine('<span class="tp-prompt">' + fullPrompt + '$</span><span class="tp-cmd">' + T.escapeHtml(matchedCmd.trim()) + '</span>');
-          T.processCommand(matchedCmd.trim());
+    // ════════════════════════════════════════════════════
+    //  UTILITY METHODS
+    // ════════════════════════════════════════════════════
+
+    // ── Bilingual helper ──
+    _(ru, en) {
+      return (this.env.LANG || '').toLowerCase().startsWith('ru') ? ru : en;
+    }
+
+    // ── CSRF token ──
+    csrfToken() {
+      var el = document.querySelector('meta[name="csrf-token"]');
+      return el ? el.content : '';
+    }
+
+    // ── HTML escaping ──
+    escapeHtml(text) {
+      var d = document.createElement('div');
+      d.textContent = text;
+      return d.innerHTML;
+    }
+
+    // ── #tag linkifier ──
+    _linkifyTags(escapedHtml) {
+      return escapedHtml.replace(/#(\w{1,32})/g, function(match, tag) {
+        return '<span class="tp-tag" data-tag="' + tag.toLowerCase() + '">#' + tag + '</span>';
+      });
+    }
+
+    // ── Current time as HH:MM:SS ──
+    sysTime() {
+      var d = new Date();
+      return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    // ── Toast notification ──
+    toast(msg, type) {
+      if (window.showToast) {
+        window.showToast(type === 'ok' ? '✓' : type === 'err' ? '✗' : 'TTY', msg, type || 'info');
+      }
+    }
+
+    // ── Uptime string ──
+    uptimeStr() {
+      var elapsed = Math.floor((Date.now() - this.startTime) / 1000);
+      var h = Math.floor(elapsed / 3600);
+      var m = Math.floor((elapsed % 3600) / 60);
+      var s = elapsed % 60;
+      return h + 'h ' + m + 'm ' + s + 's';
+    }
+
+    // ── Relative time ──
+    relTime(isoStr) {
+      if (!isoStr || !isoStr.includes('T')) return isoStr;
+      var then = new Date(isoStr);
+      if (isNaN(then.getTime())) return isoStr;
+      var now = new Date();
+      var diff = Math.floor((now - then) / 1000);
+      if (diff < 0) return 'just now';
+      if (diff < 60) return diff + 's ago';
+      if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+      if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+      var days = Math.floor(diff / 86400);
+      if (days < 30) return days + 'd ago';
+      if (days < 365) return Math.floor(days / 30) + 'mo ago';
+      return Math.floor(days / 365) + 'y ago';
+    }
+
+    // ── Unknown command ──
+    cmdUnknown(cmd) {
+      var first = cmd.split(' ')[0];
+      this.addOutputLine('<span class="tp-err">bash: ' + this.escapeHtml(first) + ': command not found</span>');
+      this.addOutputLine('<span class="tp-desc"># <span class="tp-cmd">help</span> — list commands</span>');
+    }
+
+    // ── Check if command should be stored in history (filter passwords) ──
+    _shouldAddToHistory(cmd) {
+      var lower = cmd.toLowerCase().trim();
+      if (/^(login|register)\s/i.test(lower)) return false;
+      return true;
+    }
+
+    // ── Alias system ──
+    _loadAliases() {
+      try { return JSON.parse(localStorage.getItem('rugram_aliases')) || {}; }
+      catch(e) { return {}; }
+    }
+
+    _saveAliases(aliases) {
+      localStorage.setItem('rugram_aliases', JSON.stringify(aliases));
+    }
+
+    _expandAliases(cmd) {
+      var aliases = this._loadAliases();
+      var firstWord = cmd.split(/\s+/)[0];
+      if (aliases[firstWord] !== undefined) {
+        return aliases[firstWord] + cmd.substring(firstWord.length);
+      }
+      return cmd;
+    }
+
+    // ── $VAR expansion ──
+    _expandEnv(text) {
+      var self = this;
+      return text.replace(/\$(\w+)/g, function(m, key) {
+        return self.env[key] !== undefined ? self.env[key] : m;
+      });
+    }
+
+    // ── One-time key handler ──
+    onceKey(key, callback) {
+      var handler = function(e) {
+        if (e.key === key || (key === 'q' && (e.key === 'Q' || e.key === 'Escape'))) {
+          document.removeEventListener('keydown', handler);
+          e.preventDefault();
+          callback();
+        }
+      };
+      setTimeout(function() { document.addEventListener('keydown', handler); }, 100);
+    }
+
+    // ── AbortController for Ctrl+C ──
+    _newAbort() {
+      if (this._abortController) this._abortController.abort();
+      this._abortController = new AbortController();
+      return this._abortController.signal;
+    }
+
+    _cancelCommand() {
+      if (this._abortController) {
+        this._abortController.abort();
+        this._abortController = null;
+      }
+      // Stop watch interval
+      if (this.watchInterval) {
+        clearInterval(this.watchInterval);
+        this.watchInterval = null;
+        this.topInterval = null;
+      }
+      // Stop top interval
+      if (this.topInterval) {
+        clearInterval(this.topInterval);
+        this.topInterval = null;
+      }
+      // Abort ping
+      if (this._pingAborted !== undefined) {
+        this._pingAborted = true;
+      }
+      // Clear keydown listener for top exit
+      if (this._topExitListener) {
+        document.removeEventListener('keydown', this._topExitListener);
+        this._topExitListener = null;
+      }
+      if (this._programStack && this._programStack.length > 0) {
+        while (this._programStack.length > 0) this.exitProgramView();
+      }
+    }
+
+    // ── fetch wrapper with abort support ──
+    vfsFetch(url, options) {
+      options = options || {};
+      if (!options.signal && this._abortController) {
+        options.signal = this._abortController.signal;
+      }
+      return fetch(url, options);
+    }
+
+    // ── VFS tab completion ──
+    _completeVFSPath(partial, cwd) {
+      var hasSlash = partial.lastIndexOf('/') >= 0;
+      var parentPath = hasSlash ? partial.substring(0, partial.lastIndexOf('/')) : '';
+      var lastName = hasSlash ? partial.substring(partial.lastIndexOf('/') + 1) : partial;
+      var prefix = hasSlash ? parentPath + '/' : '';
+
+      var node;
+      if (parentPath) {
+        var parts = this.vfs.normalize(parentPath, cwd);
+        node = this.vfs.route(parts);
+      } else {
+        var curParts = cwd ? this.vfs.normalize(cwd, '') : [];
+        node = this.vfs.route(curParts);
+      }
+
+      if (!node || node.error || node.type !== 'dir') return [];
+
+      var children = node.children || [];
+      var results = [];
+      var seen = {};
+
+      for (var i = 0; i < children.length; i++) {
+        var name = children[i].name;
+        if (name.toLowerCase().startsWith(lastName.toLowerCase())) {
+          var suffix = children[i].type === 'dir' ? '/' : '';
+          var full = prefix + name + suffix;
+          if (!seen[full]) { seen[full] = true; results.push(full); }
+        }
+      }
+
+      // Also complete @usernames at root level (or when at /users)
+      if (lastName.startsWith('@') && (!parentPath || parentPath === 'users')) {
+        var userPartial = lastName.toLowerCase().replace('@', '');
+        (this.feedData || []).forEach(function(p) {
+          if (p.author.toLowerCase().startsWith(userPartial)) {
+            var at = prefix + '@' + p.author + '/';
+            if (!seen[at]) { seen[at] = true; results.push(at); }
+          }
+        });
+      }
+
+      return results.sort();
+    }
+
+    // ── Auth error message ──
+    unauthError(cmdName) {
+      this.addOutputLine('<span class="tp-err">' + cmdName + ': ' + this._('Требуется вход.', 'Login required.') + '</span>');
+      this.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
+    }
+
+    // ── Register using Command class (new-style) ──
+    registerCommand(name, cmd) {
+      if (!(cmd instanceof this.Command)) {
+        throw new Error('T.registerCommand: expected a Command instance');
+      }
+      this.registry[name] = cmd;
+    }
+
+    // ── Legacy register (old-style, still works for plain-object entries) ──
+    register(name, meta) {
+      meta._order = this._regOrder++;
+      if (!meta.match) meta.match = 'exact';
+      if (!meta.auth) meta.auth = false;
+      if (meta.match === 'exact' && !meta.regex) {
+        meta.regex = new RegExp('^' + name + '$', 'i');
+      } else if (meta.match === 'prefix' && !meta.regex) {
+        meta.regex = new RegExp('^' + name + '\\b', 'i');
+      } else if (meta.match === 'regex' && !meta.regex) {
+        meta.regex = new RegExp(name, 'i');
+      }
+      this.registry[name] = meta;
+    }
+
+    // ════════════════════════════════════════════════════
+    //  CORE COMMAND PROCESSING
+    // ════════════════════════════════════════════════════
+
+    // ── Command Processing ──
+    // processCommand dispatches the command and handles completion.
+    // Sync commands: onComplete fires automatically after handler returns.
+    // Async commands: handler receives onComplete and calls it when done.
+    processCommand(cmd, onComplete) {
+      cmd = cmd.trim();
+      if (!cmd) {
+        if (typeof onComplete === 'function') onComplete();
+        return;
+      }
+
+      // Expand aliases before any processing
+      cmd = this._expandAliases(cmd);
+
+      var addToHistory = this._shouldAddToHistory(cmd);
+
+      // ── Chaining: ; (always), || (if exit code), && (if exit code) ──
+      // Since we don't track exit codes, all three just run sequentially.
+      // Split precedence: ; first, then ||, then && (like bash precedence).
+      var chainOp = null;
+      if (cmd.indexOf(';') >= 0) chainOp = ';';
+      else if (cmd.indexOf('||') >= 0) chainOp = '||';
+      else if (cmd.indexOf('&&') >= 0) chainOp = '&&';
+
+      if (chainOp) {
+        var parts = cmd.split(chainOp);
+        if (parts.length > 5) {
+          this.addOutputLine('<span class="tp-err">bash: too many chained commands (max 5)</span>');
+          if (typeof onComplete === 'function') onComplete();
+          return;
+        }
+        if (addToHistory) {
+          this.commandHistory.push(cmd);
+          if (this.commandHistory.length > 50) this.commandHistory.shift();
+        }
+        this.historyIdx = this.commandHistory.length;
+        this.prevCmd = this.lastCmd;
+        this.lastCmd = cmd;
+        for (var i = 0; i < parts.length; i++) {
+          var part = parts[i].trim();
+          if (part) this._dispatchCommand(part);
+        }
+        if (typeof onComplete === 'function') onComplete();
+        return;
+      }
+
+      if (addToHistory) {
+        this.commandHistory.push(cmd);
+        if (this.commandHistory.length > 50) this.commandHistory.shift();
+      }
+      this.historyIdx = this.commandHistory.length;
+      this.prevCmd = this.lastCmd;
+      this.lastCmd = cmd;
+
+      // Pass onComplete to _dispatchCommand; Command.execute handles sync/async
+      this._dispatchCommand(cmd, onComplete);
+    }
+
+    // ── _dispatchCommand ──
+    // Accepts optional onComplete callback.
+    // For Command instances (new-style): uses entry.execute() which handles sync/async.
+    // For plain-object entries (legacy): calls handler directly, fires onComplete after.
+    // Special non-registry commands (cd, gui, sudo !!) also call onComplete when sync.
+    _dispatchCommand(cmd, onComplete) {
+      // Expand $VAR in the entire command line before dispatching
+      cmd = this._expandEnv(cmd);
+
+      // --help flag (generic — works for any command)
+      if (/\s--help$|^--help$/.test(cmd)) {
+        var hlpName = cmd.replace(/\s*--help$/, '').trim().split(' ')[0];
+        this.showCmdHelp(hlpName || 'help');
+        if (typeof onComplete === 'function') onComplete();
+        return;
+      }
+
+      // Special commands that DON'T use the registry
+      // (non-standard dispatch, command history, mode switch, cd)
+
+      // cd <section>
+      if (cmd.toLowerCase().startsWith('cd ') || cmd.toLowerCase() === 'cd') {
+        var cdTarget = cmd.trim().length > 2 ? cmd.slice(cmd.indexOf(' ') + 1).trim() : '';
+        this.processCd(cdTarget);
+        if (typeof onComplete === 'function') onComplete();
+        return;
+      }
+
+      // gui / exit
+      if (cmd.toLowerCase() === 'gui' || cmd.toLowerCase() === 'exit') {
+        if (window.location.pathname === '/terminal') {
+          window.location.href = '/';
+          return;
+        }
+        this.setMode('gui');
+        if (typeof onComplete === 'function') onComplete();
+        return;
+      }
+
+      // sudo !! — repeat previous command
+      if (cmd.toLowerCase() === 'sudo !!') {
+        if (this.prevCmd) { this._dispatchCommand(this.prevCmd, onComplete); return; }
+        this.addOutputLine('<span class="tp-err">sudo: no previous command</span>');
+        if (typeof onComplete === 'function') onComplete();
+        return;
+      }
+
+      // ── Registry dispatch ──
+      var names = Object.keys(this.registry);
+      for (var i = 0; i < names.length; i++) {
+        var entry = this.registry[names[i]];
+        var m = cmd.match(entry.regex);
+        if (!m) continue;
+
+        // Auth middleware
+        if (entry.auth && !this.isLoggedIn) {
+          this.unauthError(names[i]);
+          if (typeof onComplete === 'function') onComplete();
+          return;
+        }
+
+        if (typeof entry.execute === 'function') {
+          // New-style Command instance — let execute handle args + completion
+          var handlerArg;
+          if (entry.match === 'regex' && entry.parse) {
+            handlerArg = entry.parse(m);
+          } else if (entry.match === 'prefix') {
+            handlerArg = cmd.substring(names[i].length).trim();
+          } else {
+            handlerArg = null;
+          }
+          entry.execute(handlerArg, onComplete);
+        } else {
+          // Legacy plain-object entry — call handler directly
+          if (entry.match === 'regex' && entry.parse) {
+            entry.handler.apply(null, entry.parse(m));
+          } else if (entry.match === 'prefix') {
+            entry.handler(cmd.substring(names[i].length).trim());
+          } else {
+            if (m[1] !== undefined && entry.parse) {
+              entry.handler.apply(null, entry.parse(m));
+            } else {
+              entry.handler();
+            }
+          }
+          if (typeof onComplete === 'function') onComplete();
         }
         return;
       }
-      if (e.key === 'Escape') {
+
+      // Unknown command
+      this.cmdUnknown(cmd);
+      if (typeof onComplete === 'function') onComplete();
+    }
+
+    // ── Input handler ──
+    onInputKey(e) {
+      // Ctrl+C — interrupt
+      if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) {
+        if (this.nanoOverlay) return;
         e.preventDefault();
-        T._reverseSearchActive = false;
-        T.el.input.placeholder = '';
-        T.el.input.value = '';
-        T._reverseSearchQuery = '';
+        this._cancelCommand();
+        this.addOutputLine('<span class="tp-muted">^C</span>');
+        this.el.input.value = '';
+        this.updatePrompt();
+        if (this.el.input) { setTimeout(function() { this.el.input.focus(); }.bind(this), 10); }
         return;
       }
-      if (e.key === 'Backspace') {
+
+      // Ctrl+R — reverse-i-search
+      if (e.ctrlKey && (e.key === 'r' || e.key === 'R')) {
         e.preventDefault();
-        T._reverseSearchQuery = T._reverseSearchQuery.slice(0, -1);
-        if (T._reverseSearchQuery) {
-          var lower = T._reverseSearchQuery.toLowerCase();
+        if (this._reverseSearchActive) {
+          var q = this._reverseSearchQuery.toLowerCase();
           var found = false;
-          for (var i = T.commandHistory.length - 1; i >= 0; i--) {
-            if (T.commandHistory[i].toLowerCase().indexOf(lower) >= 0) {
-              T.el.input.value = T.commandHistory[i];
-              T._reverseSearchMatchIdx = i;
+          for (var i = this._reverseSearchMatchIdx - 1; i >= 0; i--) {
+            if (this.commandHistory[i].toLowerCase().indexOf(q) >= 0) {
+              this.el.input.value = this.commandHistory[i];
+              this._reverseSearchMatchIdx = i;
               found = true;
               break;
             }
           }
-          if (!found) T.el.input.value = '';
+          if (!found) { /* beep silently */ }
         } else {
-          T.el.input.value = '';
-          T._reverseSearchMatchIdx = -1;
+          this._reverseSearchActive = true;
+          this._reverseSearchQuery = '';
+          this._reverseSearchMatchIdx = -1;
+          this.el.input.value = '';
+          this.el.input.placeholder = '(reverse-i-search) ``\'';
         }
-        T.el.input.placeholder = '(reverse-i-search) `' + T._reverseSearchQuery + '\'';
         return;
       }
-      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
-        e.preventDefault();
-        T._reverseSearchQuery += e.key;
-        var lower = T._reverseSearchQuery.toLowerCase();
-        var found = false;
-        for (var i = T.commandHistory.length - 1; i >= 0; i--) {
-          if (T.commandHistory[i].toLowerCase().indexOf(lower) >= 0) {
-            T.el.input.value = T.commandHistory[i];
-            T._reverseSearchMatchIdx = i;
-            found = true;
-            break;
-          }
-        }
-        if (!found) T.el.input.value = '';
-        T.el.input.placeholder = '(reverse-i-search) `' + T._reverseSearchQuery + '\'';
-        return;
-      }
-      // Block other keys during search
-      e.preventDefault();
-      return;
-    }
 
-    // Tab — autocomplete
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      var input = T.el.input.value.trim();
-      if (!input) return;
-      var words = input.split(/\s+/);
-      var partial = words[0].toLowerCase();
-      var candidates = [];
-      var navCmds = { cd: 1, ls: 1, cat: 1, nano: 1, rm: 1 };
-
-      if (words.length === 1) {
-        // ── Complete command name ──
-        var names = Object.keys(T.registry);
-        for (var i = 0; i < names.length; i++) {
-          if (names[i].toLowerCase().startsWith(partial)) {
-            candidates.push(names[i]);
+      // If reverse search is active, intercept keys
+      if (this._reverseSearchActive) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          var matchedCmd = this.el.input.value;
+          this._reverseSearchActive = false;
+          this.el.input.placeholder = '';
+          this._reverseSearchQuery = '';
+          this.el.input.value = '';
+          if (matchedCmd.trim()) {
+            var fullPrompt = this.escapeHtml(this.username) + '@tty:' + (this.cwd ? '~/' + this.escapeHtml(this.cwd) : '~');
+            this.addOutputLine('<span class="tp-prompt">' + fullPrompt + '$</span><span class="tp-cmd">' + this.escapeHtml(matchedCmd.trim()) + '</span>');
+            this.processCommand(matchedCmd.trim());
           }
+          return;
         }
-      } else if (navCmds[partial] && words.length === 2) {
-        // ── Complete VFS path for nav commands (cd, ls, cat, nano, rm) ──
-        candidates = T._completeVFSPath(words[1], T.cwd);
-      } else {
-        // ── Complete @username from feedData ──
-        if (words[1] && words[1].startsWith('@')) {
-          var userPartial = words[1].toLowerCase().replace('@', '');
-          T.feedData.forEach(function(p) {
-            if (p.author.toLowerCase().startsWith(userPartial)) {
-              var at = '@' + p.author;
-              if (candidates.indexOf(at) < 0) candidates.push(at);
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          this._reverseSearchActive = false;
+          this.el.input.placeholder = '';
+          this.el.input.value = '';
+          this._reverseSearchQuery = '';
+          return;
+        }
+        if (e.key === 'Backspace') {
+          e.preventDefault();
+          this._reverseSearchQuery = this._reverseSearchQuery.slice(0, -1);
+          if (this._reverseSearchQuery) {
+            var lower = this._reverseSearchQuery.toLowerCase();
+            var found = false;
+            for (var i = this.commandHistory.length - 1; i >= 0; i--) {
+              if (this.commandHistory[i].toLowerCase().indexOf(lower) >= 0) {
+                this.el.input.value = this.commandHistory[i];
+                this._reverseSearchMatchIdx = i;
+                found = true;
+                break;
+              }
             }
-          });
+            if (!found) this.el.input.value = '';
+          } else {
+            this.el.input.value = '';
+            this._reverseSearchMatchIdx = -1;
+          }
+          this.el.input.placeholder = '(reverse-i-search) `' + this._reverseSearchQuery + '\'';
+          return;
         }
+        if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+          e.preventDefault();
+          this._reverseSearchQuery += e.key;
+          var lower = this._reverseSearchQuery.toLowerCase();
+          var found = false;
+          for (var i = this.commandHistory.length - 1; i >= 0; i--) {
+            if (this.commandHistory[i].toLowerCase().indexOf(lower) >= 0) {
+              this.el.input.value = this.commandHistory[i];
+              this._reverseSearchMatchIdx = i;
+              found = true;
+              break;
+            }
+          }
+          if (!found) this.el.input.value = '';
+          this.el.input.placeholder = '(reverse-i-search) `' + this._reverseSearchQuery + '\'';
+          return;
+        }
+        // Block other keys during search
+        e.preventDefault();
+        return;
       }
 
-      if (candidates.length === 0) return;
-      if (candidates.length === 1) {
-        if (words.length >= 2 && navCmds[partial]) {
-          // VFS path: use last word as the completion base
-          words[words.length - 1] = candidates[0];
-          T.el.input.value = words.join(' ') + ' ';
+      // Tab — autocomplete
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        var input = this.el.input.value.trim();
+        if (!input) return;
+        var words = input.split(/\s+/);
+        var partial = words[0].toLowerCase();
+        var candidates = [];
+        var navCmds = { cd: 1, ls: 1, cat: 1, nano: 1, rm: 1 };
+
+        if (words.length === 1) {
+          // ── Complete command name ──
+          var names = Object.keys(this.registry);
+          for (var i = 0; i < names.length; i++) {
+            if (names[i].toLowerCase().startsWith(partial)) {
+              candidates.push(names[i]);
+            }
+          }
+        } else if (navCmds[partial] && words.length === 2) {
+          // ── Complete VFS path for nav commands (cd, ls, cat, nano, rm) ──
+          candidates = this._completeVFSPath(words[1], this.cwd);
         } else {
-          words[0] = candidates[0];
-          T.el.input.value = words.join(' ') + ' ';
-        }
-      } else {
-        T.addOutputLine('<span class="tp-desc">' + candidates.join('  ') + '</span>');
-      }
-      return;
-    }
-
-    if (e.key === 'Enter') {
-      var cmd = T.el.input.value.trim();
-      if (cmd) {
-        var fullPrompt = T.escapeHtml(T.username) + '@tty:' + (T.cwd ? '~/' + T.escapeHtml(T.cwd) : '~');
-        T.addOutputLine('<span class="tp-prompt">' + fullPrompt + '$</span><span class="tp-cmd">' + T.escapeHtml(cmd) + '</span>');
-        T.processCommand(cmd);
-      }
-      T.el.input.value = '';
-      e.preventDefault();
-    }
-    if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      if (T.historyIdx > 0) {
-        T.historyIdx--;
-        T.el.input.value = T.commandHistory[T.historyIdx];
-      }
-    }
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      if (T.historyIdx < T.commandHistory.length - 1) {
-        T.historyIdx++;
-        T.el.input.value = T.commandHistory[T.historyIdx];
-      } else {
-        T.historyIdx = T.commandHistory.length;
-        T.el.input.value = '';
-      }
-    }
-  };
-
-  // ── Output helpers ──
-  T.addOutput = function(html) {
-    var div = document.createElement('div');
-    div.innerHTML = html;
-    T.el.output.appendChild(div);
-    T.el.output.scrollTop = T.el.output.scrollHeight;
-  };
-
-  T.addOutputLine = function(html) {
-    T.addOutput('<div class="tp-line">' + html + '</div>');
-  };
-
-  T.clearOutput = function() {
-    T.el.output.innerHTML = '';
-  };
-
-  T.escapeHtml = function(text) {
-    var d = document.createElement('div');
-    d.textContent = text;
-    return d.innerHTML;
-  };
-
-  T._linkifyTags = function(escapedHtml) {
-    // Преобразует #tag в кликабельные спаны (текст уже экранирован)
-    return escapedHtml.replace(/#(\w{1,32})/g, function(match, tag) {
-      return '<span class="tp-tag" data-tag="' + tag.toLowerCase() + '">#' + tag + '</span>';
-    });
-  };
-
-  T.sysTime = function() {
-    var d = new Date();
-    return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  };
-
-  T.addSysLine = function(text) {
-    T.addOutputLine('<span class="tp-sys"><span class="tp-time">[' + T.sysTime() + ']</span>' + text + '</span>');
-  };
-
-  T.showLoading = function(text) {
-    T.hideLoading();
-    var line = document.createElement('div');
-    line.className = 'tp-line';
-    line.id = 'tp-loading-line';
-    line.innerHTML = '<span class="tp-spinner"></span><span class="tp-desc">' + T.escapeHtml(text || 'Processing') + '<span class="tp-loading"></span></span>';
-    T.el.output.appendChild(line);
-    T.el.output.scrollTop = T.el.output.scrollHeight;
-    T.loadingEl = line;
-  };
-
-  T.hideLoading = function() {
-    if (T.loadingEl) {
-      T.loadingEl.remove();
-      T.loadingEl = null;
-    }
-  };
-
-  T.toast = function(msg, type) {
-    if (window.showToast) {
-      window.showToast(type === 'ok' ? '✓' : type === 'err' ? '✗' : 'TTY', msg, type || 'info');
-    }
-  };
-
-  // ── Boot screen ──
-  T.showBootScreen = function() {
-    T.bootShown = true;
-    if (T.matrixEnabled) {
-      T.showMatrixRain(function() { T._bootContent(); });
-    } else {
-      T._bootContent();
-    }
-  };
-
-  T._welcomeMessage = function() {
-    var now = new Date();
-    var dateStr = now.toDateString() + ' ' + now.toLocaleTimeString();
-
-    var logo = '<div class="term-boot">';
-    logo += '  <pre>';
-    logo += '  █████     █    █     █████    █████      █████    █     ██  \n';
-    logo += '  █    █    █    █    █         █    █    █    █    ██   ██   \n';
-    logo += '  █████     █    █    █  ████   █████     ██████    █ █ █ █   \n';
-    logo += '  █   █     █    █    █    █    █   █     █    █    █  █  █   \n';
-    logo += '  █    █     ██████    █████    █    █    █    █    █     █   \n';
-    logo += '  </pre>';
-    logo += '</div>';
-    T.addOutput(logo);
-
-    var lastLogin = localStorage.getItem('rugram_last_login');
-    if (lastLogin) {
-      T.addOutputLine('<span class="tp-desc">Last login: ' + lastLogin + '</span>');
-    }
-    T.addOutputLine('');
-
-    T.addOutputLine('Welcome to <span class="tp-section">Rugram Terminal v' + T.APP_VERSION + '</span>');
-    T.addOutputLine('<span class="tp-muted">Server: ' + T.escapeHtml(window.location.host) + '  |  User: @' + T.escapeHtml(T.username) + '</span>');
-    T.addOutputLine('');
-
-    var unread = typeof T.unreadNotifs !== 'undefined' ? T.unreadNotifs : 0;
-    if (unread > 0) {
-      T.addOutputLine('You have <span class="tp-ok">' + unread + ' unread notification' + (unread > 1 ? 's' : '') + '</span>');
-    }
-    T.addOutputLine('<span class="tp-desc">' + (T.feedData.length || '0') + T._(' постов в ленте', ' posts in feed') + '</span>');
-    T.addOutputLine('');
-
-    T.addOutputLine('<span class="tp-muted"># <span class="tp-cmd">help</span> — all commands  |  <span class="tp-cmd">feed</span> — browse feed  |  <span class="tp-cmd">saved</span> — saved posts  |  <span class="tp-cmd">chat</span> — messages</span>');
-    T.addOutputLine('');
-
-    localStorage.setItem('rugram_last_login', dateStr);
-  };
-
-  T._bootContent = function() {
-    T.clearOutput();
-    T._welcomeMessage();
-  };
-
-  // ── Cat /feed ──
-  T.renderFeed = function(posts) {
-    var list = posts || T.feedData;
-    T.addOutputLine('<span class="tp-section">-- /feed -- (' + list.length + ' posts)</span>');
-
-    if (!list.length) {
-      T.addOutputLine('<span class="tp-muted">  feed: empty</span>');
-      T.addOutputLine('<span class="tp-desc">  # <span class="tp-cmd">create</span> to write a new post</span>');
-      return;
-    }
-
-    list.forEach(function(p) {
-      var timeDisplay = p.time.indexOf('T') > 0 ? T.relTime(p.time) : p.time;
-      T.addOutputLine('  #' + p.id + '  <span class="tp-post-author">@' + T.escapeHtml(p.author) + '</span>  <span class="tp-post-time">' + T.escapeHtml(timeDisplay) + '</span>');
-      T.addOutputLine('  ' + T.escapeHtml(p.text.substring(0, 200)));
-      if (p.image) {
-        T.addOutputLine('  <span class="tp-muted">[img]</span>');
-      }
-      var liked = p.liked ? '<span class="tp-ok">+</span>' : '-';
-      T.addOutputLine('  ' + liked + ' ' + p.likes + '  c:' + p.comments + '  #' + p.id);
-    });
-
-    T.addSysLine('<span class="tp-muted">' + list.length + ' post(s) · page 1</span>');
-  };
-
-  // ── HOME screen ──
-  T.renderHome = function() {
-    T.clearOutput();
-    T._welcomeMessage();
-  };
-
-  // ── Program view stack (save/restore terminal output) ──
-  T._programStack = [];
-  T._programDepth = 0;
-
-  T.enterProgramView = function() {
-    if (T._programDepth === 0) {
-      T._programStack.push({
-        output: T.el.output.innerHTML,
-        scrollTop: T.el.output.scrollTop
-      });
-      if (T.el.bar) { T.el.bar.style.display = 'none'; }
-      if (T.el.terminal) { T.el.terminal.style.bottom = '0'; }
-    }
-    T._programDepth++;
-    T.clearOutput();
-  };
-
-  T.exitProgramView = function() {
-    if (T._programDepth <= 0) return;
-    T._programDepth--;
-    if (T._programDepth === 0) {
-      var saved = T._programStack.pop();
-      if (saved) {
-        T.el.output.innerHTML = saved.output;
-        T.el.output.scrollTop = saved.scrollTop;
-      }
-      if (T.el.bar) { T.el.bar.style.display = 'block'; }
-      if (T.el.terminal) { T.el.terminal.style.bottom = '49px'; }
-    }
-    T.updatePrompt();
-    if (T.el.input) setTimeout(function() { T.el.input.focus(); }, 50);
-  };
-
-  // ── Less mode state ──
-  T._lessActive = false;
-  T._lessItems = [];
-  T._lessTitle = '';
-  T._lessPos = 0;
-  T._lessPerPage = 15;
-  T._lessSearchQuery = '';
-  T._lessSearchResults = [];
-  T._lessFilteredItems = [];
-  T._lessOnEnter = null; // callback for Enter key
-  T._lessGPress = false;
-  T._lessAwaitingSearch = false;
-  T._lessSearchHandler = null;
-
-  // ── INTERACTIVE PAGER (less) ──
-  T.enterLessMode = function(items, title, onEnter, type) {
-    T._lessActive = true;
-    T._lessItems = items;
-    T._lessTitle = title || 'feed';
-    T._lessType = type || 'generic';
-    T._lessPos = 0;
-    T._lessSearchQuery = '';
-    T._lessSearchResults = [];
-    T._lessFilteredItems = items;
-    T._lessOnEnter = onEnter || null;
-
-    // Clear ASCII art caches on new feed entry
-    if (T._lessType === 'feed') {
-      items.forEach(function(it) {
-        if (it._asciiArt !== undefined) delete it._asciiArt;
-        if (it._asciiConverting !== undefined) delete it._asciiConverting;
-      });
-    }
-
-    // Calculate items per page — feed items are taller
-    var lineH = T._lessType === 'feed' ? 80 : 20;
-    T._lessPerPage = Math.max(3, Math.floor((T.el.output.clientHeight || 400) / lineH));
-
-    T.enterProgramView();
-    T._renderLess();
-
-    if (T.el.input) T.el.input.blur();
-
-    T._lessKeyHandler = function(e) {
-      if (!T._lessActive) return;
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-
-      // q / Q — quit
-      if (e.key === 'q' || e.key === 'Q') {
-        T._exitLessMode();
-        e.preventDefault();
-        return;
-      }
-
-      // j / Down — next line
-      if (e.key === 'j' || e.key === 'ArrowDown') {
-        T._lessPos = Math.min(T._lessPos + 1, T._lessFilteredItems.length - 1);
-        T._renderLess();
-        e.preventDefault();
-        return;
-      }
-
-      // k / Up — prev line
-      if (e.key === 'k' || e.key === 'ArrowUp') {
-        T._lessPos = Math.max(T._lessPos - 1, 0);
-        T._renderLess();
-        e.preventDefault();
-        return;
-      }
-
-      // Space / PageDown — next page
-      if (e.key === ' ' || e.key === 'PageDown') {
-        T._lessPos = Math.min(T._lessPos + T._lessPerPage, T._lessFilteredItems.length - 1);
-        T._renderLess();
-        e.preventDefault();
-        return;
-      }
-
-      // PageUp — prev page
-      if (e.key === 'PageUp') {
-        T._lessPos = Math.max(T._lessPos - T._lessPerPage, 0);
-        T._renderLess();
-        e.preventDefault();
-        return;
-      }
-
-      // g (and then g) — go to top
-      if (e.key === 'g' && !e.shiftKey && !e.ctrlKey) {
-        if (T._lessGPress) {
-          T._lessPos = 0;
-          T._renderLess();
-          T._lessGPress = false;
-          e.preventDefault();
-          return;
-        }
-        T._lessGPress = true;
-        setTimeout(function() { T._lessGPress = false; }, 500);
-        e.preventDefault();
-        return;
-      }
-
-      // G / Shift+g — go to bottom
-      if (e.key === 'G' || (e.key === 'g' && e.shiftKey)) {
-        T._lessPos = Math.max(0, T._lessFilteredItems.length - 1);
-        T._renderLess();
-        e.preventDefault();
-        return;
-      }
-
-      // / — search mode
-      if (e.key === '/') {
-        T._lessSearchQuery = '';
-        T._renderLessSearchPrompt();
-        e.preventDefault();
-        return;
-      }
-
-      // n — next search result
-      if (e.key === 'n' && T._lessSearchQuery) {
-        var found = -1;
-        for (var i = T._lessPos + 1; i < T._lessFilteredItems.length; i++) {
-          if (T._lessItemMatches(T._lessFilteredItems[i], T._lessSearchQuery)) {
-            found = i;
-            break;
+          // ── Complete @username from feedData ──
+          if (words[1] && words[1].startsWith('@')) {
+            var userPartial = words[1].toLowerCase().replace('@', '');
+            this.feedData.forEach(function(p) {
+              if (p.author.toLowerCase().startsWith(userPartial)) {
+                var at = '@' + p.author;
+                if (candidates.indexOf(at) < 0) candidates.push(at);
+              }
+            });
           }
         }
-        if (found >= 0) {
-          T._lessPos = found;
-          T._renderLess();
-        }
-        e.preventDefault();
-        return;
-      }
 
-      // N — prev search result
-      if (e.key === 'N' && T._lessSearchQuery) {
-        var found = -1;
-        for (var i = T._lessPos - 1; i >= 0; i--) {
-          if (T._lessItemMatches(T._lessFilteredItems[i], T._lessSearchQuery)) {
-            found = i;
-            break;
+        if (candidates.length === 0) return;
+        if (candidates.length === 1) {
+          if (words.length >= 2 && navCmds[partial]) {
+            words[words.length - 1] = candidates[0];
+            this.el.input.value = words.join(' ') + ' ';
+          } else {
+            words[0] = candidates[0];
+            this.el.input.value = words.join(' ') + ' ';
           }
+        } else {
+          this.addOutputLine('<span class="tp-desc">' + candidates.join('  ') + '</span>');
         }
-        if (found >= 0) {
-          T._lessPos = found;
-          T._renderLess();
-        }
-        e.preventDefault();
-        return;
-      }
-
-      // Enter — open item detail
-      if (e.key === 'Enter') {
-        var item = T._lessFilteredItems[T._lessPos];
-        if (item && T._lessOnEnter) {
-          T._lessOnEnter(item);
-        } else if (item && item.id) {
-          T._exitLessMode();
-          T.cmdPostView(item.id);
-        }
-        e.preventDefault();
-        return;
-      }
-
-      // ── Feed-mode specific keys ──
-      if (T._lessType === 'feed') {
-        var current = T._lessFilteredItems[T._lessPos];
-
-        // l — like/unlike
-        if (e.key === 'l' && current && current.id) {
-          T._feedToggleLike(current);
-          e.preventDefault();
-          return;
-        }
-
-        // s — save/unsave
-        if (e.key === 's' && current && current.id) {
-          T._feedToggleSave(current);
-          e.preventDefault();
-          return;
-        }
-
-        // r — repost
-        if (e.key === 'r' && !e.shiftKey && !e.ctrlKey && current && current.id) {
-          T._feedToggleRepost(current);
-          e.preventDefault();
-          return;
-        }
-
-        // R / Shift+r — refresh feed from API
-        if ((e.key === 'R' || (e.key === 'r' && e.shiftKey)) && !e.ctrlKey) {
-          T._feedRefresh();
-          e.preventDefault();
-          return;
-        }
-
-        // c — open comments
-        if (e.key === 'c' && current && current.id) {
-          T._exitLessMode();
-          T.cmdPostView(current.id);
-          e.preventDefault();
-          return;
-        }
-
-        // f — filter by current post's author
-        if (e.key === 'f' && current && current.author) {
-          T._feedFilterByAuthor(current.author);
-          e.preventDefault();
-          return;
-        }
-      }
-
-      // r — refresh current view (generic)
-      if (e.key === 'r' && !e.ctrlKey && T._lessType !== 'feed') {
-        T._renderLess();
-        e.preventDefault();
-        return;
-      }
-    };
-
-    document.addEventListener('keydown', T._lessKeyHandler);
-
-    // ── Touch scroll support ──
-    T._lessTouchStartY = 0;
-    T._lessTouchStartPos = 0;
-
-    T._lessTouchHandler = function(e) {
-      if (!T._lessActive) return;
-      if (e.type === 'touchstart') {
-        T._lessTouchStartY = e.touches[0].clientY;
-        T._lessTouchStartPos = T._lessPos;
-      } else if (e.type === 'touchmove') {
-        e.preventDefault();
-        var deltaY = T._lessTouchStartY - e.touches[0].clientY;
-        var lineDelta = Math.round(deltaY / 20);
-        if (lineDelta !== 0) {
-          T._lessPos = Math.max(0, Math.min(T._lessTouchStartPos + lineDelta, T._lessFilteredItems.length - 1));
-          T._renderLess();
-        }
-      }
-    };
-    document.addEventListener('touchstart', T._lessTouchHandler, { passive: true });
-    document.addEventListener('touchmove', T._lessTouchHandler, { passive: false });
-  };
-
-  T._exitLessMode = function() {
-    if (!T._lessActive) return;
-    T._lessActive = false;
-    T._lessGPress = false;
-    T._lessSearchQuery = '';
-    T._lessSearchResults = [];
-    T._lessAwaitingSearch = false;
-    document.removeEventListener('keydown', T._lessKeyHandler);
-    T._lessKeyHandler = null;
-    if (T._lessTouchHandler) {
-      document.removeEventListener('touchstart', T._lessTouchHandler);
-      document.removeEventListener('touchmove', T._lessTouchHandler);
-      T._lessTouchHandler = null;
-    }
-    if (T._lessSearchHandler) {
-      document.removeEventListener('keydown', T._lessSearchHandler);
-      T._lessSearchHandler = null;
-    }
-    T.exitProgramView();
-  };
-
-  T._renderLess = function() {
-    if (!T._lessActive) return;
-
-    var items = T._lessFilteredItems;
-    if (!items.length) {
-      T.clearOutput();
-      T.addOutputLine('<span class="tp-muted">less: empty</span>');
-      T.addOutputLine('');
-      T.addOutputLine('<span class="tp-desc"># press <span class="tp-cmd">q</span> to quit</span>');
-      return;
-    }
-
-    // Calculate visible range
-    var total = items.length;
-    var pageStart = Math.max(0, Math.min(T._lessPos, total - 1));
-    var visibleStart = Math.max(0, pageStart - Math.floor(T._lessPerPage / 3));
-    var visibleEnd = Math.min(total, visibleStart + T._lessPerPage);
-    if (visibleEnd - visibleStart < T._lessPerPage) {
-      visibleStart = Math.max(0, visibleEnd - T._lessPerPage);
-    }
-    T._lessPos = Math.min(pageStart, total - 1);
-
-    T.clearOutput();
-
-    // Header
-    var pct = total > 0 ? Math.round((pageStart + 1) / total * 100) : 0;
-    var searchInfo = T._lessSearchQuery ? '  /' + T._lessSearchQuery : '';
-    T.addOutput('<div class="tp-less-header"><span class="tp-section">-- ' + T.escapeHtml(T._lessTitle) + ' (' + total + ' items) ' + searchInfo + ' --</span><span class="tp-muted" style="float:right">' + (pageStart + 1) + '-' + visibleEnd + '  ' + pct + '%</span></div>');
-
-    // Items
-    if (T._lessType === 'feed') {
-      for (var i = visibleStart; i < visibleEnd; i++) {
-        T._renderFeedItem(items[i], i, i === pageStart);
-      }
-    } else {
-      for (var i = visibleStart; i < visibleEnd; i++) {
-        var item = items[i];
-        var isCurrent = (i === pageStart);
-        var prefix = isCurrent ? '<span class="tp-less-cursor">></span> ' : '  ';
-        var line = T._lessRenderItem(item, i);
-        T.addOutput('<div class="tp-line' + (isCurrent ? ' tp-less-current' : '') + '">' + prefix + line + '</div>');
-      }
-    }
-
-    // Footer
-    var footer;
-    if (T._lessType === 'feed') {
-      footer = T._lessSearchQuery
-        ? '/ ' + T._lessSearchQuery + '  —  n next  N prev  Enter open  q quit'
-        : '# feed  —  l:like  s:save  r:repost  c:comments  o:open  f:filter-by-author  R:refresh  j/k/⇅ scroll  /search  q quit';
-    } else {
-      footer = T._lessSearchQuery
-        ? '/ ' + T._lessSearchQuery + '  —  n next  N prev  Enter open  q quit'
-        : '# less  —  j/k/⇅ scroll  Enter view  /search  n/N next  gg/G top/bottom  q quit';
-    }
-    T.addOutput('<div class="tp-less-footer"><span class="tp-muted">' + footer + '</span></div>');
-  };
-
-  T._renderLessSearchPrompt = function() {
-    if (!T._lessActive) return;
-    T._lessAwaitingSearch = true;
-
-    // Show a search bar at the bottom
-    T._renderLess();
-    T.addOutput('<div class="tp-less-search"><span class="tp-ok">/</span><span class="tp-cmd" id="lessSearchInput"></span><span class="tp-less-cursor">█</span></div>');
-
-    // Install search input handler
-    T._lessSearchHandler = function(e) {
-      if (!T._lessActive) return;
-
-      if (e.key === 'Escape' || e.key === 'q') {
-        T._lessAwaitingSearch = false;
-        document.removeEventListener('keydown', T._lessSearchHandler);
-        T._renderLess();
-        e.preventDefault();
         return;
       }
 
       if (e.key === 'Enter') {
-        T._lessAwaitingSearch = false;
-        document.removeEventListener('keydown', T._lessSearchHandler);
+        var cmd = this.el.input.value.trim();
+        if (cmd) {
+          var fullPrompt = this.escapeHtml(this.username) + '@tty:' + (this.cwd ? '~/' + this.escapeHtml(this.cwd) : '~');
+          this.addOutputLine('<span class="tp-prompt">' + fullPrompt + '$</span><span class="tp-cmd">' + this.escapeHtml(cmd) + '</span>');
+          this.processCommand(cmd);
+        }
+        this.el.input.value = '';
+        e.preventDefault();
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (this.historyIdx > 0) {
+          this.historyIdx--;
+          this.el.input.value = this.commandHistory[this.historyIdx];
+        }
+      }
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (this.historyIdx < this.commandHistory.length - 1) {
+          this.historyIdx++;
+          this.el.input.value = this.commandHistory[this.historyIdx];
+        } else {
+          this.historyIdx = this.commandHistory.length;
+          this.el.input.value = '';
+        }
+      }
+    }
 
-        // Search through items
-        T._lessSearchResults = [];
-        for (var i = 0; i < T._lessFilteredItems.length; i++) {
-          if (T._lessItemMatches(T._lessFilteredItems[i], T._lessSearchQuery)) {
-            T._lessSearchResults.push(i);
+    // ── Mode switching (fullscreen overlay, body scroll locked) ──
+    setMode(newMode) {
+      this.mode = newMode;
+      if (this.mode === 'tty') {
+        document.body.style.overflow = 'hidden';
+        this.el.terminal.style.display = 'flex';
+        if (this.el.bar) this.el.bar.style.display = 'block';
+        if (this.el.toggleIcon) this.el.toggleIcon.innerHTML = '[>_ TTY]';
+        if (this.el.toggleBtn) { this.el.toggleBtn.classList.add('active'); this.el.toggleBtn.title = 'Switch to GUI'; }
+        localStorage.setItem('rugram_mode', 'tty');
+        sessionStorage.setItem('tty_session', '1');
+        this.fetchFeedFromAPI();
+        if (this.el.output && !this.el.output.querySelector('.term-post') && !this.el.output.querySelector('.term-boot')) {
+          if (!this.bootShown) {
+            this.showBootScreen();
+          } else {
+            this.clearOutput();
+            this.addSysLine('<span class="tp-muted">session restored — use <span class="tp-cmd">feed</span> to view feed</span>');
+            this.updatePrompt();
           }
         }
-        if (T._lessSearchResults.length) {
-          T._lessPos = T._lessSearchResults[0];
-        }
-        T._renderLess();
-        e.preventDefault();
-        return;
-      }
-
-      if (e.key === 'Backspace') {
-        T._lessSearchQuery = T._lessSearchQuery.slice(0, -1);
-        var promptEl = document.getElementById('lessSearchInput');
-        if (promptEl) promptEl.textContent = T._lessSearchQuery;
-        e.preventDefault();
-        return;
-      }
-
-      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
-        // Only printable characters
-        if (e.key.match(/[\x20-\x7E]/)) {
-          T._lessSearchQuery += e.key;
-          var promptEl = document.getElementById('lessSearchInput');
-          if (promptEl) promptEl.textContent = T._lessSearchQuery;
-          e.preventDefault();
-        }
-      }
-    };
-
-    document.addEventListener('keydown', T._lessSearchHandler);
-  };
-
-  T._lessItemMatches = function(item, query) {
-    if (!query) return true;
-    var q = query.toLowerCase();
-    var text = '';
-    // Try common fields
-    if (item.text) text += item.text;
-    if (item.author) text += ' ' + item.author;
-    if (item.username) text += ' ' + item.username;
-    if (item.description) text += ' ' + item.description;
-    return text.toLowerCase().indexOf(q) >= 0;
-  };
-
-  T._lessRenderItem = function(item, idx) {
-    // Default: show brief info
-    var buf = '';
-    // Unread/read indicator (for notifications)
-    if (item.is_read !== undefined) {
-      buf += item.is_read ? '<span class="tp-muted">·</span> ' : '<span class="tp-ok">◆</span> ';
-    }
-    // Online indicator (for chat list)
-    if (item.is_online !== undefined) {
-      buf += item.is_online ? '<span class="tp-ok">●</span> ' : '<span class="tp-muted">○</span> ';
-    }
-    // Unread count (for chat list)
-    if (item.unread && item.unread > 0) {
-      buf += '<span class="tp-ok">[' + item.unread + ']</span> ';
-    }
-    if (item.id) buf += '<span class="tp-post-id">#' + item.id + '</span> ';
-    if (item.author) buf += '<span class="tp-post-author">@' + T.escapeHtml(item.author) + '</span> ';
-    if (item.username) buf += '<span class="tp-post-author">@' + T.escapeHtml(item.username) + '</span> ';
-    if (item.time) {
-      var td = item.time.indexOf('T') > 0 ? T.relTime(item.time) : item.time;
-      buf += '<span class="tp-post-time">' + T.escapeHtml(td) + '</span> ';
-    }
-    if (item.text) buf += T.escapeHtml(item.text.substring(0, 120));
-    if (item.description) buf += '<span class="tp-muted">' + T.escapeHtml(item.description.substring(0, 80)) + '</span>';
-    if (!item.text && !item.description) {
-      buf += '<span class="tp-muted">(no content)</span>';
-    }
-    return buf;
-  };
-
-  // ── Feed-mode multi-line post renderer ──
-  T._renderFeedItem = function(item, idx, isCurrent) {
-    var cls = 'tp-line' + (isCurrent ? ' tp-less-current' : '');
-    var prefix = isCurrent ? '<span class="tp-less-cursor">></span>' : '';
-    var esc = T.escapeHtml;
-
-    // Header: #id @author time
-    var timeDisplay = item.time && item.time.indexOf('T') > 0 ? T.relTime(item.time) : (item.time || '');
-    var header = prefix + ' <span class="tp-post-id">#' + item.id + '</span>'
-      + ' <span class="tp-post-author">@' + esc(item.author) + '</span>'
-      + ' <span class="tp-post-time">' + esc(timeDisplay) + '</span>';
-
-    // Text — full, not truncated, with clickable #tags
-    var textBlock = item.text
-      ? '<div class="tp-feed-text">' + T._linkifyTags(esc(item.text)) + '</div>'
-      : '';
-
-    // Image → ASCII art (async, cached)
-    var asciiBlock = '';
-    if (item.image) {
-      if (item._asciiArt) {
-        asciiBlock = item._asciiArt;
+        setTimeout(function() { if (this.el.input) this.el.input.focus(); }.bind(this), 100);
       } else {
-        if (!item._asciiConverting) {
-          item._asciiConverting = true;
-          T.imageToAscii(item.image, 40, function(ascii) {
-            item._asciiArt = ascii;
-            item._asciiConverting = false;
-            T._renderLess();
+        document.body.style.overflow = '';
+        this.el.terminal.style.display = 'none';
+        if (this.el.bar) this.el.bar.style.display = 'none';
+        setTimeout(function() { this.cacheFeedFromDOM(); }.bind(this), 200);
+        if (this.el.toggleIcon) this.el.toggleIcon.innerHTML = '[>_ TTY]';
+        if (this.el.toggleBtn) { this.el.toggleBtn.classList.remove('active'); this.el.toggleBtn.title = 'Terminal mode'; }
+        localStorage.setItem('rugram_mode', 'gui');
+        sessionStorage.removeItem('tty_session');
+      }
+    }
+
+    toggleMode() {
+      this.setMode(this.mode === 'gui' ? 'tty' : 'gui');
+    }
+
+    // ── Prompt update (no-op stub — overridden by xterm adapter) ──
+    updatePrompt() {}
+
+    // ── Fetch feed posts from API (terminal-independent) ──
+    fetchFeedFromAPI(callback) {
+      this.vfsFetch(window.API_FEED_URL + '?per_page=50', { credentials: 'same-origin' })
+        .then(function(r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        })
+        .then(function(data) {
+          this.feedData = (data.posts || []).map(function(p) {
+            return {
+              id: p.id,
+              author: p.author,
+              time: p.time,
+              text: p.text,
+              liked: p.is_liked,
+              likes: p.likes,
+              comments: p.comments,
+              image: p.image
+            };
           });
-        }
-        asciiBlock = '<div class="tp-feed-img"><span class="tp-muted">[img...</span></div>';
-      }
-    }
-
-    // Action bar: likes, comments, reposts, saved status
-    var liked = item.is_liked ? '<span class="tp-ok">●</span>' : '<span class="tp-muted">○</span>';
-    var savedMark = item.is_saved ? ' <span class="tp-ok">✦</span>' : '';
-    var imgMark = item.image ? ' <span class="tp-muted">📷</span>' : '';
-    var actions = '<div class="tp-feed-actions">'
-      + liked + ' <span class="tp-muted">' + (item.likes || 0) + '</span>'
-      + '  <span class="tp-muted">💬</span> <span class="tp-muted">' + (item.comments || 0) + '</span>'
-      + '  <span class="tp-muted">🔁</span> <span class="tp-muted">' + (item.reposts || 0) + '</span>'
-      + imgMark + savedMark
-      + '</div>';
-
-    T.addOutput('<div class="' + cls + '">' + header + '</div>');
-    if (textBlock) T.addOutput('<div class="tp-line tp-feed-text-wrap">' + textBlock + '</div>');
-    if (asciiBlock) T.addOutput('<div class="tp-line">' + asciiBlock + '</div>');
-    T.addOutput('<div class="tp-line">' + actions + '</div>');
-    T.addOutput('<div class="tp-line tp-feed-spacer">&nbsp;</div>');
-  };
-
-  // ── Feed: toggle like ──
-  T._feedToggleLike = function(item) {
-    if (!item || !item.id) return;
-    var url = window.LIKE_URL.replace('/0/', '/' + item.id + '/');
-    T.vfsFetch(url, {
-      method: 'POST',
-      headers: { 'X-CSRFToken': T.csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
-      credentials: 'same-origin'
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (data.status === 'ok' || data.liked !== undefined) {
-        item.is_liked = data.liked !== undefined ? data.liked : !item.is_liked;
-        item.likes = data.likes_count !== undefined ? data.likes_count : (item.likes || 0) + (item.is_liked ? 1 : -1);
-        T._renderLess();
-        T.toast(item.is_liked ? '❤ liked' : '💔 unliked', 'ok');
-      }
-    })
-    .catch(function() { T.toast('like failed', 'err'); });
-  };
-
-  // ── Feed: toggle save ──
-  T._feedToggleSave = function(item) {
-    if (!item || !item.id) return;
-    var url = window.SAVE_URL.replace('/0/', '/' + item.id + '/');
-    T.vfsFetch(url, {
-      method: 'POST',
-      headers: { 'X-CSRFToken': T.csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
-      credentials: 'same-origin'
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (data.status === 'ok' || data.saved !== undefined) {
-        item.is_saved = data.saved !== undefined ? data.saved : !item.is_saved;
-        T._renderLess();
-        T.toast(item.is_saved ? '✦ saved' : 'unsaved', 'ok');
-      }
-    })
-    .catch(function() { T.toast('save failed', 'err'); });
-  };
-
-  // ── Feed: toggle repost ──
-  T._feedToggleRepost = function(item) {
-    if (!item || !item.id) return;
-    var url = window.REPOST_URL.replace('/0/', '/' + item.id + '/');
-    T.vfsFetch(url, {
-      method: 'POST',
-      headers: { 'X-CSRFToken': T.csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
-      credentials: 'same-origin'
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (data.status === 'ok' || data.reposted !== undefined) {
-        item.is_reposted = data.reposted !== undefined ? data.reposted : !item.is_reposted;
-        item.reposts = data.reposts_count !== undefined ? data.reposts_count : (item.reposts || 0) + (item.is_reposted ? 1 : -1);
-        T._renderLess();
-        T.toast(item.is_reposted ? '🔁 reposted' : 'repost removed', 'ok');
-      }
-    })
-    .catch(function() { T.toast('repost failed', 'err'); });
-  };
-
-  // ── Feed: refresh from API ──
-  T._feedRefresh = function() {
-    T.showLoading(T._('Обновление ленты...', 'Refreshing feed...'));
-    T.fetchFeedFromAPI(function() {
-      T.hideLoading();
-      if (T._lessActive) {
-        T._lessFilteredItems = T.feedData.slice();
-        T._lessItems = T.feedData.slice();
-        T._lessPos = 0;
-        // Clear ASCII caches
-        T._lessFilteredItems.forEach(function(it) {
-          delete it._asciiArt;
-          delete it._asciiConverting;
+          if (callback) callback();
+        }.bind(this))
+        .catch(function() {
+          if (callback) callback();
         });
-        T._renderLess();
-      }
-      T.toast('feed refreshed (' + T.feedData.length + ' posts)', 'ok');
-    });
-  };
-
-  // ── Feed: filter by author ──
-  T._feedFilterByAuthor = function(author) {
-    if (!author) return;
-    var q = author.toLowerCase();
-    var filtered = T._lessItems.filter(function(p) {
-      return p.author && p.author.toLowerCase() === q;
-    });
-    if (!filtered.length) {
-      T.toast('no posts from @' + author, 'err');
-      return;
-    }
-    T._lessFilteredItems = filtered;
-    T._lessPos = 0;
-    // Clear ASCII for re-render
-    filtered.forEach(function(it) {
-      delete it._asciiArt;
-      delete it._asciiConverting;
-    });
-    T.toast('filter: @' + author + ' (' + filtered.length + ' posts)', 'ok');
-    T._renderLess();
-  };
-
-  // ── Image to ASCII → moved to terminal-ascii.js ──
-
-  // ── CSRF token ──
-  T.csrfToken = function() {
-    var el = document.querySelector('meta[name="csrf-token"]');
-    return el ? el.content : '';
-  };
-
-  // ── Uptime string ──
-  T.uptimeStr = function() {
-    var elapsed = Math.floor((Date.now() - T.startTime) / 1000);
-    var h = Math.floor(elapsed / 3600);
-    var m = Math.floor((elapsed % 3600) / 60);
-    var s = elapsed % 60;
-    return h + 'h ' + m + 'm ' + s + 's';
-  };
-
-  // ── Relative time ──
-  T.relTime = function(isoStr) {
-    if (!isoStr || !isoStr.includes('T')) return isoStr;
-    var then = new Date(isoStr);
-    if (isNaN(then.getTime())) return isoStr;
-    var now = new Date();
-    var diff = Math.floor((now - then) / 1000);
-    if (diff < 0) return 'just now';
-    if (diff < 60) return diff + 's ago';
-    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
-    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
-    var days = Math.floor(diff / 86400);
-    if (days < 30) return days + 'd ago';
-    if (days < 365) return Math.floor(days / 30) + 'mo ago';
-    return Math.floor(days / 365) + 'y ago';
-  };
-
-  // ── Matrix rain boot animation ──
-  T.showMatrixRain = function(callback) {
-    var original = T.el.output.innerHTML;
-    T.el.output.innerHTML = '';
-
-    var rootStyle = getComputedStyle(document.documentElement);
-    var brightGreen = rootStyle.getPropertyValue('--green').trim() || '#a6e3a1';
-    var dimGreen = rootStyle.getPropertyValue('--surface2').trim() || '#1a5a2a';
-
-    var cols = Math.floor(T.el.output.clientWidth / 8) || 40;
-    var drops = [];
-    for (var i = 0; i < cols; i++) drops[i] = 1;
-
-    var frame = 0;
-    var interval = setInterval(function() {
-      var html = '';
-      for (var i = 0; i < drops.length; i++) {
-        var ch = String.fromCharCode(0x30A0 + Math.random() * 96);
-        var color = drops[i] < 5 ? brightGreen : dimGreen;
-        html += '<span style="color:' + color + '">' + ch + '</span>';
-        if (drops[i] > 20) drops[i] = 0;
-        if (Math.random() > 0.975) drops[i] = 0;
-        drops[i]++;
-      }
-      T.el.output.innerHTML = html;
-      frame++;
-      if (frame > 40) {
-        clearInterval(interval);
-        T.el.output.innerHTML = original;
-        if (callback) callback();
-      }
-    }, 50);
-  };
-
-  // ── Unknown command ──
-  T.cmdUnknown = function(cmd) {
-    var first = cmd.split(' ')[0];
-    T.addOutputLine('<span class="tp-err">bash: ' + T.escapeHtml(first) + ': command not found</span>');
-    T.addOutputLine('<span class="tp-desc"># <span class="tp-cmd">help</span> — list commands</span>');
-  };
-
-  // ── Init ──
-  T.init = function() {
-    T._abortController = new AbortController();
-
-    if (!T.savedLang) {
-      var htmlLang = document.documentElement.getAttribute('lang') || '';
-      if (htmlLang.startsWith('ru')) T.env.LANG = 'ru_RU';
-      else if (htmlLang.startsWith('en')) T.env.LANG = 'en_US';
-      localStorage.setItem('rugram_lang', T.env.LANG);
     }
 
-    T.el.main = document.querySelector('main');
-    T.el.terminal = document.getElementById('terminal-mode');
-    T.el.output = document.getElementById('termOutput');
-    T.el.input = document.getElementById('termInput');
-    T.el.prompt = document.getElementById('termPrompt');
-    T.el.toggleBtn = document.getElementById('termToggle');
-    T.el.toggleIcon = document.getElementById('termToggle');
-    T.el.bar = document.getElementById('termBar');
+    // ── Cache feed posts from DOM (GUI fallback — only when switching to GUI) ──
+    cacheFeedFromDOM() {
+      var cards = document.querySelectorAll('.post-card');
+      if (!cards.length) return;
+      this.feedData = [];
+      cards.forEach(function(card) {
+        var id = card.dataset.postUrl ? card.dataset.postUrl.split('/').pop() : (card.dataset.postId || '');
+        var authorEl = card.querySelector('.post-author');
+        var timeEl = card.querySelector('.post-time');
+        var textEl = card.querySelector('.post-body');
+        var likeBtn = card.querySelector('.like-btn');
+        var imgEl = card.querySelector('.post-img-clickable');
 
-    if (!T.el.terminal) return;
+        var likeCount = 0;
+        if (likeBtn) {
+          var lm = likeBtn.textContent.match(/♥\s*(\d+)/);
+          if (lm) likeCount = parseInt(lm[1], 10);
+        }
 
-    // Кнопка [>_ TTY] теперь ссылка на /terminal — onclick не нужен
+        var commentCount = 0;
+        var commentEl = card.querySelector('a[href*="#comments"]');
+        if (!commentEl) commentEl = card.querySelector('.post-action');
+        if (commentEl) {
+          var cm = commentEl.textContent.match(/💬\s*(\d+)/);
+          if (cm) commentCount = parseInt(cm[1], 10);
+        }
 
-    if (window.CURRENT_USERNAME && window.CURRENT_USERNAME !== 'guest') {
-      T.username = window.CURRENT_USERNAME;
-      T.isLoggedIn = true;
-    } else {
-      var userEl = document.querySelector('.term-username') || document.querySelector('[data-username]');
-      if (userEl) T.username = userEl.textContent.trim() || userEl.dataset.username || 'guest';
+        this.feedData.push({
+          id: parseInt(id, 10) || 0,
+          author: authorEl ? authorEl.textContent.trim().replace(/^@/, '') : 'unknown',
+          time: timeEl ? (timeEl.title || timeEl.textContent.trim()) : '',
+          text: textEl ? textEl.textContent.trim() : '',
+          liked: likeBtn ? likeBtn.dataset.liked === 'true' : false,
+          likes: likeCount,
+          comments: commentCount,
+          image: imgEl ? (imgEl.dataset.fullImg || imgEl.src || null) : null
+        });
+      });
     }
 
-    if (T.username === 'guest' && window.isAuthenticated) {
-      T.vfsFetch(window.API_ME_URL, { credentials: 'same-origin' })
+    // ── Init ──
+    init() {
+      this._abortController = new AbortController();
+
+      if (!this.savedLang) {
+        var htmlLang = document.documentElement.getAttribute('lang') || '';
+        if (htmlLang.startsWith('ru')) this.env.LANG = 'ru_RU';
+        else if (htmlLang.startsWith('en')) this.env.LANG = 'en_US';
+        localStorage.setItem('rugram_lang', this.env.LANG);
+      }
+
+      this.el.main = document.querySelector('main');
+      this.el.terminal = document.getElementById('terminal-mode');
+      this.el.output = document.getElementById('termOutput');
+      this.el.input = document.getElementById('termInput');
+      this.el.prompt = document.getElementById('termPrompt');
+      this.el.toggleBtn = document.getElementById('termToggle');
+      this.el.toggleIcon = document.getElementById('termToggle');
+      this.el.bar = document.getElementById('termBar');
+
+      if (!this.el.terminal) return;
+
+      if (window.CURRENT_USERNAME && window.CURRENT_USERNAME !== 'guest') {
+        this.username = window.CURRENT_USERNAME;
+        this.isLoggedIn = true;
+      } else {
+        var userEl = document.querySelector('.term-username') || document.querySelector('[data-username]');
+        if (userEl) this.username = userEl.textContent.trim() || userEl.dataset.username || 'guest';
+      }
+
+      if (this.username === 'guest' && window.isAuthenticated) {
+        this.vfsFetch(window.API_ME_URL, { credentials: 'same-origin' })
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            if (data.authenticated) {
+              this.username = data.user.username;
+              this.currentUserId = data.user.id || this.currentUserId;
+              this.isLoggedIn = true;
+              this.updatePrompt();
+            }
+          }.bind(this))
+          .catch(function() {});
+      }
+
+      this.vfsFetch(window.API_NOTIFICATIONS_URL + '?page=1&per_page=1', { credentials: 'same-origin' })
         .then(function(r) { return r.json(); })
         .then(function(data) {
-          if (data.authenticated) {
-            T.username = data.user.username;
-            T.currentUserId = data.user.id || T.currentUserId;
-            T.isLoggedIn = true;
-            T.updatePrompt();
-          }
-        })
+          this.unreadNotifs = data.total_unread || data.unread || 0;
+          this.updatePrompt();
+        }.bind(this))
         .catch(function() {});
+
+      this.fetchFeedFromAPI();
+
+      var cdNav = sessionStorage.getItem('cd_nav');
+      if (cdNav) {
+        sessionStorage.removeItem('cd_nav');
+        this.cwd = cdNav.split('/')[0];
+        this.updatePrompt();
+        this.setMode('tty');
+        this.clearOutput();
+        this.addSysLine('<span class="tp-muted">[ Navigated to ~/' + this.escapeHtml(this.cwd) + ' ]</span>');
+        this.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">ls</span> to list contents, <span class="tp-cmd">feed</span> to view posts</span>');
+      }
+
+      // Больше не восстанавливаем TTY на каждой странице — отдельный /terminal
+      localStorage.removeItem('rugram_mode');
+      sessionStorage.removeItem('tty_session');
+
+      if (this.el.input) {
+        this.el.input.addEventListener('keydown', this.onInputKey);
+      }
+
+      // Clickable #tags in terminal output (legacy DOM; xterm adapter adds its own handler)
+      if (this.el.output) {
+        this.el.output.addEventListener('click', function(e) {
+          var tagEl = e.target.closest('.tp-tag');
+          if (tagEl && tagEl.dataset.tag) {
+            this.exec('feed --tag ' + tagEl.dataset.tag);
+          }
+        }.bind(this));
+      }
+
+      document.addEventListener('keydown', function(e) {
+        var tag = e.target.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+        if (this._lessActive) return;
+
+        if (e.key === '/' && this.mode === 'tty') {
+          e.preventDefault();
+          if (this.el.input) this.el.input.focus();
+        }
+        if (e.key === '?' && this.mode === 'tty') {
+          e.preventDefault();
+          this.processCommand('help');
+        }
+        if (e.key === 'Escape' && this.mode === 'tty') {
+          var modal = document.querySelector('.modal.show, .term-modal-overlay');
+          if (modal) return;
+          if (this.el.input) this.el.input.blur();
+        }
+      }.bind(this));
     }
 
-    T.vfsFetch(window.API_NOTIFICATIONS_URL + '?page=1&per_page=1', { credentials: 'same-origin' })
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        T.unreadNotifs = data.total_unread || data.unread || 0;
-        T.updatePrompt();
-      })
-      .catch(function() {});
+    // ════════════════════════════════════════════════════
+    //  OUTPUT HELPERS (no-op stubs — overridden by test
+    //  harness and xterm-adapter)
+    // ════════════════════════════════════════════════════
 
-    T.fetchFeedFromAPI();
+    addOutput(html) {}
+    addOutputLine(html) {}
+    clearOutput() {}
+    addSysLine(text) {}
+    showLoading(text) {}
+    hideLoading() {}
 
-    var cdNav = sessionStorage.getItem('cd_nav');
-    if (cdNav) {
-      sessionStorage.removeItem('cd_nav');
-      T.cwd = cdNav.split('/')[0];
-      T.updatePrompt();
-      T.setMode('tty');
-      T.clearOutput();
-      T.addSysLine('<span class="tp-muted">[ Navigated to ~/' + T.escapeHtml(T.cwd) + ' ]</span>');
-      T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">ls</span> to list contents, <span class="tp-cmd">feed</span> to view posts</span>');
+    // ════════════════════════════════════════════════════
+    //  BOOT SCREEN & WELCOME
+    // ════════════════════════════════════════════════════
+
+    showBootScreen() {
+      this.bootShown = true;
+      if (this.matrixEnabled) {
+        this.showMatrixRain(function() { this._bootContent(); }.bind(this));
+      } else {
+        this._bootContent();
+      }
     }
 
-    // Больше не восстанавливаем TTY на каждой странице — отдельный /terminal
-    // Очищаем старые ключи localStorage, чтобы не мешали
-    localStorage.removeItem('rugram_mode');
-    sessionStorage.removeItem('tty_session');
-
-    if (T.el.input) {
-      T.el.input.addEventListener('keydown', T.onInputKey);
+    _welcomeMessage() {
+      var now = new Date();
+      var dateStr = now.toDateString() + ' ' + now.toLocaleTimeString();
+      var logo = '<div class="term-boot">';
+      logo += '  <pre>';
+      logo += '  █████     █    █     █████    █████      █████    █     ██  \n';
+      logo += '  █    █    █    █    █         █    █    █    █    ██   ██   \n';
+      logo += '  █████     █    █    █  ████   █████     ██████    █ █ █ █   \n';
+      logo += '  █   █     █    █    █    █    █   █     █    █    █  █  █   \n';
+      logo += '  █    █     ██████    █████    █    █    █    █    █     █   \n';
+      logo += '  </pre>';
+      logo += '</div>';
+      this.addOutput(logo);
+      var lastLogin = localStorage.getItem('rugram_last_login');
+      if (lastLogin) {
+        this.addOutputLine('<span class="tp-desc">Last login: ' + lastLogin + '</span>');
+      }
+      this.addOutputLine('');
+      this.addOutputLine('Welcome to <span class="tp-section">Rugram Terminal v' + this.APP_VERSION + '</span>');
+      this.addOutputLine('<span class="tp-muted">Server: ' + this.escapeHtml(window.location.host) + '  |  User: @' + this.escapeHtml(this.username) + '</span>');
+      this.addOutputLine('');
+      var unread = typeof this.unreadNotifs !== 'undefined' ? this.unreadNotifs : 0;
+      if (unread > 0) {
+        this.addOutputLine('You have <span class="tp-ok">' + unread + ' unread notification' + (unread > 1 ? 's' : '') + '</span>');
+      }
+      this.addOutputLine('<span class="tp-desc">' + (this.feedData.length || '0') + this._(' posts in feed', ' posts in feed') + '</span>');
+      this.addOutputLine('');
+      this.addOutputLine('<span class="tp-muted"># <span class="tp-cmd">help</span> — all commands  |  <span class="tp-cmd">feed</span> — browse feed  |  <span class="tp-cmd">saved</span> — saved posts  |  <span class="tp-cmd">chat</span> — messages</span>');
+      this.addOutputLine('');
+      localStorage.setItem('rugram_last_login', dateStr);
     }
 
-    // Clickable #tags in terminal output
-    T.el.output.addEventListener('click', function(e) {
-      var tagEl = e.target.closest('.tp-tag');
-      if (tagEl && tagEl.dataset.tag) {
-        T.exec('feed --tag ' + tagEl.dataset.tag);
-      }
-    });
+    // ── _bootContent (no-op stub — overridden by terminal-ascii.js) ──
+    _bootContent() {}
 
-    document.addEventListener('keydown', function(e) {
-      var tag = e.target.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
+    // renderFeed — implemented in terminal-feed.js
+    // _renderFeedItem, _feedToggleLike, _feedToggleSave, _feedToggleRepost,
+    // _feedRefresh, _feedFilterByAuthor — all in terminal-feed.js
 
-      // Don't handle / ? Escape when less mode is active
-      if (T._lessActive) return;
+    renderHome() {
+      this.clearOutput();
+      this._welcomeMessage();
+    }
 
-      if (e.key === '/' && T.mode === 'tty') {
-        e.preventDefault();
-        T.el.input.focus();
+    // ════════════════════════════════════════════════════
+    //  PROGRAM VIEW (save/restore terminal output)
+    // ════════════════════════════════════════════════════
+
+    enterProgramView() {
+      if (this._programDepth === 0) {
+        this._programStack.push({
+          output: this.el.output ? this.el.output.innerHTML : '',
+          scrollTop: this.el.output ? this.el.output.scrollTop : 0
+        });
+        if (this.el.bar) { this.el.bar.style.display = 'none'; }
+        if (this.el.terminal) { this.el.terminal.style.bottom = '0'; }
       }
-      if (e.key === '?' && T.mode === 'tty') {
-        e.preventDefault();
-        T.processCommand('help');
+      this._programDepth++;
+      this.clearOutput();
+    }
+
+    exitProgramView() {
+      if (this._programDepth <= 0) return;
+      this._programDepth--;
+      if (this._programDepth === 0) {
+        var saved = this._programStack.pop();
+        if (saved && this.el.output) {
+          this.el.output.innerHTML = saved.output;
+          this.el.output.scrollTop = saved.scrollTop;
+        }
+        if (this.el.bar) { this.el.bar.style.display = 'block'; }
+        if (this.el.terminal) { this.el.terminal.style.bottom = '49px'; }
       }
-      if (e.key === 'Escape' && T.mode === 'tty') {
-        var modal = document.querySelector('.modal.show, .term-modal-overlay');
-        if (modal) return;
-        T.el.input.blur();
+      this.updatePrompt();
+      if (this.el.input) setTimeout(function() { this.el.input.focus(); }.bind(this), 50);
+    }
+    // ════════════════════════════════════════════════════
+    //  BUSINESS LOGIC HELPERS (used by VFS and commands)
+    // ════════════════════════════════════════════════════
+
+    editPost(id, newText, out) {
+      var url = window.EDIT_POST_URL.replace('/0/', '/' + id + '/');
+      this.vfsFetch(url, {
+        method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': this.csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
+        body: 'text=' + encodeURIComponent(newText),
+      }).then(function(r) {
+        if (r.ok || r.status === 201) {
+          this.feedData.forEach(function(p) { if (p.id === id) p.text = newText; });
+          out('<span class="tp-ok">' + this._('Saved', 'Saved') + '</span>');
+        } else { out('<span class="tp-err">' + this._('Save error', 'Save error') + '</span>'); }
+      }.bind(this)).catch(function() { out('<span class="tp-err">' + this._('Request failed', 'Request failed') + '</span>'); }.bind(this));
+    }
+
+    loadDrafts() {
+      try { return JSON.parse(localStorage.getItem('rugram_drafts')) || []; }
+      catch(e) { return []; }
+    }
+
+    removeDraft(name) {
+      var files = this.loadDrafts().filter(function(f) { return f.name !== name; });
+      localStorage.setItem('rugram_drafts', JSON.stringify(files));
+    }
+
+    loadTrash() {
+      try { return JSON.parse(localStorage.getItem('rugram_trash')) || []; }
+      catch(e) { return []; }
+    }
+
+    removeFromTrash(id) {
+      var items = this.loadTrash().filter(function(x) { return x.id !== id; });
+      localStorage.setItem('rugram_trash', JSON.stringify(items));
+    }
+
+    movePostToTrash(post, out, force) {
+      if (force) {
+        this.vfsFetch('/delete/' + post.id, { method: 'DELETE', headers: { 'X-CSRFToken': this.csrfToken(), 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+          .then(function(r) {
+            if (r.ok) {
+              this.feedData = this.feedData.filter(function(p) { return p.id !== post.id; });
+              out('<span class="tp-ok">' + this._('Post #', 'Post #') + post.id + ' ' + this._('permanently deleted', 'permanently deleted') + '</span>');
+            } else { out('<span class="tp-err">rm: ' + this._('could not delete', 'could not delete') + '</span>'); }
+          }.bind(this))
+          .catch(function() { out('<span class="tp-err">rm: request failed</span>'); }.bind(this));
+        return;
       }
-    });
-  };
+      var trash = this.loadTrash();
+      trash.push({ id: post.id, author: post.author, text: post.text, time: post.time, likes: post.likes, image: post.image, original_path: 'posts/' + post.id + '.post', deleted_at: new Date().toISOString() });
+      localStorage.setItem('rugram_trash', JSON.stringify(trash));
+      this.feedData = this.feedData.filter(function(p) { return p.id !== post.id; });
+      out('<span class="tp-ok">' + this._('Post #', 'Post #') + post.id + ' ' + this._('moved to trash', 'moved to trash') + '</span>');
+      out('<span class="tp-muted">  # Restore not yet implemented</span>');
+    }
+
+    // ════════════════════════════════════════════════════
+    //  REMAINING STUBS (attached by other modules)
+    // ════════════════════════════════════════════════════
+    // These are defined as empty methods but are overridden
+    // at runtime by terminal-*.js files and terminal-xterm.js.
+
+    exec() {}
+    showCmdHelp() {}
+    processCd() {}
+    showMatrixRain() {}
+    imageToAscii() {}
+    cmdPostView() {}
+    // Stubs — overridden by terminal-less.js
+    enterLessMode() {}
+    _exitLessMode() {}
+    _renderLess() {}
+    _renderLessSearchPrompt() {}
+    _lessItemMatches() {}
+    _lessRenderItem() {}
+    _renderFeedItem() {}
+    // Stubs — overridden by terminal-feed.js
+    renderFeed() {}
+    _feedToggleLike() {}
+    _feedToggleSave() {}
+    _feedToggleRepost() {}
+    _feedRefresh() {}
+    _feedFilterByAuthor() {}
+  }
 
   // ── Expose ──
-  window.TERMINAL = T;
+  var T = window.__RT = new Terminal();
   window.toggleTerminal = T.toggleMode;
 
   // Auto-init

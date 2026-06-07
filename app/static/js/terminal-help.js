@@ -1078,4 +1078,4 @@
     T.addSysLine('<span class="tp-muted">Manual page ' + T.escapeHtml(footer) + '(1) line ' + page.length + '</span>');
   };
 
-})(window.TERMINAL);
+})(window.__RT);
