@@ -10,6 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ static_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/xterm.css') }}?v={{ static_version }}">
     <script>
         window.isAuthenticated = {{ 'true' if current_user.is_authenticated else 'false' }};
         window.LOGIN_URL = "{{ url_for('auth.login') }}";
@@ -55,11 +56,12 @@
         window.FOLLOWING_URL = "{{ url_for('main.following_page', username='') }}";
     </script>
     <style>
+        /* ── Terminal container ── */
         body {
             margin: 0;
             padding: 0;
-            background: var(--bg);
-            color: var(--fg);
+            background: #1e1e2e;
+            color: #cdd6f4;
             font-family: 'JetBrains Mono', 'Consolas', monospace;
             height: 100vh;
             overflow: hidden;
@@ -67,56 +69,100 @@
         #terminal-mode {
             display: flex;
             flex-direction: column;
-            height: calc(100vh - 44px);
-            background: var(--bg);
+            height: 100vh;
+            background: #1e1e2e;
         }
-        #termOutput {
+        #xterm-container {
             flex: 1;
-            overflow-y: auto;
-            padding: 8px 12px;
-            font-size: 0.9rem;
-            line-height: 1.35;
+            padding: 0;
+            overflow: hidden;
         }
-        #termOutput::-webkit-scrollbar { width: 4px; }
-        #termOutput::-webkit-scrollbar-track { background: transparent; }
-        #termOutput::-webkit-scrollbar-thumb { background: var(--surface2); }
-        #termBar {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 12px;
-            background: var(--surface);
-            border-top: 1px solid var(--border);
+        #xterm-container .xterm {
+            height: 100%;
+            padding: 0;
         }
-        #termPrompt {
-            white-space: nowrap;
-            color: var(--green);
-            font-size: 0.9rem;
+        #xterm-container .xterm-viewport {
+            scrollbar-width: thin;
         }
+        #xterm-container .xterm-viewport::-webkit-scrollbar {
+            width: 6px;
+        }
+        #xterm-container .xterm-viewport::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        #xterm-container .xterm-viewport::-webkit-scrollbar-thumb {
+            background: #45475a;
+            border-radius: 3px;
+        }
+        /* ── Hidden textarea for legacy compatibility ── */
         #termInput {
+            position: fixed;
+            left: -9999px;
+            opacity: 0;
+            width: 1px;
+            height: 1px;
+        }
+        /* ── Nano overlay ── */
+        .tp-nano-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 100;
+            background: #1e1e2e;
+            display: flex;
+            flex-direction: column;
+        }
+        .tp-nano-overlay .tp-nano-header {
+            padding: 4px 8px;
+            background: #181825;
+            border-bottom: 1px solid #45475a;
+            font-size: 0.85rem;
+            color: #a6e3a1;
+        }
+        .tp-nano-overlay .tp-nano-status {
+            padding: 2px 8px;
+            background: #181825;
+            border-top: 1px solid #45475a;
+            font-size: 0.8rem;
+            color: #585b70;
+        }
+        .tp-nano-overlay textarea {
             flex: 1;
             background: transparent;
             border: none;
-            color: var(--fg);
-            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            color: #cdd6f4;
+            font-family: 'JetBrains Mono', monospace;
             font-size: 0.9rem;
+            padding: 8px;
             outline: none;
+            resize: none;
         }
+
     </style>
 </head>
 <body>
 
     <div id="terminal-mode">
-        <div id="termOutput"></div>
+        <div id="xterm-container"></div>
     </div>
-    <div id="termBar">
-        <span id="termPrompt">{{ current_user.username if current_user.is_authenticated else 'guest' }}@tty:~/$</span>
-        <input type="text" id="termInput" placeholder="type `help` for commands..." autocomplete="off" spellcheck="false">
-    </div>
+
 
     <script src="{{ url_for('static', filename='js/terminal.js') }}?v={{ static_version }}"></script>
     <script src="{{ url_for('static', filename='js/terminal-ascii.js') }}?v={{ static_version }}"></script>
     <script src="{{ url_for('static', filename='js/terminal-vfs.js') }}?v={{ static_version }}"></script>
+    <script src="{{ url_for('static', filename='js/terminal-less.js') }}?v={{ static_version }}"></script>
+    <script src="{{ url_for('static', filename='js/terminal-feed.js') }}?v={{ static_version }}"></script>
+
+    {# xterm.js — bundled from npm (copied to static/vendor/) #}
+    <script src="{{ url_for('static', filename='vendor/xterm.js') }}?v={{ static_version }}"></script>
+    <script src="{{ url_for('static', filename='vendor/xterm-addon-fit.js') }}?v={{ static_version }}"></script>
+
+
+    {# xterm adapter — loads after xterm.js core, before remaining terminal modules #}
+    <script src="{{ url_for('static', filename='js/terminal-xterm.js') }}?v={{ static_version }}"></script>
+
     <script src="{{ url_for('static', filename='js/terminal-nano.js') }}?v={{ static_version }}"></script>
     <script src="{{ url_for('static', filename='js/terminal-chat.js') }}?v={{ static_version }}"></script>
     <script src="{{ url_for('static', filename='js/terminal-help.js') }}?v={{ static_version }}"></script>
@@ -125,11 +171,19 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        var T = window.TERMINAL;
+        var T = window.__RT;
         if (T && T.setMode) {
             T.setMode('tty');
-            var inp = document.getElementById('termInput');
-            if (inp) setTimeout(function() { inp.focus(); }, 100);
+            // xterm init happens inside setMode, but _bootContent already
+            // ran via T.init() (in terminal.js) before overrides were loaded.
+            // Re-trigger boot with xterm now ready.
+            setTimeout(function() {
+                if (T._xterm && T._xtermReady) {
+                    T.clearOutput();
+                    T._bootContent();
+                    T._xterm.focus();
+                }
+            }, 100);
         }
     });
     </script>

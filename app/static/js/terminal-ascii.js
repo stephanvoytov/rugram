@@ -89,4 +89,4 @@
     img.src = imgSrc;
   };
 
-})(window.TERMINAL);
+})(window.__RT);

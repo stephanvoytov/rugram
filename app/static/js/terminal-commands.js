@@ -1,6 +1,7 @@
 // ── Rugram Terminal — User Commands ──
 (function(T) {
   'use strict';
+  if (!T.vfs) throw new Error('terminal-vfs.js must be loaded before terminal-commands.js');
 
   // ── COMMAND: login ──
   T.cmdLogin = function(loginOrEmail, password) {
@@ -371,8 +372,10 @@
     }
 
     // ── VFS resolution ──
-    var node = T.vfs.resolve(args);
-    if (node && !node.error && typeof node.remove === 'function') {
+    var node;
+    try { node = T.vfs.resolve(args); }
+    catch(e) { node = null; }
+    if (node && typeof node.remove === 'function') {
       if (force) {
         // -f: удалить навсегда, минуя корзину
         node.remove(T.addOutputLine, true);
@@ -422,7 +425,7 @@
         });
       } else {
         // В корзину (force=false)
-        T.vfs.movePostToTrash(post, T.addOutputLine, false);
+        T.movePostToTrash(post, T.addOutputLine, false);
         T.feedData = T.feedData.filter(function(p) { return p.id !== postId; });
       }
       return;
@@ -918,17 +921,25 @@
   };
 
   // ── COMMAND: ping ──
-  T.cmdPing = function(target) {
+  // (async — receives onDone callback, calls it when ping completes)
+  T.cmdPing = function(target, onDone) {
     target = (target || '').replace(/^@/, '').trim();
     var PACKETS = 4;
     var seq = 1;
     var rtts = [];
     var received = 0;
     var startTime = Date.now();
+    var pingFinished = false;
+    T._pingAborted = false;
 
-    function printStats(host) {
+    function finishPing(host) {
+      if (pingFinished) return;
+      pingFinished = true;
       var elapsed = Date.now() - startTime;
       T.addOutputLine('--- ' + host + ' ping statistics ---');
+      if (T._pingAborted) {
+        T.addOutputLine('<span class="tp-err">ping: interrupted — partial results</span>');
+      }
       var loss = Math.round((PACKETS - received) / PACKETS * 100);
       T.addOutputLine(PACKETS + ' packets transmitted, ' + received + ' received, ' + loss + '% packet loss, time ' + elapsed + 'ms');
       if (rtts.length) {
@@ -940,6 +951,9 @@
         T.addOutputLine('rtt min/avg/max/mdev = ' +
           min.toFixed(3) + '/' + avg.toFixed(3) + '/' + max.toFixed(3) + '/' + mdev.toFixed(3) + ' ms');
       }
+      T._pingAborted = undefined;
+      // Done — write prompt if callback was provided
+      if (typeof onDone === 'function') onDone();
     }
 
     function sendReply(host, ip, ttl, ms) {
@@ -952,7 +966,8 @@
     if (!target) {
       T.addOutputLine('PING 127.0.0.1 (127.0.0.1) 56(84) bytes of data.');
       function sendLocal() {
-        if (seq > PACKETS) { printStats('127.0.0.1'); return; }
+        if (T._pingAborted) { finishPing('127.0.0.1'); return; }
+        if (seq > PACKETS) { finishPing('127.0.0.1'); return; }
         var ms = Math.random() * 2 + 0.2;
         sendReply('127.0.0.1', '127.0.0.1', 64, ms);
         setTimeout(sendLocal, Math.random() * 200 + 50);
@@ -980,10 +995,14 @@
         for (var i = 1; i <= PACKETS; i++) {
           (function(s) {
             setTimeout(function() {
+              if (T._pingAborted) {
+                if (unreachSent === 0) finishPing('@' + T.escapeHtml(target));
+                return;
+              }
               T.addOutputLine('<span class="tp-err">From ' + apiHost + ' icmp_seq=' + s + ' Destination Host Unreachable</span>');
               seq++;
               unreachSent++;
-              if (unreachSent >= PACKETS) printStats('@' + T.escapeHtml(target));
+              if (unreachSent >= PACKETS) finishPing('@' + T.escapeHtml(target));
             }, Math.random() * 300 + 100);
           })(i);
         }
@@ -993,7 +1012,11 @@
       var firstTtl = 64 - Math.floor(Math.random() * 10 + 1);
 
       function sendUser() {
-        if (seq > PACKETS) { printStats('@' + T.escapeHtml(target)); return; }
+        if (T._pingAborted) {
+          if (received === 0) finishPing('@' + T.escapeHtml(target));
+          return;
+        }
+        if (seq > PACKETS) { finishPing('@' + T.escapeHtml(target)); return; }
 
         var ms;
         if (seq === 1) {
@@ -1015,6 +1038,7 @@
     })
     .catch(function() {
       T.addOutputLine('<span class="tp-err">ping: ' + T.escapeHtml(target) + ': Temporary failure in name resolution</span>');
+      if (typeof onDone === 'function') onDone();
     });
   };
 
@@ -1193,15 +1217,16 @@
   };
 
   // ── COMMAND: watch ──
-  T.cmdWatch = function(args) {
+  // (long-running async — does NOT call onDone; prompt appears after Ctrl+C or watch stop)
+  T.cmdWatch = function(args, onDone) {
     args = (args || '').trim();
 
     if (args === 'stop' || args === 'off') {
       if (T.watchInterval) {
         clearInterval(T.watchInterval);
         T.watchInterval = null;
-        if (T.el.bar) T.el.bar.style.display = 'block';
-        if (T.el.terminal) T.el.terminal.style.bottom = '49px';
+        T.el.bar.style.display = 'block';
+        T.el.terminal.style.bottom = '49px';
         T.clearOutput();
         T.addOutputLine('<span class="tp-ok">watch stopped</span>');
       } else {
@@ -1212,6 +1237,7 @@
 
     if (T.watchInterval) clearInterval(T.watchInterval);
 
+    // onDone deliberately not called — watch is long-running
     var interval = 3;
     var cmd = args;
     var m = args.match(/-n\s+(\d+)\s+(.+)/);
@@ -1221,9 +1247,9 @@
     }
 
     // Fullscreen: hide command bar like program view
-    if (T.el.bar) T.el.bar.style.display = 'none';
-    if (T.el.terminal) T.el.terminal.style.bottom = '0';
-    if (T.el.input) T.el.input.blur();
+    T.el.bar.style.display = 'none';
+    T.el.terminal.style.bottom = '0';
+    T.el.input.blur();
 
     T.clearOutput();
     T.addOutputLine('<span class="tp-ok">watch: every ' + interval + 's — ' + T.escapeHtml(cmd) + '</span>');
@@ -1240,7 +1266,9 @@
   };
 
   // ── COMMAND: top ──
-  T.cmdTop = function() {
+  // (long-running async — does NOT call onDone; prompt after any key)
+  T.cmdTop = function(onDone) {
+    // onDone deliberately not called — top is long-running
     T.enterProgramView();
     var running = true;
 
@@ -1251,46 +1279,55 @@
 
     function renderTopData() {
       if (!running) return;
-      var meta = T.el.output.querySelector('#top-meta');
+      var meta = T.el.output ? T.el.output.querySelector('#top-meta') : null;
       if (meta) {
         meta.innerHTML = '<span class="tp-muted">' + T.feedData.length + ' posts | ' + T.commandHistory.length + ' commands | uptime ' + T.uptimeStr() + '</span>';
       }
-      var body = T.el.output.querySelector('#top-body');
-      if (!body) return;
-      var sorted = T.feedData.slice().sort(function(a, b) { return b.likes - a.likes; });
-      var html = '<span class="tp-section">Posts (by likes):</span><br>';
-      sorted.slice(0, 5).forEach(function(p, i) {
-        var heart = p.liked ? '<span class="tp-ok">+</span>' : '-';
-        html += '  ' + (i+1) + '. <span class="tp-post-author">@' + p.author + '</span> ' + heart + ' ' + p.likes + '  <span class="tp-desc">#' + p.id + '</span><br>';
-      });
-      html += '<br>';
-      html += '<span class="tp-section">Recent commands:</span><br>';
-      var recent = T.commandHistory.slice(-5);
-      recent.forEach(function(c) {
-        html += '  <span class="tp-cmd">' + T.escapeHtml(c) + '</span><br>';
-      });
-      body.innerHTML = html;
+      if (T.el.output) {
+        var body = T.el.output.querySelector('#top-body');
+        if (body) {
+          var sorted = T.feedData.slice().sort(function(a, b) { return b.likes - a.likes; });
+          var html = '<span class="tp-section">Posts (by likes):</span><br>';
+          sorted.slice(0, 5).forEach(function(p, i) {
+            var heart = p.liked ? '<span class="tp-ok">+</span>' : '-';
+            html += '  ' + (i+1) + '. <span class="tp-post-author">@' + p.author + '</span> ' + heart + ' ' + p.likes + '  <span class="tp-desc">#' + p.id + '</span><br>';
+          });
+          html += '<br>';
+          html += '<span class="tp-section">Recent commands:</span><br>';
+          var recent = T.commandHistory.slice(-5);
+          recent.forEach(function(c) {
+            html += '  <span class="tp-cmd">' + T.escapeHtml(c) + '</span><br>';
+          });
+          body.innerHTML = html;
+        }
+      }
     }
 
     renderTopData();
 
-    var topInterval = setInterval(renderTopData, 3000);
+    T.topInterval = setInterval(renderTopData, 3000);
 
     function exitTop(e) {
       if (!running) return;
       running = false;
-      clearInterval(topInterval);
+      if (T.topInterval) {
+        clearInterval(T.topInterval);
+        T.topInterval = null;
+      }
       document.removeEventListener('keydown', exitTop);
+      if (T._topExitListener === exitTop) T._topExitListener = null;
       T.exitProgramView();
     }
 
+    T._topExitListener = exitTop;
     setTimeout(function() {
       document.addEventListener('keydown', exitTop);
     }, 200);
   };
 
   // ── COMMAND: feed [--tail N] [--page N] [--search text] [--less] ──
-  T.cmdFeed = function(args) {
+  // (async — onDone passed by Command.execute; called after fetch or inline render)
+  T.cmdFeed = function(args, onDone) {
     args = (args || '').trim().toLowerCase();
 
     // Auto-fetch feed from API if cache is empty (terminal independence)
@@ -1301,10 +1338,12 @@
         T.hideLoading();
         T._fetchingFeed = false;
         if (T.feedData.length) {
-          T.cmdFeed(args); // retry with populated data
+          T.cmdFeed(args); // retry with populated data (no onDone — we call original below)
+          if (typeof onDone === 'function') onDone();
         } else {
           T.addOutputLine('<span class="tp-muted">feed: ' + T._('постов нет', 'no posts yet') + '</span>');
           T.addOutputLine('<span class="tp-desc">  # <span class="tp-cmd">create</span> ' + T._('написать пост', 'to write a post') + '</span>');
+          if (typeof onDone === 'function') onDone();
         }
       });
       return;
@@ -1352,6 +1391,7 @@
 
     if (!list.length) {
       T.addOutputLine('<span class="tp-muted">feed: ' + T._('нет подходящих постов', 'no matching posts') + '</span>');
+      if (typeof onDone === 'function') onDone();
       return;
     }
 
@@ -1374,10 +1414,12 @@
         T._exitLessMode();
         T.cmdPostView(item.id);
       }, 'feed');
+      // Don't call onDone — less mode takes over, exitProgramView writes prompt later
       return;
     }
 
     T.renderFeed(list);
+    if (typeof onDone === 'function') onDone();
   };
 
   // ── COMMAND: cat <path> — powered by VFS ──
@@ -1432,8 +1474,10 @@
     }
 
     // ── VFS resolution ──
-    var node = T.vfs.resolve(args);
-    if (node && !node.error) {
+    var node;
+    try { node = T.vfs.resolve(args); }
+    catch(e) { node = null; }
+    if (node) {
       // Если у узла есть content callback — вызываем
       if (typeof node.content === 'function') {
         node.content(T.addOutputLine);
@@ -1557,64 +1601,64 @@
   };
 
   // ── Registry (auth=true = dispatch auto-checks T.isLoggedIn) ──
-  T.register('login',    { handler: T.cmdLogin, auth: false, category: 'auth',
+  T.registerCommand('login',    new T.Command('login',    { handler: T.cmdLogin, auth: false, category: 'auth',
     match: 'regex', regex: /^login\s+(\S+)\s+(.+)$/i,
-    parse: function(m){return[m[1],m[2]]} });
-  T.register('register', { handler: T.cmdRegister, auth: false, category: 'auth',
+    parse: function(m){return[m[1],m[2]]} }));
+  T.registerCommand('register', new T.Command('register', { handler: T.cmdRegister, auth: false, category: 'auth',
     match: 'regex', regex: /^register\s+(\S+)\s+(\S+)\s+(.+)$/i,
-    parse: function(m){return[m[1],m[2],m[3]]} });
-  T.register('logout',   { handler: T.cmdLogout, auth: false, category: 'auth' });
-  T.register('like',     { handler: T.cmdLike, auth: true, category: 'posts',
+    parse: function(m){return[m[1],m[2],m[3]]} }));
+  T.registerCommand('logout',   new T.Command('logout',   { handler: T.cmdLogout, auth: false, category: 'auth' }));
+  T.registerCommand('like',     new T.Command('like',     { handler: T.cmdLike, auth: true, category: 'posts',
     match: 'regex', regex: /^like\s+(\d+)$/i,
-    parse: function(m){return[parseInt(m[1],10)]} });
-  T.register('comment',  { handler: T.cmdComment, auth: true, category: 'posts',
+    parse: function(m){return[parseInt(m[1],10)]} }));
+  T.registerCommand('comment',  new T.Command('comment',  { handler: T.cmdComment, auth: true, category: 'posts',
     match: 'regex', regex: /^comment\s+(\d+)\s+(.+)$/i,
-    parse: function(m){var t=m[2];if(t.startsWith('"')&&t.endsWith('"'))t=t.slice(1,-1);return[parseInt(m[1],10),t]} });
-  T.register('unfollow', { handler: T.cmdUnfollow, auth: true, category: 'posts', match: 'prefix' });
-  T.register('follow',   { handler: T.cmdFollow, auth: true, category: 'posts',
+    parse: function(m){var t=m[2];if(t.startsWith('"')&&t.endsWith('"'))t=t.slice(1,-1);return[parseInt(m[1],10),t]} }));
+  T.registerCommand('unfollow', new T.Command('unfollow', { handler: T.cmdUnfollow, auth: true, category: 'posts', match: 'prefix' }));
+  T.registerCommand('follow',   new T.Command('follow',   { handler: T.cmdFollow, auth: true, category: 'posts',
     match: 'regex', regex: /^follow\s+@?(\w+)$/i,
-    parse: function(m){return['follow', m[1].toLowerCase()]} });
-  T.register('bookmark', { handler: T.cmdBookmark, auth: true, category: 'posts',
+    parse: function(m){return['follow', m[1].toLowerCase()]} }));
+  T.registerCommand('bookmark', new T.Command('bookmark', { handler: T.cmdBookmark, auth: true, category: 'posts',
     match: 'regex', regex: /^bookmark\s+(\d+)$/i,
-    parse: function(m){return[parseInt(m[1],10)]} });
-  T.register('neofetch', { handler: T.cmdNeofetch, auth: false, category: 'info',
+    parse: function(m){return[parseInt(m[1],10)]} }));
+  T.registerCommand('neofetch', new T.Command('neofetch', { handler: T.cmdNeofetch, auth: false, category: 'info',
     match: 'regex', regex: /^neofetch\s+@?(\w+)$/i,
-    parse: function(m){return[m[1]]} });
-  T.register('whoami',   { handler: T.cmdWhoami, auth: false, category: 'info' });
-  T.register('feed',     { handler: T.cmdFeed, auth: false, category: 'programs', match: 'prefix' });
-  T.register('saved',    { handler: T.cmdSaved, auth: true, category: 'programs', match: 'prefix' });
-  T.register('followers',{ handler: T.cmdFollowers, auth: false, category: 'social', match: 'prefix' });
-  T.register('following',{ handler: T.cmdFollowing, auth: false, category: 'social', match: 'prefix' });
-  T.register('notifications',{ handler: T.cmdNotifications, auth: true, category: 'programs', match: 'prefix' });
-  T.register('create',   { handler: T.cmdCreate, auth: true, category: 'posts', match: 'prefix' });
-  T.register('cat',      { handler: T.cmdCat, auth: false, category: 'programs', match: 'prefix' });
-  T.register('less',     { handler: T.cmdLess, auth: false, category: 'programs', match: 'prefix' });
-  T.register('echo',     { handler: T.cmdEcho, auth: false, category: 'system', match: 'prefix' });
-  T.register('date',     { handler: T.cmdDate, auth: false, category: 'system',
+    parse: function(m){return[m[1]]} }));
+  T.registerCommand('whoami',   new T.Command('whoami',   { handler: T.cmdWhoami, auth: false, category: 'info' }));
+  T.registerCommand('feed',     new T.Command('feed',     { handler: T.cmdFeed, auth: false, category: 'programs', match: 'prefix', async: true }));
+  T.registerCommand('saved',    new T.Command('saved',    { handler: T.cmdSaved, auth: true, category: 'programs', match: 'prefix' }));
+  T.registerCommand('followers',new T.Command('followers',{ handler: T.cmdFollowers, auth: false, category: 'social', match: 'prefix' }));
+  T.registerCommand('following',new T.Command('following',{ handler: T.cmdFollowing, auth: false, category: 'social', match: 'prefix' }));
+  T.registerCommand('notifications',new T.Command('notifications',{ handler: T.cmdNotifications, auth: true, category: 'programs', match: 'prefix' }));
+  T.registerCommand('create',   new T.Command('create',   { handler: T.cmdCreate, auth: true, category: 'posts', match: 'prefix' }));
+  T.registerCommand('cat',      new T.Command('cat',      { handler: T.cmdCat, auth: false, category: 'programs', match: 'prefix' }));
+  T.registerCommand('less',     new T.Command('less',     { handler: T.cmdLess, auth: false, category: 'programs', match: 'prefix' }));
+  T.registerCommand('echo',     new T.Command('echo',     { handler: T.cmdEcho, auth: false, category: 'system', match: 'prefix' }));
+  T.registerCommand('date',     new T.Command('date',     { handler: T.cmdDate, auth: false, category: 'system',
     match: 'regex', regex: /^date(\s+-[uU][tT][cC]|\s+-[uU])?$/i,
-    parse: function(m){return[!!m[1]]} });
-  T.register('history',  { handler: T.cmdHistory, auth: false, category: 'system',
-    match: 'prefix' });
-  T.register('uptime',   { handler: T.cmdUptime, auth: false, category: 'system' });
-  T.register('man',      { handler: T.cmdMan, auth: false, category: 'help', match: 'prefix' });
-  T.register('export',   { handler: T.cmdExport, auth: false, category: 'system', match: 'prefix' });
-  T.register('fortune',  { handler: T.cmdFortune, auth: false, category: 'system' });
-  T.register('ping',     { handler: T.cmdPing, auth: false, category: 'system', match: 'prefix' });
-  T.register('watch',    { handler: T.cmdWatch, auth: false, category: 'system', match: 'prefix' });
-  T.register('head',     { handler: T.cmdHead, auth: false, category: 'system', match: 'prefix' });
-  T.register('tail',     { handler: T.cmdTail, auth: false, category: 'system', match: 'prefix' });
-  T.register('top',      { handler: T.cmdTop, auth: false, category: 'system' });
-  T.register('grep',     { handler: T.cmdGrep, auth: false, category: 'programs',
+    parse: function(m){return[!!m[1]]} }));
+  T.registerCommand('history',  new T.Command('history',  { handler: T.cmdHistory, auth: false, category: 'system',
+    match: 'prefix' }));
+  T.registerCommand('uptime',   new T.Command('uptime',   { handler: T.cmdUptime, auth: false, category: 'system' }));
+  T.registerCommand('man',      new T.Command('man',      { handler: T.cmdMan, auth: false, category: 'help', match: 'prefix' }));
+  T.registerCommand('export',   new T.Command('export',   { handler: T.cmdExport, auth: false, category: 'system', match: 'prefix' }));
+  T.registerCommand('fortune',  new T.Command('fortune',  { handler: T.cmdFortune, auth: false, category: 'system' }));
+  T.registerCommand('ping',     new T.Command('ping',     { handler: T.cmdPing, auth: false, category: 'system', match: 'prefix', async: true }));
+  T.registerCommand('watch',    new T.Command('watch',    { handler: T.cmdWatch, auth: false, category: 'system', match: 'prefix', async: true }));
+  T.registerCommand('head',     new T.Command('head',     { handler: T.cmdHead, auth: false, category: 'system', match: 'prefix' }));
+  T.registerCommand('tail',     new T.Command('tail',     { handler: T.cmdTail, auth: false, category: 'system', match: 'prefix' }));
+  T.registerCommand('top',      new T.Command('top',      { handler: T.cmdTop, auth: false, category: 'system', async: true }));
+  T.registerCommand('grep',     new T.Command('grep',     { handler: T.cmdGrep, auth: false, category: 'programs',
     match: 'regex', regex: /^grep\s+"(.+?)"$/i,
-    parse: function(m){return[m[1]]} });
-  T.register('clear',    { handler: function(){T.clearOutput()}, auth: false, category: 'system' });
-  T.register('help',     { handler: T.cmdHelp, auth: false, category: 'help', match: 'prefix' });
-  T.register('pwd',      { handler: T.cmdPwd, auth: false, category: 'system' });
-  T.register('id',       { handler: T.cmdId, auth: false, category: 'info', match: 'prefix' });
-  T.register('alias',    { handler: T.cmdAlias, auth: false, category: 'system', match: 'prefix' });
-  T.register('unalias',  { handler: T.cmdUnalias, auth: false, category: 'system', match: 'prefix' });
-  T.register('source',   { handler: T.cmdSource, auth: false, category: 'system', match: 'prefix' });
-  T.register('rm',       { handler: T.cmdRm, auth: true, category: 'posts', match: 'prefix' });
-  T.register('info',     { handler: T.cmdInfo, auth: false, category: 'help' });
+    parse: function(m){return[m[1]]} }));
+  T.registerCommand('clear',    new T.Command('clear',    { handler: function(){T.clearOutput()}, auth: false, category: 'system' }));
+  T.registerCommand('help',     new T.Command('help',     { handler: T.cmdHelp, auth: false, category: 'help', match: 'prefix' }));
+  T.registerCommand('pwd',      new T.Command('pwd',      { handler: T.cmdPwd, auth: false, category: 'system' }));
+  T.registerCommand('id',       new T.Command('id',       { handler: T.cmdId, auth: false, category: 'info', match: 'prefix' }));
+  T.registerCommand('alias',    new T.Command('alias',    { handler: T.cmdAlias, auth: false, category: 'system', match: 'prefix' }));
+  T.registerCommand('unalias',  new T.Command('unalias',  { handler: T.cmdUnalias, auth: false, category: 'system', match: 'prefix' }));
+  T.registerCommand('source',   new T.Command('source',   { handler: T.cmdSource, auth: false, category: 'system', match: 'prefix' }));
+  T.registerCommand('rm',       new T.Command('rm',       { handler: T.cmdRm, auth: true, category: 'posts', match: 'prefix' }));
+  T.registerCommand('info',     new T.Command('info',     { handler: T.cmdInfo, auth: false, category: 'help' }));
 
-})(window.TERMINAL);
+})(window.__RT);

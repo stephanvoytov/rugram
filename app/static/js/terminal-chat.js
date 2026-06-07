@@ -320,7 +320,7 @@
 
   // ── Registry ──
   // chat = list conversations, chat <id> = open by id, chat @user = open by username
-  T.register('chat', { handler: function(args) {
+  T.registerCommand('chat', new T.Command('chat', { handler: function(args) {
     var a = (args || '').trim();
     var numMatch = a.match(/^(\d+)$/);
     var userMatch = a.match(/^@?(\w+)$/);
@@ -333,11 +333,11 @@
     } else {
       T.renderChatList();
     }
-  }, auth: true, category: 'chat', match: 'prefix' });
-  T.register('say',  { handler: T.cmdSay, auth: true, category: 'chat', match: 'prefix' });
-  T.register('write',{ handler: T.cmdWrite, auth: true, category: 'chat', match: 'prefix' });
-  T.register('start',{ handler: function(u){T.startChatWithUser(u||'',true)}, auth: true, category: 'chat',
+  }, auth: true, category: 'chat', match: 'prefix' }));
+  T.registerCommand('say',  new T.Command('say',  { handler: T.cmdSay, auth: true, category: 'chat', match: 'prefix' }));
+  T.registerCommand('write',new T.Command('write',{ handler: T.cmdWrite, auth: true, category: 'chat', match: 'prefix' }));
+  T.registerCommand('start',new T.Command('start',{ handler: function(u){T.startChatWithUser(u||'',true)}, auth: true, category: 'chat',
     match: 'regex', regex: /^start\s+@?(\w+)$/i,
-    parse: function(m){return[m[1]]} });
+    parse: function(m){return[m[1]]} }));
 
-})(window.TERMINAL);
+})(window.__RT);

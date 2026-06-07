@@ -2,6 +2,7 @@
 // Path resolution via T.vfs.resolve()
 (function(T) {
   'use strict';
+  if (!T.vfs) throw new Error('terminal-vfs.js must be loaded before terminal-nano.js');
 
   // ── COMMAND: nano <path> ──
   T.cmdNano = function(args) {
@@ -16,8 +17,9 @@
     }
 
     // ── VFS resolution ──
-    var node = T.vfs.resolve(args);
-    if (!node || node.error) {
+    var node;
+    try { node = T.vfs.resolve(args); }
+    catch(e) {
       T.addOutputLine('<span class="tp-err">nano: ' + T.escapeHtml(args) + ': No such file</span>');
       T.addOutputLine('<span class="tp-desc">  # ' + T._('файлы: posts/&lt;id&gt;.post, profile/info, drafts/&lt;file&gt;', 'files: posts/&lt;id&gt;.post, profile/info, drafts/&lt;file&gt;') + '</span>');
       return;
@@ -143,8 +145,8 @@
     renderShortcuts();
 
     // Fullscreen: hide command bar like program view
-    if (T.el.bar) { T.el.bar.style.display = 'none'; }
-    if (T.el.terminal) { T.el.terminal.style.bottom = '0'; }
+    T.el.bar.style.display = 'none';
+    T.el.terminal.style.bottom = '0';
 
     document.body.appendChild(overlay);
     T.nanoOverlay = overlay;
@@ -169,9 +171,18 @@
         T.nanoOverlay.remove();
         T.nanoOverlay = null;
       }
-      if (T.el.bar) { T.el.bar.style.display = 'block'; }
-      if (T.el.terminal) { T.el.terminal.style.bottom = '49px'; }
-      if (T.el.input) T.el.input.focus();
+      // Restore xterm prompt if ready
+      if (T._xtermReady && T._xterm) {
+        // writePromptLine is not exported; use updatePrompt + T.processCommand noop
+        T.updatePrompt();
+        if (typeof T._xtermPromptText === 'function') {
+          T._inputLine = '';
+          T._inputCursor = 0;
+          T._xterm.write('\r\x1b[K' + '\x1b[32m' + T._xtermPromptText() + '\x1b[0m ');
+        }
+      } else if (T.el.input) {
+        T.el.input.focus();
+      }
     }
 
     function showHelp() {
@@ -282,6 +293,6 @@
   };
 
   // ── Registry ──
-  T.register('nano', { handler: T.cmdNano, auth: true, category: 'posts', match: 'prefix' });
+  T.registerCommand('nano', new T.Command('nano', { handler: T.cmdNano, auth: true, category: 'posts', match: 'prefix' }));
 
-})(window.TERMINAL);
+})(window.__RT);

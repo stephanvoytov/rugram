@@ -2,6 +2,7 @@
 // Powered by T.vfs (terminal-vfs.js)
 (function(T) {
   'use strict';
+  if (!T.vfs) throw new Error('terminal-vfs.js must be loaded before terminal-navigation.js');
 
   // ── COMMAND: cd <target> ──
   T.processCd = function(target) {
@@ -47,8 +48,9 @@
     }
 
     // ── VFS validation ──
-    var node = T.vfs.resolve(target);
-    if (!node || node.error) {
+    var node;
+    try { node = T.vfs.resolve(target); }
+    catch(e) {
       T.addOutputLine('<span class="tp-err">bash: cd: ' + T.escapeHtml(target) + ': No such file or directory</span>');
       T.addOutputLine('<span class="tp-desc"># Sections: posts, saved, drafts, trash, profile, users, chat, notifications, followers, following</span>');
       return;
@@ -79,8 +81,9 @@
     var target = rawTarget || '.';
     var isRoot = !rawTarget && (!T.cwd || T.cwd === '');
 
-    var node = T.vfs.resolve(target);
-    if (!node || node.error) {
+    var node;
+    try { node = T.vfs.resolve(target); }
+    catch(e) {
       T.addOutputLine('<span class="tp-err">ls: ' + T.escapeHtml(target) + ': No such file or directory</span>');
       T.addOutputLine('<span class="tp-desc"># <span class="tp-cmd">cd</span> to a section, or <span class="tp-cmd">ls &lt;section&gt;</span></span>');
       return;
@@ -143,6 +146,6 @@
   };
 
   // ── Registry ──
-  T.register('ls', { handler: T.cmdLs, auth: false, category: 'navigation', match: 'prefix' });
+  T.registerCommand('ls', new T.Command('ls', { handler: T.cmdLs, auth: false, category: 'navigation', match: 'prefix' }));
 
-})(window.TERMINAL);
+})(window.__RT);

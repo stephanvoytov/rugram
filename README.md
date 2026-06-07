@@ -122,7 +122,7 @@ app/
 
 ### Test coverage
 
-**558 tests — all green**
+**557 tests — all green**
 
 | Category | File(s) | Count | What it covers |
 |----------|---------|-------|----------------|
@@ -135,7 +135,7 @@ app/
 | Integration | `tests/integration/test_social.py` | 13 | Follow/unfollow, notifications, feed |
 | Integration | `tests/integration/test_api.py` | 10 | REST endpoints, pagination, JSON responses |
 | Security | `tests/security/test_security.py` | 24 | Auth guards, IDOR (post/chat/comment), XSS, admin access, upload validation |
-| **JS** | `tests/test_terminal.js` | **319** | All terminal commands, auth guards, edge cases |
+| **JS** | `tests/test_terminal.js` + `tests/terminal/` (7 files) | **318** | All terminal commands, auth guards, edge cases |
 
 ```
 Fast run with xdist (6+ workers):
@@ -182,7 +182,7 @@ Cursor-based pagination, JSON responses.
 | Layer | Tech |
 |-------|------|
 | Backend | Python 3.12, Flask, SQLAlchemy, Flask-Login, Flask-WTF, SQLite |
-| Frontend | Jinja2, Bootstrap 5.3, Vanilla JS, CSS Custom Properties (Catppuccin Mocha) |
+| Frontend | Jinja2, Bootstrap 5.3, Vanilla JS, xterm.js, CSS Custom Properties (Catppuccin Mocha) |
 | Security | cryptography (Fernet), pywebpush (VAPID), Flask-Limiter |
 | Logging | structlog (console + rotating JSON file + SystemEvent DB) |
 | Infra | Alembic, Gunicorn, Docker Compose |
