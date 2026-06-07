@@ -17,54 +17,67 @@
         <button class="st-tab" data-tab="danger">[danger]</button>
     </div>
 
-    <form method="POST" enctype="multipart/form-data" style="padding:24px">
-        {{ form.hidden_tag() }}
-        {# Active tab tracking — preserves tab across save redirect #}
-        <input type="hidden" name="active_tab" id="activeTabInput" value="account">
-
+    <div style="padding:24px">
         {# ════════════ ACCOUNT ════════════ #}
         <div class="st-panel" id="panel-account">
+
+            {# ── Profile section ── #}
             <div class="auth-field" style="margin-bottom:20px">
-                <label for="{{ form.new_username.id }}" class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] username</label>
-                <input type="text" class="field-input" id="{{ form.new_username.id }}" name="{{ form.new_username.name }}"
+                <label class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] username</label>
+                <input type="text" class="field-input" id="settings-username"
                        placeholder="new username" value="{{ current_user.username }}" autocomplete="off"
                        style="padding:10px 14px;font-size:0.9rem;width:100%"
                        oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9_]/g,'')">
-                {% if form.new_username.errors %}{% for e in form.new_username.errors %}<div class="field-msg error">{{ e }}</div>{% endfor %}{% endif %}
                 <div style="color:var(--subtle);font-size:0.78rem;margin-top:4px">current: <b>{{ current_user.username }}</b>. leave empty to keep.</div>
             </div>
 
             <div class="auth-field" style="margin-bottom:20px">
-                <label for="{{ form.new_email.id }}" class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] email</label>
-                <input type="email" class="field-input" id="{{ form.new_email.id }}" name="{{ form.new_email.name }}"
+                <label class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] email</label>
+                <input type="email" class="field-input" id="settings-email"
                        placeholder="new email" autocomplete="new-email"
                        style="padding:10px 14px;font-size:0.9rem;width:100%"
                        value="{{ current_user.email }}">
-                {% if form.new_email.errors %}{% for e in form.new_email.errors %}<div class="field-msg error">{{ e }}</div>{% endfor %}{% endif %}
                 <div style="color:var(--subtle);font-size:0.78rem;margin-top:4px">current: <b>{{ current_user.email }}</b>. leave empty to keep.</div>
             </div>
 
             <div class="auth-field" style="margin-bottom:20px">
-                <label class="field-label" style="font-size:0.9rem;margin-bottom:8px;display:block">[*] change password</label>
-                <div style="display:flex;flex-wrap:wrap;gap:6px">
-                    {{ form.current_password(class="field-input", placeholder="current password", autocomplete="current-password", style="padding:10px 14px;font-size:0.9rem;flex:1;min-width:160px") }}
-                    {{ form.new_password(class="field-input", placeholder="new password", autocomplete="new-password", style="padding:10px 14px;font-size:0.9rem;flex:1;min-width:160px") }}
-                    {{ form.confirm_password(class="field-input", placeholder="confirm", style="padding:10px 14px;font-size:0.9rem;flex:1;min-width:160px") }}
-                </div>
-                {% if form.current_password.errors %}{% for e in form.current_password.errors %}<div class="field-msg error">{{ e }}</div>{% endfor %}{% endif %}
-                {% if form.new_password.errors %}{% for e in form.new_password.errors %}<div class="field-msg error">{{ e }}</div>{% endfor %}{% endif %}
-                {% if form.confirm_password.errors %}{% for e in form.confirm_password.errors %}<div class="field-msg error">{{ e }}</div>{% endfor %}{% endif %}
-                <div style="color:var(--subtle);font-size:0.78rem;margin-top:4px">min 6 chars. leave empty to keep current.</div>
+                <label class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] language</label>
+                <select id="settings-lang" class="field-input"
+                        style="padding:10px 14px;font-size:0.9rem;width:100%;cursor:pointer;appearance:auto">
+                    <option value="en" {{ 'selected' if session.get('lang','en') == 'en' else '' }}>English</option>
+                    <option value="ru" {{ 'selected' if session.get('lang') == 'ru' else '' }}>Русский</option>
+                </select>
+                <div style="color:var(--subtle);font-size:0.78rem;margin-top:4px">interface language.</div>
             </div>
 
-            <div class="auth-field" style="margin-bottom:20px;padding-top:16px;border-top:1px solid var(--border)">
-                <label for="{{ form.language.id }}" class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] language</label>
-                <select id="{{ form.language.id }}" name="{{ form.language.name }}"
-                        class="field-input" style="padding:10px 14px;font-size:0.9rem;width:100%;cursor:pointer;appearance:auto">
-                    <option value="en">English</option>
-                    <option value="ru">Русский</option>
-                </select>
-                <div style="color:var(--subtle);font-size:0.78rem;margin-top:4px">interface language. saved to session.</div>
+            <div style="display:flex;gap:8px;margin-bottom:20px">
+                <input type="password" class="field-input" id="settings-account-pw"
+                       placeholder="current password" autocomplete="current-password"
+                       style="padding:10px 14px;font-size:0.9rem;flex:1">
+                <button type="button" class="btn-term primary" id="saveAccountBtn"
+                        style="padding:10px 20px;font-size:0.9rem">[save account]</button>
+            </div>
+            <div id="accountStatus" style="font-size:0.82rem;margin-bottom:16px"></div>
+
+            {# ── Password section ── #}
+            <div class="auth-field" style="margin-bottom:20px;padding-top:20px;border-top:1px solid var(--border)">
+                <label class="field-label" style="font-size:0.9rem;margin-bottom:8px;display:block">[*] change password</label>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+                    <input type="password" class="field-input" id="settings-cur-pw"
+                           placeholder="current password" autocomplete="current-password"
+                           style="padding:10px 14px;font-size:0.9rem;flex:1;min-width:160px">
+                    <input type="password" class="field-input" id="settings-new-pw"
+                           placeholder="new password" autocomplete="new-password"
+                           style="padding:10px 14px;font-size:0.9rem;flex:1;min-width:160px">
+                    <input type="password" class="field-input" id="settings-conf-pw"
+                           placeholder="confirm" style="padding:10px 14px;font-size:0.9rem;flex:1;min-width:160px">
+                </div>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <span style="color:var(--subtle);font-size:0.78rem;flex:1">min 6 chars.</span>
+                    <button type="button" class="btn-term primary" id="savePasswordBtn"
+                            style="padding:8px 18px;font-size:0.85rem">[save password]</button>
+                </div>
+                <div id="passwordStatus" style="font-size:0.82rem;margin-top:8px"></div>
             </div>
         </div>
 
@@ -83,6 +96,7 @@
                         light
                     </button>
                 </div>
+                <div style="color:var(--subtle);font-size:0.78rem;margin-top:4px">applied instantly — no save needed.</div>
             </div>
 
             <div class="auth-field" style="margin-bottom:20px">
@@ -96,6 +110,7 @@
                     <button type="button" class="fs-btn" data-size="18px" style="font-size:1rem">18px</button>
                     <button type="button" class="fs-btn" data-size="20px" style="font-size:1.05rem">20px</button>
                 </div>
+                <div style="color:var(--subtle);font-size:0.78rem;margin-top:4px">applied instantly — no save needed.</div>
             </div>
         </div>
 
@@ -104,8 +119,9 @@
             <div class="auth-field" style="margin-bottom:20px">
                 <span class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] push notifications</span>
                 <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:6px">
-                    {{ form.notifications_enabled(style="width:18px;height:18px;cursor:pointer") }}
-                    <label for="{{ form.notifications_enabled.id }}" style="cursor:pointer;color:var(--fg);font-size:0.88rem;flex:1">receive push notifications</label>
+                    <input type="checkbox" id="notif-enabled" style="width:18px;height:18px;cursor:pointer"
+                           {{ 'checked' if current_user.notifications_enabled else '' }}>
+                    <label for="notif-enabled" style="cursor:pointer;color:var(--fg);font-size:0.88rem;flex:1">receive push notifications</label>
                     <span style="color:var(--subtle);font-size:0.75rem">browser</span>
                 </div>
                 <div style="margin-top:6px;padding:4px 14px;font-size:0.82rem" id="notifStatus">checking...</div>
@@ -115,44 +131,50 @@
                 <span class="field-label" style="font-size:0.9rem;margin-bottom:8px;display:block">[*] notify me about</span>
                 <div style="display:flex;flex-direction:column;gap:6px">
                     <label style="display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer">
-                        {{ form.notify_on_like(style="width:16px;height:16px;cursor:pointer") }}
+                        <input type="checkbox" class="notif-type" data-field="notify_on_like" style="width:16px;height:16px;cursor:pointer"
+                               {{ 'checked' if current_user.notify_on_like else '' }}>
                         <span style="flex:1;color:var(--fg);font-size:0.85rem">likes</span>
                     </label>
                     <label style="display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer">
-                        {{ form.notify_on_comment(style="width:16px;height:16px;cursor:pointer") }}
+                        <input type="checkbox" class="notif-type" data-field="notify_on_comment" style="width:16px;height:16px;cursor:pointer"
+                               {{ 'checked' if current_user.notify_on_comment else '' }}>
                         <span style="flex:1;color:var(--fg);font-size:0.85rem">comments</span>
                     </label>
                     <label style="display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer">
-                        {{ form.notify_on_follow(style="width:16px;height:16px;cursor:pointer") }}
+                        <input type="checkbox" class="notif-type" data-field="notify_on_follow" style="width:16px;height:16px;cursor:pointer"
+                               {{ 'checked' if current_user.notify_on_follow else '' }}>
                         <span style="flex:1;color:var(--fg);font-size:0.85rem">follows</span>
                     </label>
                     <label style="display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer">
-                        {{ form.notify_on_message(style="width:16px;height:16px;cursor:pointer") }}
+                        <input type="checkbox" class="notif-type" data-field="notify_on_message" style="width:16px;height:16px;cursor:pointer"
+                               {{ 'checked' if current_user.notify_on_message else '' }}>
                         <span style="flex:1;color:var(--fg);font-size:0.85rem">messages</span>
                     </label>
                 </div>
+                <div style="color:var(--subtle);font-size:0.78rem;margin-top:4px">changes saved automatically.</div>
             </div>
+            <div id="notifSaveStatus" style="font-size:0.82rem"></div>
         </div>
 
         {# ════════════ DANGER ════════════ #}
         <div class="st-panel" id="panel-danger" style="display:none">
             <div class="auth-field" style="margin-bottom:20px;padding:16px;border:2px solid var(--red);border-radius:6px;background:var(--surface)">
                 <span class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block;color:var(--red)">[!] delete account</span>
+
                 <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg);border:1px solid var(--red);border-radius:6px">
-                    {{ form.delete_account(style="width:18px;height:18px;cursor:pointer") }}
-                    <label for="{{ form.delete_account.id }}" style="cursor:pointer;color:var(--red);font-size:0.88rem;flex:1">I understand — delete my account and all data</label>
+                    <input type="password" class="field-input" id="delete-password"
+                           placeholder="current password" autocomplete="current-password"
+                           style="padding:10px 14px;font-size:0.85rem;flex:1;min-width:140px">
+                    <button type="button" class="btn-term" id="deleteAccountBtn"
+                            style="border-color:var(--red);color:var(--red);padding:10px 18px;white-space:nowrap">[delete account]</button>
                 </div>
                 <div style="color:var(--subtle);font-size:0.78rem;margin-top:8px">This will permanently remove your profile, posts, comments, likes, chats, and all associated data. This action cannot be undone.</div>
             </div>
+            <div id="dangerStatus" style="font-size:0.82rem"></div>
         </div>
+    </div>
 
-        {# ── Action buttons ── #}
-        <div style="display:flex;gap:8px;margin-top:24px;padding-top:16px;border-top:1px solid var(--border)">
-            <button type="submit" class="btn-term primary" style="flex:1;padding:10px 20px;font-size:0.9rem;display:flex;justify-content:center">[>> save]</button>
-            <a href="{{ url_for('main.index') }}" class="btn-term" style="flex:1;padding:10px 20px;font-size:0.9rem;display:flex;justify-content:center;text-decoration:none">[cancel]</a>
-        </div>
-    </form>
-
+    {# ── User info footer ── #}
     <div style="border-top:1px solid var(--border);padding:12px 24px;font-size:0.82rem;color:var(--subtle);display:grid;grid-template-columns:1fr 1fr;gap:4px">
         <span>username: <b style="color:var(--fg)">{{ current_user.username }}</b></span>
         <span>email: <b style="color:var(--fg)">{{ current_user.email }}</b></span>
@@ -161,7 +183,7 @@
     </div>
 </div>
 
-<!-- Delete confirmation modal -->
+{# ── Delete confirmation modal ── #}
 <div class="modal-overlay d-none" id="deleteAccountModal">
     <div class="modal-box" style="max-width:440px">
         <div class="modal-box-header" style="border-bottom:2px solid var(--red);padding:14px 18px">
@@ -179,7 +201,7 @@
             <p style="margin:0"><b>Are you sure?</b></p>
         </div>
         <div class="modal-box-footer" style="padding:12px 18px;display:flex;justify-content:flex-end;gap:8px">
-            <button class="btn-term" onclick="document.getElementById('deleteAccountModal').classList.add('d-none');document.getElementById('delete_account').checked=false" style="padding:8px 16px">[cancel]</button>
+            <button class="btn-term" onclick="document.getElementById('deleteAccountModal').classList.add('d-none')" style="padding:8px 16px">[cancel]</button>
             <button class="btn-term" id="confirmDeleteBtn" style="border-color:var(--red);color:var(--red);padding:8px 16px">[delete account]</button>
         </div>
     </div>
@@ -189,7 +211,7 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // ════════════ TAB SWITCHING (defined FIRST, used by restore code below) ════════════
+    // ════════════ TAB SWITCHING ════════════
     var tabs = document.querySelectorAll('.st-tab');
     var panels = {
         account:      document.getElementById('panel-account'),
@@ -199,103 +221,172 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     function switchTab(tabId) {
-        tabs.forEach(function(t) {
-            var active = t.dataset.tab === tabId;
-            t.classList.toggle('active', active);
-        });
+        tabs.forEach(function(t) { t.classList.toggle('active', t.dataset.tab === tabId); });
         Object.keys(panels).forEach(function(k) {
             panels[k].style.display = k === tabId ? '' : 'none';
         });
-        // Save to hidden field so redirect preserves tab
-        var hiddenInput = document.getElementById('activeTabInput');
-        if (hiddenInput) hiddenInput.value = tabId;
+        // Add tab to URL for refresh persistence
+        var url = new URL(window.location);
+        url.searchParams.set('tab', tabId);
+        window.history.replaceState({}, '', url);
     }
 
     tabs.forEach(function(tab) {
         tab.addEventListener('click', function() { switchTab(tab.dataset.tab); });
     });
 
-    // ════════════ TOAST ON SAVE + RESTORE TAB ════════════
-    var params = new URLSearchParams(window.location.search);
-    if (params.get('saved') === '1') {
-        // Show toast
-        if (typeof window.showToast === 'function') {
-            window.showToast('[*] settings', 'settings saved', 'success');
-        }
-        // Restore active tab (switchTab already defined above)
-        var tabParam = params.get('tab');
-        if (tabParam && ['account','appearance','notifications','danger'].indexOf(tabParam) !== -1) {
-            switchTab(tabParam);
-        }
-        // Clean URL (remove ?saved & ?tab) without page reload
-        var url = window.location.pathname + window.location.hash;
-        window.history.replaceState({}, '', url);
+    // Restore tab from URL
+    var tabParam = new URLSearchParams(window.location.search).get('tab');
+    if (tabParam && ['account','appearance','notifications','danger'].indexOf(tabParam) !== -1) {
+        switchTab(tabParam);
     }
 
-    // ════════════ DELETE ACCOUNT MODAL ════════════
-    var deleteCheckbox = document.getElementById('delete_account');
-    var modal = document.getElementById('deleteAccountModal');
-    var confirmBtn = document.getElementById('confirmDeleteBtn');
+    // ════════════ UTILITY: show status message ════════════
+    function setStatus(elId, msg, type) {
+        var el = document.getElementById(elId);
+        if (!el) return;
+        var colors = { success: 'var(--green)', error: 'var(--red)', info: 'var(--subtle)' };
+        el.innerHTML = '<span style="color:' + (colors[type] || colors.info) + '">' + msg + '</span>';
+        if (type !== 'error') {
+            setTimeout(function() { el.innerHTML = ''; }, 4000);
+        }
+    }
 
-    deleteCheckbox.addEventListener('change', function() {
-        if (this.checked) modal.classList.remove('d-none');
+    // ════════════ ACCOUNT SAVE ════════════
+    document.getElementById('saveAccountBtn').addEventListener('click', function() {
+        var data = {
+            username: document.getElementById('settings-username').value.trim(),
+            email: document.getElementById('settings-email').value.trim(),
+            language: document.getElementById('settings-lang').value,
+            current_password: document.getElementById('settings-account-pw').value,
+        };
+        fetch('/api/v1/settings/account', {
+            method: 'PATCH',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data),
+        }).then(function(r) { return r.json().then(function(j) { return {status: r.status, body: j}; }); })
+        .then(function(res) {
+            if (res.status === 200) {
+                setStatus('accountStatus', '[*] account saved', 'success');
+                if (window.showToast) window.showToast('[*] settings', 'account saved', 'success');
+                document.getElementById('settings-account-pw').value = '';
+            } else {
+                setStatus('accountStatus', '[!] ' + (res.body.error || 'error'), 'error');
+            }
+        }).catch(function() {
+            setStatus('accountStatus', '[!] network error', 'error');
+        });
     });
 
-    confirmBtn.addEventListener('click', function() {
-        modal.classList.add('d-none');
-        document.querySelector('form').submit();
+    // ════════════ PASSWORD SAVE ════════════
+    document.getElementById('savePasswordBtn').addEventListener('click', function() {
+        var cur = document.getElementById('settings-cur-pw').value;
+        var npw = document.getElementById('settings-new-pw').value;
+        var cpw = document.getElementById('settings-conf-pw').value;
+
+        if (!cur) { setStatus('passwordStatus', '[!] enter current password', 'error'); return; }
+        if (!npw || npw.length < 6) { setStatus('passwordStatus', '[!] password min 6 chars', 'error'); return; }
+        if (npw !== cpw) { setStatus('passwordStatus', '[!] passwords do not match', 'error'); return; }
+
+        fetch('/api/v1/settings/password', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({current_password: cur, new_password: npw, confirm_password: cpw}),
+        }).then(function(r) { return r.json().then(function(j) { return {status: r.status, body: j}; }); })
+        .then(function(res) {
+            if (res.status === 200) {
+                setStatus('passwordStatus', '[*] password changed', 'success');
+                if (window.showToast) window.showToast('[*] settings', 'password changed', 'success');
+                document.getElementById('settings-cur-pw').value = '';
+                document.getElementById('settings-new-pw').value = '';
+                document.getElementById('settings-conf-pw').value = '';
+            } else {
+                setStatus('passwordStatus', '[!] ' + (res.body.error || 'error'), 'error');
+            }
+        }).catch(function() {
+            setStatus('passwordStatus', '[!] network error', 'error');
+        });
     });
 
-    modal.addEventListener('click', function(e) {
-        if (e.target === modal) { this.classList.add('d-none'); deleteCheckbox.checked = false; }
-    });
+    // ════════════ PASSWORD VALIDATION (client-side) ════════════
+    var npInput = document.getElementById('settings-new-pw');
+    var cpInput = document.getElementById('settings-conf-pw');
+    function validatePw() {
+        if (npInput.value && cpInput.value && npInput.value !== cpInput.value) {
+            cpInput.setCustomValidity('passwords do not match');
+        } else {
+            cpInput.setCustomValidity('');
+        }
+    }
+    if (npInput && cpInput) {
+        npInput.addEventListener('input', validatePw);
+        cpInput.addEventListener('input', validatePw);
+    }
 
-    // ════════════ THEME TOGGLE ════════════
+    // ════════════ THEME TOGGLE (live, no save) ════════════
     if (window.GUI_THEME) {
         var currentTheme = GUI_THEME.getTheme();
         document.querySelectorAll('.theme-btn').forEach(function(btn) {
-            if (btn.dataset.theme === currentTheme) {
-                btn.classList.add('selected');
-            }
+            if (btn.dataset.theme === currentTheme) btn.classList.add('selected');
             btn.addEventListener('click', function() {
                 var t = this.dataset.theme;
                 GUI_THEME.setTheme(t);
-                document.querySelectorAll('.theme-btn').forEach(function(b) {
-                    b.classList.remove('selected');
-                });
+                document.querySelectorAll('.theme-btn').forEach(function(b) { b.classList.remove('selected'); });
                 this.classList.add('selected');
             });
         });
     }
 
-    // ════════════ FONT SIZE ════════════
+    // ════════════ FONT SIZE (live, no save) ════════════
     if (window.GUI_THEME) {
         var currentSize = GUI_THEME.getFontSize();
         document.querySelectorAll('.fs-btn').forEach(function(btn) {
-            if (btn.dataset.size === currentSize) {
-                btn.classList.add('selected');
-            }
+            if (btn.dataset.size === currentSize) btn.classList.add('selected');
             btn.addEventListener('click', function() {
                 var s = this.dataset.size;
                 GUI_THEME.setFontSize(s);
-                document.querySelectorAll('.fs-btn').forEach(function(b) {
-                    b.classList.remove('selected');
-                });
+                document.querySelectorAll('.fs-btn').forEach(function(b) { b.classList.remove('selected'); });
                 this.classList.add('selected');
             });
         });
     }
 
-    // ════════════ PASSWORD VALIDATION ════════════
-    var np = document.getElementById('{{ form.new_password.id }}');
-    var cp = document.getElementById('{{ form.confirm_password.id }}');
-    function validate() {
-        if (np.value && cp.value && np.value !== cp.value) cp.setCustomValidity('passwords do not match');
-        else cp.setCustomValidity('');
-    }
-    if (np && cp) { np.addEventListener('input', validate); cp.addEventListener('input', validate); }
+    // ════════════ NOTIFICATIONS — AUTO SAVE ON CHANGE ════════════
+    var notifTimer = null;
 
-    // ════════════ NOTIFICATION STATUS ════════════
+    function saveNotifications() {
+        if (notifTimer) clearTimeout(notifTimer);
+        notifTimer = setTimeout(function() {
+            var data = {};
+            data.notifications_enabled = document.getElementById('notif-enabled').checked;
+
+            document.querySelectorAll('.notif-type').forEach(function(cb) {
+                data[cb.dataset.field] = cb.checked;
+            });
+
+            fetch('/api/v1/settings/notifications', {
+                method: 'PATCH',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data),
+            }).then(function(r) { return r.json().then(function(j) { return {status: r.status, body: j}; }); })
+            .then(function(res) {
+                if (res.status === 200) {
+                    setStatus('notifSaveStatus', '[*] saved', 'success');
+                } else {
+                    setStatus('notifSaveStatus', '[!] ' + (res.body.error || 'error'), 'error');
+                }
+            }).catch(function() {
+                setStatus('notifSaveStatus', '[!] network error', 'error');
+            });
+        }, 400);
+    }
+
+    document.getElementById('notif-enabled').addEventListener('change', saveNotifications);
+    document.querySelectorAll('.notif-type').forEach(function(cb) {
+        cb.addEventListener('change', saveNotifications);
+    });
+
+    // ════════════ NOTIFICATION BROWSER STATUS ════════════
     if ('Notification' in window) {
         var statusDiv = document.getElementById('notifStatus');
         if (statusDiv) {
@@ -311,6 +402,42 @@ document.addEventListener('DOMContentLoaded', function() {
             statusDiv.innerHTML = html;
         }
     }
+
+    // ════════════ DELETE ACCOUNT ════════════
+    var deleteBtn = document.getElementById('deleteAccountBtn');
+    var modal = document.getElementById('deleteAccountModal');
+    var confirmBtn = document.getElementById('confirmDeleteBtn');
+
+    deleteBtn.addEventListener('click', function() {
+        var pw = document.getElementById('delete-password').value;
+        if (!pw) { setStatus('dangerStatus', '[!] enter your password first', 'error'); return; }
+        modal.classList.remove('d-none');
+    });
+
+    confirmBtn.addEventListener('click', function() {
+        var pw = document.getElementById('delete-password').value;
+        modal.classList.add('d-none');
+        setStatus('dangerStatus', 'deleting...', 'info');
+
+        fetch('/api/v1/settings/delete-account', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({password: pw}),
+        }).then(function(r) { return r.json().then(function(j) { return {status: r.status, body: j}; }); })
+        .then(function(res) {
+            if (res.status === 200) {
+                window.location.href = '/login';
+            } else {
+                setStatus('dangerStatus', '[!] ' + (res.body.error || 'error'), 'error');
+            }
+        }).catch(function() {
+            setStatus('dangerStatus', '[!] network error', 'error');
+        });
+    });
+
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) modal.classList.add('d-none');
+    });
 });
 </script>
 {% endblock %}
