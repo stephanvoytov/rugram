@@ -18,7 +18,7 @@
 - **Stack**: Flask + SQLAlchemy 2.0 + SQLite + Bootstrap 5.3 (Catppuccin)
 - **Auth**: flask-login, WTForms (CSRF enabled globally, disabled in tests)
 - **DB**: In-memory SQLite in tests (`conftest.py`), file-based for dev (`instance/app.sqlite`)
-- **Tests**: 239 Python (119 unit + 96 integration + 24 security) + 319 JS terminal — all green
+- **Tests**: 246 Python (119 unit + 103 integration + 24 security) + 319 JS terminal — all green
 - **Services**: 7 classes in `app/services/` — PostService, FeedService, ChatService, NotificationService, SocialService, AdminService, AuthService
 - **API**: All endpoints under `/api/v1/*` (Flask-RESTful, auth, feed, notifications, followers, etc.), Swagger UI at `/apidocs/`
 - **Cache**: Optional Redis via `app/cache.py` (no REDIS_URL → no-op). Feed cached 30s with version-based invalidation.
