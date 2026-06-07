@@ -9,6 +9,18 @@
         <span class="auth-title" style="font-size:1rem">[settings]</span>
     </div>
 
+    {# ── Global bar (language — no save needed, auto-applies) ── #}
+    <div style="display:flex;align-items:center;gap:12px;padding:8px 24px;border-top:1px solid var(--border);background:var(--surface0)">
+        <span style="font-size:0.82rem;color:var(--subtle)">[*] language:</span>
+        <select id="settings-lang" class="field-input"
+                style="padding:6px 10px;font-size:0.82rem;width:auto;cursor:pointer;appearance:auto;min-width:100px">
+            <option value="en" {{ 'selected' if session.get('lang','en') == 'en' else '' }}>English</option>
+            <option value="ru" {{ 'selected' if session.get('lang') == 'ru' else '' }}>Русский</option>
+        </select>
+        <span style="font-size:0.75rem;color:var(--subtle)">saved automatically</span>
+        <span id="langStatus" style="font-size:0.75rem"></span>
+    </div>
+
     {# ── Tab headers ── #}
     <div class="settings-tabs">
         <button class="st-tab active" data-tab="account">[account]</button>
@@ -38,16 +50,6 @@
                        style="padding:10px 14px;font-size:0.9rem;width:100%"
                        value="{{ current_user.email }}">
                 <div style="color:var(--subtle);font-size:0.78rem;margin-top:4px">current: <b>{{ current_user.email }}</b>. leave empty to keep.</div>
-            </div>
-
-            <div class="auth-field" style="margin-bottom:20px">
-                <label class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] language</label>
-                <select id="settings-lang" class="field-input"
-                        style="padding:10px 14px;font-size:0.9rem;width:100%;cursor:pointer;appearance:auto">
-                    <option value="en" {{ 'selected' if session.get('lang','en') == 'en' else '' }}>English</option>
-                    <option value="ru" {{ 'selected' if session.get('lang') == 'ru' else '' }}>Русский</option>
-                </select>
-                <div style="color:var(--subtle);font-size:0.78rem;margin-top:4px">interface language.</div>
             </div>
 
             <div style="display:flex;gap:8px;margin-bottom:20px">
@@ -210,7 +212,23 @@
 
 {% block scripts %}
 <script>
+// ── CSRF token helper (meta tag from base.html) ──
+var csrfToken = function() {
+    var m = document.querySelector('meta[name="csrf-token"]');
+    return m ? m.content : '';
+};
+
 document.addEventListener('DOMContentLoaded', function() {
+    // ── Shortcut for fetch with CSRF ──
+    function apiFetch(url, opts) {
+        opts = opts || {};
+        opts.headers = opts.headers || {};
+        opts.headers['X-CSRFToken'] = csrfToken();
+        opts.headers['Content-Type'] = 'application/json';
+        if (!opts.credentials) opts.credentials = 'same-origin';
+        return fetch(url, opts);
+    }
+
     // ════════════ TAB SWITCHING ════════════
     var tabs = document.querySelectorAll('.st-tab');
     var panels = {
@@ -241,6 +259,24 @@ document.addEventListener('DOMContentLoaded', function() {
         switchTab(tabParam);
     }
 
+    // ════════════ LANGUAGE AUTO-SAVE ════════════
+    document.getElementById('settings-lang').addEventListener('change', function() {
+        apiFetch('/api/v1/settings/account', {
+            method: 'PATCH',
+            body: JSON.stringify({language: this.value}),
+        }).then(function(r) {
+            var status = document.getElementById('langStatus');
+            if (r.ok) {
+                status.innerHTML = '<span style="color:var(--green)">[*] saved</span>';
+                setTimeout(function() { status.innerHTML = ''; }, 2500);
+            } else {
+                status.innerHTML = '<span style="color:var(--red)">[!] error</span>';
+            }
+        }).catch(function() {
+            document.getElementById('langStatus').innerHTML = '<span style="color:var(--red)">[!] error</span>';
+        });
+    });
+
     // ════════════ UTILITY: show status message ════════════
     function setStatus(elId, msg, type) {
         var el = document.getElementById(elId);
@@ -257,12 +293,10 @@ document.addEventListener('DOMContentLoaded', function() {
         var data = {
             username: document.getElementById('settings-username').value.trim(),
             email: document.getElementById('settings-email').value.trim(),
-            language: document.getElementById('settings-lang').value,
             current_password: document.getElementById('settings-account-pw').value,
         };
-        fetch('/api/v1/settings/account', {
+        apiFetch('/api/v1/settings/account', {
             method: 'PATCH',
-            headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(data),
         }).then(function(r) { return r.json().then(function(j) { return {status: r.status, body: j}; }); })
         .then(function(res) {
@@ -288,9 +322,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!npw || npw.length < 6) { setStatus('passwordStatus', '[!] password min 6 chars', 'error'); return; }
         if (npw !== cpw) { setStatus('passwordStatus', '[!] passwords do not match', 'error'); return; }
 
-        fetch('/api/v1/settings/password', {
+        apiFetch('/api/v1/settings/password', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({current_password: cur, new_password: npw, confirm_password: cpw}),
         }).then(function(r) { return r.json().then(function(j) { return {status: r.status, body: j}; }); })
         .then(function(res) {
@@ -364,9 +397,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 data[cb.dataset.field] = cb.checked;
             });
 
-            fetch('/api/v1/settings/notifications', {
+            apiFetch('/api/v1/settings/notifications', {
                 method: 'PATCH',
-                headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(data),
             }).then(function(r) { return r.json().then(function(j) { return {status: r.status, body: j}; }); })
             .then(function(res) {
@@ -419,9 +451,8 @@ document.addEventListener('DOMContentLoaded', function() {
         modal.classList.add('d-none');
         setStatus('dangerStatus', 'deleting...', 'info');
 
-        fetch('/api/v1/settings/delete-account', {
+        apiFetch('/api/v1/settings/delete-account', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({password: pw}),
         }).then(function(r) { return r.json().then(function(j) { return {status: r.status, body: j}; }); })
         .then(function(res) {
