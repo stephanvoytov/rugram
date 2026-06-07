@@ -18,10 +18,10 @@
 - **Stack**: Flask + SQLAlchemy 2.0 + SQLite + Bootstrap 5.3 (Catppuccin)
 - **Auth**: flask-login, WTForms (CSRF enabled globally, disabled in tests)
 - **DB**: In-memory SQLite in tests (`conftest.py`), file-based for dev (`instance/app.sqlite`)
-- **Tests**: 246 Python (119 unit + 103 integration + 24 security) + 319 JS terminal — all green
+- **Tests**: 246 Python (116 unit + 3 translations + 96 integration + 24 security) + 318 JS terminal (7 category files in `tests/terminal/`) — all green
 - **Services**: 7 classes in `app/services/` — PostService, FeedService, ChatService, NotificationService, SocialService, AdminService, AuthService
 - **API**: All endpoints under `/api/v1/*` (Flask-RESTful, auth, feed, notifications, followers, etc.), Swagger UI at `/apidocs/`
 - **Cache**: Optional Redis via `app/cache.py` (no REDIS_URL → no-op). Feed cached 30s with version-based invalidation.
-- **Terminal**: Custom `<textarea>`-based terminal emulator (9 JS files, loaded in strict order)
+- **Terminal**: xterm.js-based terminal emulator (`class Terminal`), VFS as classes (VfsDir/VfsFile/VFS), Command class with async dispatch — 11 JS files loaded in strict order
 - **Encryption**: Fernet (MultiFernet) for chat messages via `app/crypto.py`
 - **Push**: Web Push via `app/push.py` (VAPID optional, silently disabled if not configured)
