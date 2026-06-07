@@ -281,7 +281,6 @@
       '    profile         my profile',
       '    chat            messages',
       '    users/@name     user profile',
-      '    mnt             GUI mount points',
       '',
       'EXAMPLES',
       '    cd posts        go to /posts',
@@ -1019,7 +1018,6 @@
     T.addOutputLine('  <span class="tp-cmd">followers/</span>      <span class="tp-desc">— ' + T._('подписчики (ls = список, cat @user = описание)', 'followers (ls = list, cat @user = info)') + '</span>');
     T.addOutputLine('  <span class="tp-cmd">following/</span>      <span class="tp-desc">— ' + T._('подписки (ls = список, cat @user = описание)', 'following (ls = list, cat @user = info)') + '</span>');
     T.addOutputLine('  <span class="tp-cmd">notifications/</span>  <span class="tp-desc">— ' + T._('уведомления (ls = список, cat N = детали)', 'notifications (ls = list, cat N = details)') + '</span>');
-    T.addOutputLine('  <span class="tp-cmd">mnt/</span>            <span class="tp-desc">— ' + T._('точки монтирования GUI (cat = открыть)', 'GUI mount points (cat = open)') + '</span>');
     T.addOutputLine('');
     T.addOutputLine('<span class="tp-bold">' + T._('Типы файлов:', 'File types:') + '</span>');
     T.addOutputLine('  <span class="tp-post-id">42.post</span>        <span class="tp-desc">— ' + T._('пост (cat, nano)', 'post (cat, nano)') + '</span>');

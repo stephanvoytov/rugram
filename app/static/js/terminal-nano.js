@@ -19,7 +19,7 @@
     var node = T.vfs.resolve(args);
     if (!node || node.error) {
       T.addOutputLine('<span class="tp-err">nano: ' + T.escapeHtml(args) + ': No such file</span>');
-      T.addOutputLine('<span class="tp-desc">  # ' + T._('файлы: posts/&lt;id&gt;.post, profile/info, settings/profile/info, drafts/&lt;file&gt;', 'files: posts/&lt;id&gt;.post, profile/info, settings/profile/info, drafts/&lt;file&gt;') + '</span>');
+      T.addOutputLine('<span class="tp-desc">  # ' + T._('файлы: posts/&lt;id&gt;.post, profile/info, drafts/&lt;file&gt;', 'files: posts/&lt;id&gt;.post, profile/info, drafts/&lt;file&gt;') + '</span>');
       return;
     }
 
@@ -59,7 +59,7 @@
           body: 'text=' + encodeURIComponent(newText)
         });
       };
-    } else if (args === 'info' || args === 'profile/info' || args === 'settings/profile/info') {
+    } else if (args === 'info' || args === 'profile/info') {
       // Профиль (bio)
       editorType = 'profile';
       initialText = '';
@@ -95,7 +95,7 @@
     }
 
     T.addOutputLine('<span class="tp-err">nano: ' + T.escapeHtml(args) + ': ' + T._('нельзя редактировать', 'not editable') + '</span>');
-    T.addOutputLine('<span class="tp-desc">  # ' + T._('Редактировать можно посты и описание профиля', 'Editable: posts, profile description (settings/profile/info)') + '</span>');
+    T.addOutputLine('<span class="tp-desc">  # ' + T._('Редактировать можно посты и описание профиля', 'Editable: posts and profile description') + '</span>');
   };
 
   // ── Show nano full-screen editor ──

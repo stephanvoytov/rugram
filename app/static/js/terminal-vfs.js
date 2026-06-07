@@ -97,7 +97,7 @@
         { name: 'notifications', type: 'dir', desc: T._('Уведомления', 'Notifications') },
         { name: 'followers',type: 'dir', desc: T._('Подписчики', 'Followers') },
         { name: 'following',type: 'dir', desc: T._('Подписки', 'Following') },
-        { name: 'mnt',      type: 'dir', desc: T._('GUI точки монтирования', 'GUI mount points') },
+        { name: 'mnt',      type: 'dir', desc: T._('(пусто)', '(empty)') },
       ],
     };
   }
@@ -608,87 +608,10 @@
     };
   }
 
-  // ── /mnt (GUI mount points) ──
+  // ── /mnt (reserved) ──
   function _mnt(sub) {
     if (sub.length === 0) {
-      return _dir([
-        { name: 'settings', type: 'dir', desc: T._('Настройки / профиль', 'Settings / Profile') },
-      ]);
-    }
-    if (sub[0] === 'settings') {
-      if (sub.length === 1) {
-        return _dir([
-          { name: 'profile', type: 'dir', desc: T._('Профиль', 'Profile') },
-          { name: 'appearance', type: 'dir', desc: T._('Внешний вид', 'Appearance') },
-        ]);
-      }
-      // settings/profile
-      if (sub[1] === 'profile') {
-        if (sub.length === 2) {
-          return _dir([
-            { name: 'info', type: 'file', desc: T._('Информация', 'Info') },
-          ]);
-        }
-        if (sub[2] === 'info') {
-          return _file({
-            name: 'info',
-            content: function(out) { T.cmdWhoami(); },
-            edit: function(out, newText) {
-              if (!T.isLoggedIn) { out('<span class="tp-err">' + T._('Требуется вход.', 'Login required.') + '</span>'); return; }
-              T.vfsFetch(window.EDIT_PROFILE_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': T.csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
-                body: 'description=' + encodeURIComponent(newText),
-              }).then(function(r) {
-                out(r.ok ? '<span class="tp-ok">' + T._('Профиль обновлён', 'Profile updated') + '</span>' : '<span class="tp-err">' + T._('Ошибка', 'Error') + '</span>');
-              });
-            },
-          });
-        }
-      }
-      // settings/appearance
-      if (sub[1] === 'appearance') {
-        if (sub.length === 2) {
-          return _dir([
-            { name: 'theme', type: 'file', desc: T._('Тема', 'Theme') },
-            { name: 'fontsize', type: 'file', desc: T._('Размер шрифта', 'Font size') },
-          ]);
-        }
-        if (sub[2] === 'theme') {
-          return _file({
-            name: 'theme',
-            content: function(out) {
-              var t = window.GUI_THEME ? GUI_THEME.getTheme() : 'dark';
-              out('<span class="tp-desc">' + T._('Тема:', 'Theme:') + ' <b>' + T.escapeHtml(t) + '</b></span>');
-              out('<span class="tp-desc">  # ' + T._('меняйте через команду', 'change via') + ' <span class="tp-cmd">theme</span></span>');
-            },
-          });
-        }
-        if (sub[2] === 'fontsize') {
-          return _file({
-            name: 'fontsize',
-            content: function(out) {
-              var s = window.GUI_THEME ? GUI_THEME.getFontSize() : '14px';
-              out('<span class="tp-desc">' + T._('Размер шрифта:', 'Font size:') + ' <b>' + T.escapeHtml(s) + '</b></span>');
-              out('<span class="tp-desc">  # ' + T._('меняйте через команду', 'change via') + ' <span class="tp-cmd">theme</span></span>');
-            },
-          });
-        }
-      }
-      return _err('No such file or directory');
-    }
-    if (sub[0] === 'edit_profile') {
-      return _file({
-        name: 'edit_profile',
-        content: function(out) {
-          out('<span class="tp-section">' + T._('Редактирование профиля', 'Edit profile') + '</span>');
-          if (!T.isLoggedIn) {
-            out('<span class="tp-err">' + T._('Требуется вход.', 'Login required.') + '</span>');
-            return;
-          }
-          T.cmdWhoami();
-        },
-      });
+      return _dir([]);
     }
     return _err('No such file or directory');
   }
