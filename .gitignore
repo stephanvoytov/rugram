@@ -21,6 +21,7 @@ ENV/
 
 # IDE
 .idea/
+.opencode/
 
 # OS
 Thumbs.db
