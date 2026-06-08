@@ -15,162 +15,143 @@
 {% block content %}
 <h1 class="sr-only">{{ user.username }}</h1>
 <div class="profile-page">
-    <div class="profile-layout">
-        <!-- Sidebar -->
-        <div class="profile-sidebar">
-            <div class="profile-avatar-wrapper">
-                <img src="{{ url_for('static', filename='uploads/profile_images/' + user.profile_image) if user.profile_image else url_for('static', filename='default-profile.png') }}"
-                     alt="{{ user.username }}" class="profile-avatar">
-            </div>
-
-            <div class="profile-identity">
-                <span class="profile-name" {% if user.role_color %}style="color:{{ user.role_color }}"{% endif %}>@{{ user.username }}{% if user.is_admin %}<span class="role-badge role-admin">admin</span>{% elif user.is_moderator %}<span class="role-badge role-mod">mod</span>{% endif %}</span>
-                {% if user.description %}
-                <div class="profile-desc-box">
-                    <span class="profile-desc-prompt">&gt;</span>
-                    <span class="profile-desc">{{ user.description }}</span>
-                </div>
-                {% endif %}
-            </div>
-
-            <div class="profile-stats-box">
-                <div class="stat-row">
-                    <span class="stat-key">uid</span>
-                    <span class="stat-val">{{ user.id }}</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-key">posts</span>
-                    <span class="stat-val">{{ user.posts|rejectattr('is_deleted')|list|length }}</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-key">followers</span>
-                    <span class="stat-val" id="profileFollowersCount">{{ user.followers_count }}</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-key">following</span>
-                    <span class="stat-val">{{ user.following_count }}</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-key">joined</span>
-                    <span class="stat-val">{{ user.created_date.strftime('%Y-%m-%d') if user.created_date else '?' }}</span>
-                </div>
-            </div>
-
-            <div class="profile-actions">
-                {% if current_user == user %}
-                <a href="{{ url_for('main.edit_profile') }}" class="btn-term" style="display:flex;justify-content:center;padding:8px 16px">[edit profile]</a>
-                {% elif current_user.is_authenticated %}
-                <button class="btn-term {% if is_following %}secondary{% else %}primary{% endif %} follow-btn"
-                        data-username="{{ user.username }}"
-                        data-following="{{ 'true' if is_following else 'false' }}"
-                        style="display:flex;justify-content:center;padding:8px 16px;flex:1">
-                    {% if is_following %}[unfollow]{% else %}[+ follow]{% endif %}
-                </button>
-                <a href="{{ url_for('main.chat') }}?user={{ user.username }}" class="btn-term secondary"
-                   style="display:flex;justify-content:center;padding:8px 16px;flex:1">[✉ message]</a>
-                {% else %}
-                <a href="{{ url_for('auth.login') }}" class="btn-term primary"
-                   style="display:flex;justify-content:center;padding:8px 16px">[+ follow]</a>
-                {% endif %}
-            </div>
+    <!-- Header -->
+    <div class="profile-header">
+        <img src="{{ url_for('static', filename='uploads/profile_images/' + user.profile_image) if user.profile_image else url_for('static', filename='default-profile.png') }}"
+             alt="{{ user.username }}" class="profile-avatar">
+        <div class="profile-username" {% if user.role_color %}style="color:{{ user.role_color }}"{% endif %}>
+            @{{ user.username }}{% if user.is_admin %}<span class="role-badge role-admin">admin</span>{% elif user.is_moderator %}<span class="role-badge role-mod">mod</span>{% endif %}
         </div>
+        {% if user.description %}
+        <div class="profile-bio">{{ user.description }}</div>
+        {% endif %}
+    </div>
 
-        <!-- Posts column -->
-        <div class="profile-posts">
-
-            <!-- Widgets (server-side rendered, shown to profile owner) -->
-            {% if current_user == user and user.widgets %}
-            <div class="profile-widgets">
-                {% for w in user.widgets %}
-                {% if w.enabled %}
-                {% set wdata = w.cached_data|from_json if w.cached_data else {} %}
-                {% set wconfig = w.config|from_json if w.config else {} %}
-                <div class="widget-card widget-{{ w.widget_type }}" data-widget-id="{{ w.id }}">
-                    {% if w.widget_type == 'lastfm' %}
-                    <div class="widget-body" style="padding-top:4px">
-                        {% if wdata %}
-                        <div class="widget-lastfm-layout">
-                            {% if wdata.get('image') %}
-                            <img class="widget-lastfm-cover"
-                                 src="{{ wdata.image }}" alt=""
-                                 width="80" height="80"
-                                 loading="lazy"
-                                 onerror="this.style.display='none'">
-                            {% endif %}
-                            <div class="widget-lastfm-details">
-                                <div class="widget-lastfm-top">
-                                    {% if wdata.get('now_playing') %}<span class="widget-live-dot"></span>{% endif %}
-                                    {{ 'now playing' if wdata.get('now_playing') else 'last played' }}
-                                </div>
-                                <div class="widget-track" title="{{ wdata.get('track', '—') }}">{{ wdata.get('track', '—') }}</div>
-                                <div class="widget-artist" title="{{ wdata.get('artist', '—') }}">{{ wdata.get('artist', '—') }}</div>
-                                {% if wdata.get('album') %}
-                                <div class="widget-album" title="{{ wdata.album }}">{{ wdata.album }}</div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <a href="https://www.last.fm/user/{{ wconfig.get('username', '') }}" target="_blank" rel="noopener" class="widget-attribution">powered by Last.fm</a>
-                        {% else %}
-                        <div class="widget-state">awaiting data…</div>
-                        {% endif %}
-                    </div>
-
-                    {% elif w.widget_type == 'weather' %}
-                    <div class="widget-header"><span class="widget-icon">☀</span> weather</div>
-                    <div class="widget-body">
-                        {% if wdata %}
-                        <div class="widget-temp">{{ wdata.get('temp', '?') }}°C</div>
-                        <div class="widget-condition">{{ wdata.get('condition', '—') }}</div>
-                        <div class="widget-meta">{{ wdata.get('city', '—') }} · feels like {{ wdata.get('feels_like', '?') }}°C</div>
-                        {% else %}
-                        <div class="widget-state">awaiting data…</div>
-                        {% endif %}
-                    </div>
-
-                    {% elif w.widget_type == 'steam' %}
-                    <div class="widget-header"><span class="widget-icon">🎮</span> steam</div>
-                    <div class="widget-body">
-                        {% if wdata %}
-                        {% if wdata.get('game') %}
-                        <div class="widget-game">🎮 {{ wdata.game }}</div>
-                        <div class="widget-meta">{{ wdata.get('state', '—') }}</div>
-                        {% else %}
-                        <div class="widget-state">{{ wdata.get('state', '—') }}</div>
-                        {% endif %}
-                        <div class="widget-meta">{{ wdata.get('persona_name', '—') }}</div>
-                        {% else %}
-                        <div class="widget-state">awaiting data…</div>
-                        {% endif %}
-                    </div>
-                    {% endif %}
-                </div>
-                {% endif %}
-                {% endfor %}
-            </div>
-            {% endif %}
-            <div class="profile-posts-header" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0 8px;border-bottom:1px solid var(--border);margin-bottom:12px">
-                <span style="font-size:0.85rem"><b>[user posts]</b> <span style="color:var(--subtle);font-weight:400">— {{ user.posts|rejectattr('is_deleted')|list|length }} posts</span></span>
-            </div>
-
-{% import 'macros/_post_card.html' as macros %}
-            {% for post in user.posts %}
-            {% if not post.is_deleted %}
-            {% call macros.render_post(post, current_user) %}
-                {% if current_user == post.author %}
-                <a href="{{ url_for('posts.edit_post', post_id=post.id) }}" class="post-action" style="font-size:0.68rem">[edit]</a>
-                <button class="post-action" onclick="event.stopPropagation();deletePost({{ post.id }})" style="font-size:0.68rem;color:var(--red)">[delete]</button>
-                {% endif %}
-            {% endcall %}
-            {% endif %}
-            {% else %}
-            <div class="empty-state" style="padding:40px 0;text-align:center">
-                <span style="color:var(--subtle);font-size:0.9rem">@{{ user.username }} {{ _('has no posts yet') }}</span>
-            </div>
-            {% endfor %}
+    <!-- Stats -->
+    <div class="profile-stats">
+        <div class="profile-stat">
+            <span class="profile-stat-num">{{ user.posts|rejectattr('is_deleted')|list|length }}</span>
+            <span class="profile-stat-label">{{ _('posts') }}</span>
+        </div>
+        <div class="profile-stat">
+            <span class="profile-stat-num" id="profileFollowersCount">{{ user.followers_count }}</span>
+            <span class="profile-stat-label">{{ _('followers') }}</span>
+        </div>
+        <div class="profile-stat">
+            <span class="profile-stat-num">{{ user.following_count }}</span>
+            <span class="profile-stat-label">{{ _('following') }}</span>
         </div>
     </div>
-</div>
 
+    <!-- Actions -->
+    <div class="profile-actions">
+        {% if current_user == user %}
+        <a href="{{ url_for('main.edit_profile') }}" class="btn-term primary">[{{ _('edit profile') }}]</a>
+        {% elif current_user.is_authenticated %}
+        <button class="btn-term {% if is_following %}secondary{% else %}primary{% endif %} follow-btn"
+                data-username="{{ user.username }}"
+                data-following="{{ 'true' if is_following else 'false' }}">
+            {% if is_following %}[{{ _('unfollow') }}]{% else %}[+ {{ _('follow') }}]{% endif %}
+        </button>
+        <a href="{{ url_for('main.chat') }}?user={{ user.username }}" class="btn-term secondary">[✉ {{ _('message') }}]</a>
+        {% else %}
+        <a href="{{ url_for('auth.login') }}" class="btn-term primary">[+ {{ _('follow') }}]</a>
+        {% endif %}
+    </div>
+
+    <!-- Widgets (server-side rendered, shown to profile owner) -->
+    {% if current_user == user and user.widgets %}
+    <div class="profile-widgets">
+        {% for w in user.widgets %}
+        {% if w.enabled %}
+        {% set wdata = w.cached_data|from_json if w.cached_data else {} %}
+        {% set wconfig = w.config|from_json if w.config else {} %}
+        <div class="widget-card widget-{{ w.widget_type }}" data-widget-id="{{ w.id }}">
+            {% if w.widget_type == 'lastfm' %}
+            <div class="widget-header"><span class="widget-icon">🎵</span> last.fm</div>
+            <div class="widget-body" style="padding-top:2px">
+                {% if wdata %}
+                <div class="widget-lastfm-layout">
+                    {% if wdata.get('image') %}
+                    <img class="widget-lastfm-cover"
+                         src="{{ wdata.image }}" alt=""
+                         width="80" height="80"
+                         loading="lazy"
+                         onerror="this.style.display='none'">
+                    {% endif %}
+                    <div class="widget-lastfm-details">
+                        <div class="widget-lastfm-top">
+                            {% if wdata.get('now_playing') %}<span class="widget-live-dot"></span>{% endif %}
+                            {{ 'now playing' if wdata.get('now_playing') else 'last played' }}
+                        </div>
+                        <div class="widget-track" title="{{ wdata.get('track', '—') }}">{{ wdata.get('track', '—') }}</div>
+                        <div class="widget-artist" title="{{ wdata.get('artist', '—') }}">{{ wdata.get('artist', '—') }}</div>
+                        {% if wdata.get('album') %}
+                        <div class="widget-album" title="{{ wdata.album }}">{{ wdata.album }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <a href="https://www.last.fm/user/{{ wconfig.get('username', '') }}" target="_blank" rel="noopener" class="widget-attribution">powered by Last.fm</a>
+                {% else %}
+                <div class="widget-state">awaiting data…</div>
+                {% endif %}
+            </div>
+
+            {% elif w.widget_type == 'weather' %}
+            <div class="widget-header"><span class="widget-icon">☀</span> weather</div>
+            <div class="widget-body">
+                {% if wdata %}
+                <div class="widget-temp">{{ wdata.get('temp', '?') }}°C</div>
+                <div class="widget-condition">{{ wdata.get('condition', '—') }}</div>
+                <div class="widget-meta">{{ wdata.get('city', '—') }} · feels like {{ wdata.get('feels_like', '?') }}°C</div>
+                {% else %}
+                <div class="widget-state">awaiting data…</div>
+                {% endif %}
+            </div>
+
+            {% elif w.widget_type == 'steam' %}
+            <div class="widget-header"><span class="widget-icon">🎮</span> steam</div>
+            <div class="widget-body">
+                {% if wdata %}
+                {% if wdata.get('game') %}
+                <div class="widget-game">🎮 {{ wdata.game }}</div>
+                <div class="widget-meta">{{ wdata.get('state', '—') }}</div>
+                {% else %}
+                <div class="widget-state">{{ wdata.get('state', '—') }}</div>
+                {% endif %}
+                <div class="widget-meta">{{ wdata.get('persona_name', '—') }}</div>
+                {% else %}
+                <div class="widget-state">awaiting data…</div>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Posts -->
+    <div class="profile-posts-header">
+        <span>[{{ _('user posts') }}] <span class="count">— {{ user.posts|rejectattr('is_deleted')|list|length }} {{ _('posts') }}</span></span>
+    </div>
+
+{% import 'macros/_post_card.html' as macros %}
+    {% for post in user.posts %}
+    {% if not post.is_deleted %}
+    {% call macros.render_post(post, current_user) %}
+        {% if current_user == post.author %}
+        <a href="{{ url_for('posts.edit_post', post_id=post.id) }}" class="post-action" style="font-size:0.68rem">[edit]</a>
+        <button class="post-action" onclick="event.stopPropagation();deletePost({{ post.id }})" style="font-size:0.68rem;color:var(--red)">[delete]</button>
+        {% endif %}
+    {% endcall %}
+    {% endif %}
+    {% else %}
+    <div class="empty-state" style="padding:40px 0;text-align:center">
+        <span style="color:var(--subtle);font-size:0.9rem">@{{ user.username }} {{ _('has no posts yet') }}</span>
+    </div>
+    {% endfor %}
+</div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
