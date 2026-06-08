@@ -32,7 +32,12 @@ from app.routes.helpers import (
 )
 from app.services import ChatService, FeedService, NotificationService, PostService, SocialService
 from app.services.base import ForbiddenError, NotFoundError, ServiceError
-from app.services.widget_service import fetch_widget, get_config_schema, needs_refresh
+from app.services.widget_service import (
+    fetch_widget,
+    get_config_schema,
+    needs_refresh,
+    validate_widget_config,
+)
 from app.translations import _
 
 main_bp = Blueprint("main", __name__, template_folder="../templates")
@@ -874,6 +879,10 @@ def add_widget() -> Response:
     for key in required:
         if not config.get(key, "").strip():
             return jsonify({"error": _("Missing required field: %(field)s", field=key)}), 400
+
+    error = validate_widget_config(widget_type, config)
+    if error is not None:
+        return jsonify({"error": error}), 400
 
     max_pos = max((w.position for w in current_user.widgets), default=-1)
 

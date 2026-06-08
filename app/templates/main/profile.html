@@ -84,17 +84,32 @@
                 {% for w in user.widgets %}
                 {% if w.enabled %}
                 {% set wdata = w.cached_data|from_json if w.cached_data else {} %}
-                <div class="widget-card widget-{{ w.widget_type }}">
+                {% set wconfig = w.config|from_json if w.config else {} %}
+                <div class="widget-card widget-{{ w.widget_type }}" data-widget-id="{{ w.id }}">
                     {% if w.widget_type == 'lastfm' %}
-                    <div class="widget-header"><span class="widget-icon">♫</span> now playing</div>
-                    <div class="widget-body">
-                        {% if wdata.get('now_playing') %}
-                        <div class="widget-track">{{ wdata.get('track', '—') }}</div>
-                        <div class="widget-artist">{{ wdata.get('artist', '—') }}</div>
-                        {% elif wdata %}
-                        <div class="widget-track">{{ wdata.get('track', '—') }}</div>
-                        <div class="widget-artist">{{ wdata.get('artist', '—') }}</div>
-                        <div class="widget-meta">last played</div>
+                    <div class="widget-body" style="padding-top:4px">
+                        {% if wdata %}
+                        <div class="widget-lastfm-layout">
+                            {% if wdata.get('image') %}
+                            <img class="widget-lastfm-cover"
+                                 src="{{ wdata.image }}" alt=""
+                                 width="80" height="80"
+                                 loading="lazy"
+                                 onerror="this.style.display='none'">
+                            {% endif %}
+                            <div class="widget-lastfm-details">
+                                <div class="widget-lastfm-top">
+                                    {% if wdata.get('now_playing') %}<span class="widget-live-dot"></span>{% endif %}
+                                    {{ 'now playing' if wdata.get('now_playing') else 'last played' }}
+                                </div>
+                                <div class="widget-track" title="{{ wdata.get('track', '—') }}">{{ wdata.get('track', '—') }}</div>
+                                <div class="widget-artist" title="{{ wdata.get('artist', '—') }}">{{ wdata.get('artist', '—') }}</div>
+                                {% if wdata.get('album') %}
+                                <div class="widget-album" title="{{ wdata.album }}">{{ wdata.album }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <a href="https://www.last.fm/user/{{ wconfig.get('username', '') }}" target="_blank" rel="noopener" class="widget-attribution">powered by Last.fm</a>
                         {% else %}
                         <div class="widget-state">awaiting data…</div>
                         {% endif %}
@@ -197,5 +212,55 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// ── Widget auto-refresh (poll every 30s) ──
+(function() {
+    if (!document.querySelector('.profile-widgets')) return;
+    setInterval(async function() {
+        try {
+            var resp = await fetch('{{ url_for('main.get_widgets') }}');
+            if (!resp.ok) return;
+            var widgets = await resp.json();
+            widgets.forEach(function(w) {
+                var el = document.querySelector('[data-widget-id="' + w.id + '"]');
+                if (!el || !w.data) return;
+                if (w.type === 'lastfm') {
+                    var top = el.querySelector('.widget-lastfm-top');
+                    var track = el.querySelector('.widget-track');
+                    var artist = el.querySelector('.widget-artist');
+                    var album = el.querySelector('.widget-album');
+                    var img = el.querySelector('.widget-lastfm-cover');
+                    if (track) { track.textContent = w.data.track || '—'; track.title = w.data.track || '—'; }
+                    if (artist) { artist.textContent = w.data.artist || '—'; artist.title = w.data.artist || '—'; }
+                    if (album) { album.textContent = w.data.album || ''; album.title = w.data.album || ''; }
+                    if (top) {
+                        var dot = w.data.now_playing ? '<span class="widget-live-dot"></span>' : '';
+                        top.innerHTML = dot + (w.data.now_playing ? 'now playing' : 'last played');
+                    }
+                    if (img && w.data.image) {
+                        img.src = w.data.image;
+                        img.style.display = '';
+                    }
+                }
+                if (w.type === 'weather') {
+                    var temp = el.querySelector('.widget-temp');
+                    var cond = el.querySelector('.widget-condition');
+                    var meta = el.querySelector('.widget-meta');
+                    if (temp) temp.innerHTML = (w.data.temp || '?') + '°C';
+                    if (cond) cond.textContent = w.data.condition || '—';
+                    if (meta) meta.textContent = (w.data.city || '—') + ' · feels like ' + (w.data.feels_like || '?') + '°C';
+                }
+                if (w.type === 'steam') {
+                    var game = el.querySelector('.widget-game');
+                    var state = el.querySelector('.widget-state');
+                    var meta = el.querySelector('.widget-meta');
+                    if (state && w.data.game === null) state.textContent = w.data.state || '—';
+                    if (game) game.textContent = '🎮 ' + (w.data.game || '');
+                    if (meta) meta.textContent = w.data.persona_name || '—';
+                }
+            });
+        } catch(e) { /* ignore poll errors */ }
+    }, 30000);
+})();
 </script>
 {% endblock %}

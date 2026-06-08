@@ -158,12 +158,17 @@
       });
   };
 
+  // ── Debounce guard ──
+  T._chatSending = false;
+
   // ── Helper: resolve @username to chatId via API, then send message ──
   T._resolveAndSend = function(username, text) {
+    if (T._chatSending) return;
     if (!text) {
       T.addOutputLine('<span class="tp-err">say: message text required</span>');
       return;
     }
+    T._chatSending = true;
     T.showLoading(T._('Поиск чата...', 'Finding chat...'));
     fetch('/chat/start/' + encodeURIComponent(username), {
       method: 'POST',
@@ -175,6 +180,7 @@
       if (!data.chat_id) {
         T.hideLoading();
         T.addOutputLine('<span class="tp-err">say: could not find chat with @' + T.escapeHtml(username) + '</span>');
+        T._chatSending = false;
         return;
       }
       // Cache context for future use
@@ -190,17 +196,20 @@
       .then(function() {
         T.hideLoading();
         T.addOutputLine(' <span class="tp-ok">' + T.escapeHtml(text) + '</span>  <span class="tp-muted">me now</span>');
+        T._chatSending = false;
       })
-      .catch(function() { T.hideLoading(); T.addOutputLine('<span class="tp-err">say: could not send message</span>'); });
+      .catch(function() { T.hideLoading(); T.addOutputLine('<span class="tp-err">say: could not send message</span>'); T._chatSending = false; });
     })
     .catch(function() {
       T.hideLoading();
       T.addOutputLine('<span class="tp-err">say: could not reach @' + T.escapeHtml(username) + '</span>');
+      T._chatSending = false;
     });
   };
 
   // ── COMMAND: say ──
   T.cmdSay = function(text) {
+    if (T._chatSending) return;
     if (!T.isLoggedIn) {
       T.addOutputLine('<span class="tp-err">say: ' + T._('Требуется вход.', 'Login required.') + '</span>');
       T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
@@ -210,6 +219,7 @@
       T.addOutputLine('<span class="tp-err">say: message text required</span>');
       return;
     }
+    T._chatSending = true;
     var chatId = T._resolveChatId();
     if (chatId) {
       // Have a chat ID directly — send immediately
@@ -222,9 +232,11 @@
       .then(function(r) { return r.json(); })
       .then(function() {
         T.addOutputLine(' <span class="tp-ok">' + T.escapeHtml(text) + '</span>  <span class="tp-muted">me now</span>');
+        T._chatSending = false;
       })
       .catch(function() {
         T.addOutputLine('<span class="tp-err">say: could not send message</span>');
+        T._chatSending = false;
       });
     } else {
       // No cached chatId — try to auto-resolve from @username in cwd
@@ -239,6 +251,7 @@
 
   // ── Start chat with user ──
   T.startChatWithUser = function(username, shouldEnter) {
+    if (T._chatSending) return;
     if (!T.isLoggedIn) {
       T.addOutputLine('<span class="tp-err">start: ' + T._('Требуется вход.', 'Login required.') + '</span>');
       T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
@@ -248,6 +261,7 @@
       T.addOutputLine('<span class="tp-err">start: username required. Use <span class="tp-cmd">start @user</span></span>');
       return;
     }
+    T._chatSending = true;
     T.addSysLine('Looking up @' + T.escapeHtml(username) + '...');
     fetch('/chat/start/' + encodeURIComponent(username), {
       method: 'POST',
@@ -259,6 +273,7 @@
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
+      T._chatSending = false;
       if (data.chat_id) {
         if (shouldEnter) {
           T.cwd = 'chat/@' + username;
@@ -274,12 +289,14 @@
       }
     })
     .catch(function() {
+      T._chatSending = false;
       T.addOutputLine('<span class="tp-err">start: user not found or request failed</span>');
     });
   };
 
   // ── COMMAND: write @user <message> ──
   T.cmdWrite = function(args) {
+    if (T._chatSending) return;
     if (!T.isLoggedIn) {
       T.addOutputLine('<span class="tp-err">write: ' + T._('Требуется вход.', 'Login required.') + '</span>');
       T.addOutputLine('<span class="tp-desc">  # use <span class="tp-cmd">login</span> or <span class="tp-cmd">register</span></span>');
@@ -292,6 +309,7 @@
     }
     var targetUser = m[1];
     var text = m[2];
+    T._chatSending = true;
     T.showLoading(T._('Отправка...', 'Sending...'));
     fetch('/chat/start/' + encodeURIComponent(targetUser), {
       method: 'POST',
@@ -300,7 +318,7 @@
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
-      if (!data.chat_id) { T.hideLoading(); T.addOutputLine('<span class="tp-err">write: could not reach @' + T.escapeHtml(targetUser) + '</span>'); return; }
+      if (!data.chat_id) { T.hideLoading(); T.addOutputLine('<span class="tp-err">write: could not reach @' + T.escapeHtml(targetUser) + '</span>'); T._chatSending = false; return; }
       fetch('/chat/' + data.chat_id + '/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': T.csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
@@ -312,10 +330,11 @@
         T.hideLoading();
         T.addSysLine('<span class="tp-ok">' + T._('Сообщение отправлено @', 'Message sent to @') + T.escapeHtml(targetUser) + '</span>');
         T.toast(T._('Отправлено @', 'Sent to @') + targetUser, 'ok');
+        T._chatSending = false;
       })
-      .catch(function() { T.hideLoading(); T.addOutputLine('<span class="tp-err">write: could not send message</span>'); });
+      .catch(function() { T.hideLoading(); T.addOutputLine('<span class="tp-err">write: could not send message</span>'); T._chatSending = false; });
     })
-    .catch(function() { T.hideLoading(); T.addOutputLine('<span class="tp-err">write: could not reach @' + T.escapeHtml(targetUser) + '</span>'); });
+    .catch(function() { T.hideLoading(); T.addOutputLine('<span class="tp-err">write: could not reach @' + T.escapeHtml(targetUser) + '</span>'); T._chatSending = false; });
   };
 
   // ── Registry ──

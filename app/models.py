@@ -118,7 +118,7 @@ class User(db.Model, UserMixin, SerializerMixin):
         if not self.last_seen:
             return False
         delta = utcnow() - self.last_seen
-        return delta.total_seconds() < 300  # 5 минут
+        return delta.total_seconds() < 60  # 1 минута
 
     def last_seen_str(self):
         if not self.last_seen:
