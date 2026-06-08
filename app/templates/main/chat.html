@@ -411,8 +411,8 @@ function createMessageElement(message) {
     if (message.image_url) {
         const img = '<img src="' + message.image_url + '" alt="chat image" class="chat-img post-img-clickable" data-full-img="' + message.image_url + '">';
         var checkSvg = message.is_read
-            ? '<svg width="18" height="12" viewBox="0 0 18 12" fill="none"><path d="M1 6l4 4 6-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"/><path d="M5 6l4 4 6-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-            : '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7.5L5.5 11L12 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            ? '<svg width="20" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.5821 6.95711C17.9726 6.56658 17.9726 5.93342 17.5821 5.54289C17.1916 5.15237 16.5584 5.15237 16.1679 5.54289L5.54545 16.1653L1.70711 12.327C1.31658 11.9365 0.683417 11.9365 0.292893 12.327C-0.0976311 12.7175 -0.097631 13.3507 0.292893 13.7412L4.83835 18.2866C5.22887 18.6772 5.86204 18.6772 6.25256 18.2866L17.5821 6.95711Z" opacity="0.35"/><path d="M23.5821 6.95711C23.9726 6.56658 23.9726 5.93342 23.5821 5.54289C23.1915 5.15237 22.5584 5.15237 22.1678 5.54289L10.8383 16.8724C10.4478 17.263 10.4478 17.8961 10.8383 18.2866C11.2288 18.6772 11.862 18.6772 12.2525 18.2866L23.5821 6.95711Z"/></svg>'
+            : '<svg width="16" height="16" viewBox="10 5 14 14" fill="currentColor"><path d="M23.5821 6.95711C23.9726 6.56658 23.9726 5.93342 23.5821 5.54289C23.1915 5.15237 22.5584 5.15237 22.1678 5.54289L10.8383 16.8724C10.4478 17.263 10.4478 17.8961 10.8383 18.2866C11.2288 18.6772 11.862 18.6772 12.2525 18.2866L23.5821 6.95711Z"/></svg>';
         const overlay = '<div class="msg-img-overlay">'
             + '<time class="msg-time">' + time + editedLabel + '</time>'
             + (isOwn ? '<span class="msg-read-status ' + (message.is_read ? 'read' : 'unread') + '">' + checkSvg + '</span>' : '')

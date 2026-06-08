@@ -115,10 +115,14 @@ class User(db.Model, UserMixin, SerializerMixin):
 
     @property
     def is_online(self):
+        from app.presence import is_online as _presence_online
+
+        if _presence_online(self.id):
+            return True
         if not self.last_seen:
             return False
         delta = utcnow() - self.last_seen
-        return delta.total_seconds() < 60  # 1 минута
+        return delta.total_seconds() < 30  # fallback — последний flush
 
     def last_seen_str(self):
         if not self.last_seen:
