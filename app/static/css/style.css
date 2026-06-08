@@ -587,6 +587,7 @@ code, .inline-code {
     .status-bar { display: none; }
     .bottom-nav { display: flex; }
     .container { padding: 10px 14px 60px; }
+    .chat-layout { height: calc(100vh - 55px - 48px) !important; } /* терминал + bottom-nav */
     .profile-avatar { width: 100px; height: 100px; }
     .profile-stats { gap: 8px; }
     .profile-stat { flex: 1; }
@@ -736,7 +737,7 @@ code, .inline-code {
 .message-item.own { justify-content: flex-end; }
 .message-item.other { justify-content: flex-start; }
 .chat-messages > :first-child { margin-top: auto; }
-@media (max-width: 767px) { #chatBackBtn { display: inline-flex; } .chat-list-col { width: 100%; min-width: auto; } .chat-detail-col.active-column { display: flex !important; } .chat-detail-col:not(.active-column) { display: none !important; } }
+@media (max-width: 767px) { #chatBackBtn { display: inline-flex; } .chat-list-col { width: 100%; min-width: auto; } .chat-detail-col.active-column { display: flex !important; } .chat-detail-col:not(.active-column) { display: none !important; } .chat-messages { padding: 14px; } .chat-detail-header { padding: 10px 14px; } .chat-input-area { padding: 10px 14px; gap: 4px; } .chat-input { padding: 8px 12px; } .chat-list-header { padding: 12px 14px; } .chat-item { padding: 12px 14px; } }
 .search-result { cursor: pointer; padding: 6px 8px; border-radius: 4px; display: flex; align-items: center; gap: 6px; font-family: var(--font); font-size: 0.82rem; transition: background 0.1s; }
 .search-result:hover { background: var(--surface2); }
 .search-result.selected { background: var(--accent) !important; color: var(--bg); }
