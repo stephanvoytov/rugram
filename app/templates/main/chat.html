@@ -35,10 +35,10 @@
 .msg-bubble.other .chat-img { border-bottom-left-radius:4px; }
 .msg-img-wrap { position:relative; display:inline-block; width:100%; min-width:200px; overflow:hidden; }
 .msg-img-overlay { position:absolute; bottom:0; left:0; right:0; background:linear-gradient(transparent,rgba(0,0,0,0.55)); padding:16px 8px 4px 8px; display:flex; justify-content:flex-end; align-items:flex-end; gap:3px; border-radius:0 0 10px 10px; pointer-events:none; }
-.msg-img-overlay time { color:#fff; font-size:0.65rem; line-height:1; }
-.msg-img-overlay .read-status { font-size:0.6rem; line-height:1; }
-.msg-img-overlay .read-status.own { color:var(--accent); }
-.msg-img-overlay .read-status.other { color:var(--subtle); }
+.msg-img-overlay .msg-time { color:#fff; font-size:0.65rem; line-height:1; }
+.msg-img-overlay .msg-read-status { font-size:0.6rem; line-height:1; }
+.msg-img-overlay .msg-read-status.read { color:var(--accent); }
+.msg-img-overlay .msg-read-status.unread { color:rgba(255,255,255,0.7); }
 .msg-caption { display:block; padding:8px 12px 4px; width:100%; }
 .msg-bubble-img { padding:0 !important; overflow:hidden; }
 .ctx-menu { font-family:var(--font); font-size:0.82rem; min-width:100px; background:var(--bg); border:1px solid var(--border) !important; }
@@ -410,9 +410,12 @@ function createMessageElement(message) {
     // ── Image message ──
     if (message.image_url) {
         const img = '<img src="' + message.image_url + '" alt="chat image" class="chat-img post-img-clickable" data-full-img="' + message.image_url + '">';
+        var checkSvg = message.is_read
+            ? '<svg width="18" height="12" viewBox="0 0 18 12" fill="none"><path d="M1 6l4 4 6-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"/><path d="M5 6l4 4 6-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+            : '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7.5L5.5 11L12 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
         const overlay = '<div class="msg-img-overlay">'
-            + '<time>' + time + editedLabel + '</time>'
-            + (isOwn ? '<span class="read-status own">' + (message.is_read ? '✓✓' : '✓') + '</span>' : '')
+            + '<time class="msg-time">' + time + editedLabel + '</time>'
+            + (isOwn ? '<span class="msg-read-status ' + (message.is_read ? 'read' : 'unread') + '">' + checkSvg + '</span>' : '')
             + '</div>';
         const caption = message.text
             ? '<span class="msg-caption">' + escapeHtml(message.text) + '</span>'
@@ -425,12 +428,15 @@ function createMessageElement(message) {
     }
 
     // ── Text-only message ──
+    var checkSvg = message.is_read
+        ? '<svg width="18" height="12" viewBox="0 0 18 12" fill="none"><path d="M1 6l4 4 6-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"/><path d="M5 6l4 4 6-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        : '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7.5L5.5 11L12 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     div.innerHTML = '<div class="msg-bubble ' + (isOwn ? 'own' : 'other') + '">'
         + '<span id="msgText-' + message.id + '">' + escapeHtml(message.text) + editedLabel + '</span>'
-        + '<div style="display:flex;align-items:center;gap:2px;flex-shrink:0;align-self:flex-end">'
-        + '<small style="opacity:0.6;font-size:0.65rem;white-space:nowrap">' + time + '</small>'
-        + (isOwn ? '<span style="' + (message.is_read ? 'color:var(--accent)' : 'color:var(--subtle)') + ';font-size:0.6rem">' + (message.is_read ? '✓✓' : '✓') + '</span>' : '')
-        + '</div>'
+        + '<span class="msg-meta">'
+        + '<time class="msg-time">' + time + '</time>'
+        + (isOwn ? '<span class="msg-read-status ' + (message.is_read ? 'read' : 'unread') + '">' + checkSvg + '</span>' : '')
+        + '</span>'
         + '</div>';
     return div;
 }

@@ -619,8 +619,14 @@ code, .inline-code {
     border: 2px solid var(--bg);
 }
 .msg-bubble { max-width: 80%; padding: 12px 18px; border-radius: 10px; line-height: 1.6; word-break: break-word; display: flex; align-items: flex-end; gap: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.12); font-size: 0.95rem; }
-.msg-bubble.own { background: var(--accent); color: var(--bg); border-bottom-right-radius: 3px; }
+.msg-bubble.own { background: var(--surface2); color: var(--fg); border: 1px solid var(--accent); border-bottom-right-radius: 3px; }
 .msg-bubble.other { background: var(--surface); color: var(--fg); border: 1px solid var(--border); border-bottom-left-radius: 3px; }
+.msg-meta { display: flex; align-items: center; gap: 3px; margin-left: auto; padding-left: 8px; flex-shrink: 0; align-self: flex-end; }
+.msg-time { font-size: 0.65rem; opacity: 0.6; white-space: nowrap; line-height: 1; }
+.msg-read-status { display: inline-flex; vertical-align: middle; line-height: 1; }
+.msg-read-status svg { display: block; }
+.msg-read-status.unread { color: var(--subtle); }
+.msg-read-status.read { color: var(--accent); }
 .message-item { margin-bottom: 12px; display: flex; }
 .message-item:first-child { margin-top: auto; }
 .message-item.own { justify-content: flex-end; }
