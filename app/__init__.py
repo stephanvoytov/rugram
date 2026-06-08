@@ -234,6 +234,9 @@ def create_app():
                 else ERROR_MESSAGES[code],
             ), code
 
+    from app.presence import init_presence
+
+    init_presence(app)
     return app
 
 

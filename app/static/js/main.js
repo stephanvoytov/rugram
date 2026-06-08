@@ -377,3 +377,13 @@ window.deletePost = function(postId) {
     })
     .catch(function() { alert('Error'); });
 };
+
+// ── Online-status heartbeat (every 15s, no DB write) ──
+(function() {
+    function ping() {
+        fetch('/api/v1/ping', { method: 'POST', headers: { 'X-CSRFToken': getCsrf() } })
+            .catch(function() {});
+    }
+    ping();
+    setInterval(ping, 15000);
+})();

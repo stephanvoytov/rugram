@@ -202,6 +202,15 @@ def notifications_unread_count() -> Response:
     return jsonify({"count": count})
 
 
+@main_bp.route("/api/v1/ping", methods=["POST"])
+@login_required
+def ping() -> Response:
+    from app.presence import touch
+
+    touch(current_user.id)
+    return "", 204
+
+
 @main_bp.route("/api/v1/notifications")
 @login_required
 def notifications_list() -> Response:
