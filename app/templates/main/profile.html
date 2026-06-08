@@ -75,54 +75,64 @@
             </div>
         </div>
 
-        <!-- Widgets (inline data from server-side rendering) -->
-        {% if current_user == user and user.widgets %}
-        <div class="profile-widgets">
-            {% for w in user.widgets %}
-            {% if w.enabled and w.cached_data %}
-            {% set wdata = w.cached_data|from_json %}
-            <div class="widget-card widget-{{ w.widget_type }}">
-                {% if w.widget_type == 'lastfm' %}
-                <div class="widget-header"><span class="widget-icon">♫</span> now playing</div>
-                <div class="widget-body">
-                    {% if wdata.now_playing %}
-                    <div class="widget-track">{{ wdata.track }}</div>
-                    <div class="widget-artist">{{ wdata.artist }}</div>
-                    {% else %}
-                    <div class="widget-track">{{ wdata.track }}</div>
-                    <div class="widget-artist">{{ wdata.artist }}</div>
-                    <div class="widget-meta">last played</div>
-                    {% endif %}
-                </div>
-
-                {% elif w.widget_type == 'weather' %}
-                <div class="widget-header"><span class="widget-icon">☀</span> weather</div>
-                <div class="widget-body">
-                    <div class="widget-temp">{{ wdata.temp }}°C</div>
-                    <div class="widget-condition">{{ wdata.condition }}</div>
-                    <div class="widget-meta">{{ wdata.city }} · feels like {{ wdata.feels_like }}°C</div>
-                </div>
-
-                {% elif w.widget_type == 'steam' %}
-                <div class="widget-header"><span class="widget-icon">🎮</span> steam</div>
-                <div class="widget-body">
-                    {% if wdata.game %}
-                    <div class="widget-game">🎮 {{ wdata.game }}</div>
-                    <div class="widget-meta">{{ wdata.state }}</div>
-                    {% else %}
-                    <div class="widget-state">{{ wdata.state }}</div>
-                    {% endif %}
-                    <div class="widget-meta">{{ wdata.persona_name }}</div>
-                </div>
-                {% endif %}
-            </div>
-            {% endif %}
-            {% endfor %}
-        </div>
-        {% endif %}
-
         <!-- Posts column -->
         <div class="profile-posts">
+
+            <!-- Widgets (server-side rendered, shown to profile owner) -->
+            {% if current_user == user and user.widgets %}
+            <div class="profile-widgets">
+                {% for w in user.widgets %}
+                {% if w.enabled %}
+                {% set wdata = w.cached_data|from_json if w.cached_data else {} %}
+                <div class="widget-card widget-{{ w.widget_type }}">
+                    {% if w.widget_type == 'lastfm' %}
+                    <div class="widget-header"><span class="widget-icon">♫</span> now playing</div>
+                    <div class="widget-body">
+                        {% if wdata.get('now_playing') %}
+                        <div class="widget-track">{{ wdata.get('track', '—') }}</div>
+                        <div class="widget-artist">{{ wdata.get('artist', '—') }}</div>
+                        {% elif wdata %}
+                        <div class="widget-track">{{ wdata.get('track', '—') }}</div>
+                        <div class="widget-artist">{{ wdata.get('artist', '—') }}</div>
+                        <div class="widget-meta">last played</div>
+                        {% else %}
+                        <div class="widget-state">awaiting data…</div>
+                        {% endif %}
+                    </div>
+
+                    {% elif w.widget_type == 'weather' %}
+                    <div class="widget-header"><span class="widget-icon">☀</span> weather</div>
+                    <div class="widget-body">
+                        {% if wdata %}
+                        <div class="widget-temp">{{ wdata.get('temp', '?') }}°C</div>
+                        <div class="widget-condition">{{ wdata.get('condition', '—') }}</div>
+                        <div class="widget-meta">{{ wdata.get('city', '—') }} · feels like {{ wdata.get('feels_like', '?') }}°C</div>
+                        {% else %}
+                        <div class="widget-state">awaiting data…</div>
+                        {% endif %}
+                    </div>
+
+                    {% elif w.widget_type == 'steam' %}
+                    <div class="widget-header"><span class="widget-icon">🎮</span> steam</div>
+                    <div class="widget-body">
+                        {% if wdata %}
+                        {% if wdata.get('game') %}
+                        <div class="widget-game">🎮 {{ wdata.game }}</div>
+                        <div class="widget-meta">{{ wdata.get('state', '—') }}</div>
+                        {% else %}
+                        <div class="widget-state">{{ wdata.get('state', '—') }}</div>
+                        {% endif %}
+                        <div class="widget-meta">{{ wdata.get('persona_name', '—') }}</div>
+                        {% else %}
+                        <div class="widget-state">awaiting data…</div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
             <div class="profile-posts-header" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0 8px;border-bottom:1px solid var(--border);margin-bottom:12px">
                 <span style="font-size:0.85rem"><b>[user posts]</b> <span style="color:var(--subtle);font-weight:400">— {{ user.posts|rejectattr('is_deleted')|list|length }} posts</span></span>
             </div>

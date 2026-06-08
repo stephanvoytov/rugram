@@ -178,9 +178,16 @@ def fetch_widget(widget) -> dict[str, Any] | None:
     fn = fetchers.get(widget.widget_type)
     if not fn:
         return None
-    data = fn()
+    try:
+        data = fn()
+    except Exception:
+        data = None
     if data is not None:
         widget.cached_data = json.dumps(data)
+        widget.cached_at = now()
+    elif widget.cached_data is None:
+        # Placeholder so the widget card shows up even without live data
+        widget.cached_data = json.dumps({"placeholder": True})
         widget.cached_at = now()
     return data
 

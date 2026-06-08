@@ -21,6 +21,10 @@ class UserRepository(BaseRepository):
         return User.query.filter_by(username=username).first()
 
     @classmethod
+    def get_by_username_with_widgets(cls, username: str) -> User | None:
+        return User.query.options(joinedload(User.widgets)).filter_by(username=username).first()
+
+    @classmethod
     def get_by_email(cls, email: str) -> User | None:
         return User.query.filter_by(email=email).first()
 
