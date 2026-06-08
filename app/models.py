@@ -87,6 +87,9 @@ class User(db.Model, UserMixin, SerializerMixin):
     push_subscriptions: Mapped[list["PushSubscription"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
+    widgets: Mapped[list["ProfileWidget"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan", order_by="ProfileWidget.position"
+    )
 
     @property
     def followers_count(self):
@@ -359,6 +362,25 @@ class PushSubscription(db.Model):
     created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
 
     user: Mapped["User"] = relationship(back_populates="push_subscriptions")
+
+
+class ProfileWidget(db.Model):
+    __tablename__ = "profile_widgets"
+    __table_args__ = (Index("ix_profile_widgets_user_id", "user_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    widget_type: Mapped[str] = mapped_column()  # 'lastfm' | 'weather' | 'steam'
+    config: Mapped[str] = mapped_column(db.Text, nullable=True)  # JSON string
+    position: Mapped[int] = mapped_column(default=0)
+    enabled: Mapped[bool] = mapped_column(default=True)
+    cached_data: Mapped[str | None] = mapped_column(db.Text, nullable=True)  # JSON string
+    cached_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    created_date: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
+
+    user: Mapped["User"] = relationship(back_populates="widgets")
 
 
 class Tag(db.Model, SerializerMixin):

@@ -1,3 +1,4 @@
+import json
 import os
 import threading
 
@@ -31,6 +32,7 @@ from app.routes.helpers import (
 )
 from app.services import ChatService, FeedService, NotificationService, PostService, SocialService
 from app.services.base import ForbiddenError, NotFoundError, ServiceError
+from app.services.widget_service import fetch_widget, get_config_schema, needs_refresh
 from app.translations import _
 
 main_bp = Blueprint("main", __name__, template_folder="../templates")
@@ -814,6 +816,136 @@ def settings_delete_account() -> Response:
 def settings() -> Response:
     """Render settings page (mutation via API endpoints above)."""
     return render_template("main/settings.html")
+
+
+# ── Widgets API ─────────────────────────────────────────────────────────────
+
+
+@main_bp.route("/api/v1/profile/widgets", methods=["GET"])
+@login_required
+def get_widgets() -> Response:
+    """List user's widgets with fresh data (auto-refresh if cache is stale)."""
+    from extensions import db
+
+    widgets = current_user.widgets
+    out = []
+    for w in widgets:
+        if w.enabled and needs_refresh(w):
+            fetch_widget(w)
+    db.session.commit()
+
+    for w in widgets:
+        data = json.loads(w.cached_data) if w.cached_data else None
+        out.append(
+            {
+                "id": w.id,
+                "type": w.widget_type,
+                "config": json.loads(w.config) if w.config else {},
+                "position": w.position,
+                "enabled": w.enabled,
+                "data": data,
+                "cached_at": w.cached_at.isoformat() if w.cached_at else None,
+            }
+        )
+    return jsonify(out)
+
+
+@main_bp.route("/api/v1/profile/widgets", methods=["POST"])
+@login_required
+def add_widget() -> Response:
+    """Add a new widget."""
+    from app.models import ProfileWidget
+    from extensions import db
+
+    data = request.get_json(silent=True) or {}
+    widget_type = data.get("type", "").strip()
+    if widget_type not in ("lastfm", "weather", "steam"):
+        return jsonify({"error": _("Invalid widget type")}), 400
+
+    config = data.get("config", {})
+    schema = get_config_schema()
+    required = [f["key"] for f in schema.get(widget_type, [])]
+    for key in required:
+        if not config.get(key, "").strip():
+            return jsonify({"error": _("Missing required field: %(field)s", field=key)}), 400
+
+    max_pos = max((w.position for w in current_user.widgets), default=-1)
+
+    widget = ProfileWidget(
+        user_id=current_user.id,
+        widget_type=widget_type,
+        config=json.dumps(config),
+        position=max_pos + 1,
+    )
+    db.session.add(widget)
+    db.session.commit()
+
+    fetch_widget(widget)
+    db.session.commit()
+
+    return jsonify({"ok": True, "id": widget.id}), 201
+
+
+@main_bp.route("/api/v1/profile/widgets/<int:widget_id>", methods=["PATCH"])
+@login_required
+def update_widget(widget_id: int) -> Response:
+    """Update widget config, position, or enabled state."""
+    from extensions import db
+
+    widget = next((w for w in current_user.widgets if w.id == widget_id), None)
+    if not widget:
+        return jsonify({"error": _("Widget not found")}), 404
+
+    data = request.get_json(silent=True) or {}
+    config = data.get("config")
+    if config is not None:
+        widget.config = json.dumps(config)
+        fetch_widget(widget)
+
+    position = data.get("position")
+    if position is not None:
+        widget.position = int(position)
+
+    enabled = data.get("enabled")
+    if enabled is not None:
+        widget.enabled = bool(enabled)
+
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@main_bp.route("/api/v1/profile/widgets/<int:widget_id>", methods=["DELETE"])
+@login_required
+def delete_widget(widget_id: int) -> Response:
+    """Remove a widget."""
+    from extensions import db
+
+    widget = next((w for w in current_user.widgets if w.id == widget_id), None)
+    if not widget:
+        return jsonify({"error": _("Widget not found")}), 404
+
+    db.session.delete(widget)
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@main_bp.route("/api/v1/profile/widgets/refresh", methods=["POST"])
+@login_required
+def refresh_widgets() -> Response:
+    """Force-refresh all enabled widgets."""
+    from extensions import db
+
+    for w in current_user.widgets:
+        if w.enabled:
+            fetch_widget(w)
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@main_bp.route("/api/v1/profile/widgets/schema", methods=["GET"])
+def widget_schema() -> Response:
+    """Return widget type config schema (no auth needed — only type definitions)."""
+    return jsonify(get_config_schema())
 
 
 @main_bp.route("/health")

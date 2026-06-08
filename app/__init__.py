@@ -47,6 +47,27 @@ def create_app():
     api.add_resource(post_resources.PostResource, "/api/v1/posts/<int:post_id>")
     app.config.from_object(Config)
 
+    # Sentry error tracking (configurable via SENTRY_DSN env var)
+    sentry_dsn = app.config.get("SENTRY_DSN")
+    if sentry_dsn:
+        import sentry_sdk
+        from sentry_sdk.integrations.logging import LoggingIntegration
+
+        sentry_sdk.init(
+            dsn=sentry_dsn,
+            send_default_pii=True,
+            traces_sample_rate=1.0,
+            profile_session_sample_rate=1.0,
+            profile_lifecycle="trace",
+            integrations=[
+                LoggingIntegration(
+                    level=20,  # INFO+ as breadcrumbs
+                    event_level=40,  # ERROR+ as events
+                    sentry_logs_level=20,  # INFO+ as logs
+                ),
+            ],
+        )
+
     # Trust X-Forwarded-Proto/X-For from reverse proxy (Caddy)
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
 
