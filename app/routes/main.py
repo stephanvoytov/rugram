@@ -198,6 +198,12 @@ def chat() -> Response:
 @main_bp.route("/api/v1/notifications/unread-count")
 @login_required
 def notifications_unread_count() -> Response:
+    # heartbeat: update last_seen for online status
+    from app.models import utcnow
+    from extensions import db
+
+    current_user.last_seen = utcnow()
+    db.session.commit()
     count = NotificationService.unread_count(current_user.id)
     return jsonify({"count": count})
 
