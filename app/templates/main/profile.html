@@ -17,6 +17,7 @@
 <div class="profile-page">
     <!-- Header -->
     <div class="profile-header">
+        <button class="drawer-trigger" id="drawerToggle" aria-label="Menu">≡</button>
         <img src="{{ url_for('static', filename='uploads/profile_images/' + user.profile_image) if user.profile_image else url_for('static', filename='default-profile.png') }}"
              alt="{{ user.username }}" class="profile-avatar">
         <div class="profile-username" {% if user.role_color %}style="color:{{ user.role_color }}"{% endif %}>
@@ -153,6 +154,34 @@
     {% endfor %}
 </div>
 
+<!-- Profile drawer (mobile) -->
+<div class="drawer-overlay" id="drawerOverlay"></div>
+<div class="drawer-panel" id="drawerPanel">
+    <button class="drawer-close" id="drawerClose">&times;</button>
+    <nav class="drawer-links">
+        {% if current_user.is_authenticated %}
+        <a href="{{ url_for('main.settings') }}" class="drawer-link">[settings]</a>
+        <a href="{{ url_for('main.saved_posts') }}" class="drawer-link">[*saved]</a>
+        {% if current_user.is_admin %}
+        <a href="{{ url_for('admin.dashboard') }}" class="drawer-link">[*admin]</a>
+        {% endif %}
+        <hr class="drawer-sep">
+        {% endif %}
+        <a href="{{ url_for('main.help') }}" class="drawer-link">[help]</a>
+        <button class="drawer-link" id="drawerTtyToggle">[>_ TTY]</button>
+        <button class="drawer-link" id="drawerThemeToggle">[theme]</button>
+        <div style="display:flex;gap:4px;padding:8px 10px">
+            {% set lang = current_lang or 'en' %}
+            <a href="?lang=ru" class="drawer-link" style="padding:4px 8px;{% if lang == 'ru' %}color:var(--accent){% endif %}">RU</a>
+            <a href="?lang=en" class="drawer-link" style="padding:4px 8px;{% if lang == 'en' %}color:var(--accent){% endif %}">EN</a>
+        </div>
+        {% if current_user.is_authenticated %}
+        <hr class="drawer-sep">
+        <a href="{{ url_for('auth.logout') }}" class="drawer-link" style="color:var(--red)">[logout]</a>
+        {% endif %}
+    </nav>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Post card → detail navigation
@@ -242,6 +271,42 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         } catch(e) { /* ignore poll errors */ }
     }, 30000);
+})();
+
+// ── Profile drawer (mobile) ──
+(function() {
+    var toggle = document.getElementById('drawerToggle');
+    var panel = document.getElementById('drawerPanel');
+    var overlay = document.getElementById('drawerOverlay');
+    var closeBtn = document.getElementById('drawerClose');
+    if (!toggle || !panel) return;
+
+    function openDrawer() { panel.classList.add('open'); overlay.classList.add('open'); }
+    function closeDrawer() { panel.classList.remove('open'); overlay.classList.remove('open'); }
+
+    toggle.addEventListener('click', openDrawer);
+    if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
+    if (overlay) overlay.addEventListener('click', closeDrawer);
+
+    // TTY toggle inside drawer
+    var ttyBtn = document.getElementById('drawerTtyToggle');
+    if (ttyBtn) {
+        ttyBtn.addEventListener('click', function() {
+            closeDrawer();
+            var termToggle = document.querySelector('.term-toggle-btn');
+            if (termToggle) termToggle.click();
+        });
+    }
+
+    // Theme toggle inside drawer
+    var themeBtn = document.getElementById('drawerThemeToggle');
+    if (themeBtn) {
+        themeBtn.addEventListener('click', function() {
+            closeDrawer();
+            var btn = document.getElementById('themeToggle');
+            if (btn) btn.click();
+        });
+    }
 })();
 </script>
 {% endblock %}
