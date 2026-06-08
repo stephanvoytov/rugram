@@ -132,7 +132,7 @@ class ChatRepository(BaseRepository):
             Message.chat_id == chat_id,
             Message.author_id != user_id,
             Message.is_read == False,  # noqa: E712
-        ).update({"is_read": True, "read_at": now})
+        ).update({"is_read": True, "read_at": now, "updated_at": now})
 
     @classmethod
     def get_message_updates(cls, chat_id: int, after_id: int, since_dt) -> list[Message]:
