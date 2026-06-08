@@ -103,7 +103,7 @@ a:hover { color: var(--blue); }
 .notif-badge {
     display: none; background: var(--red); color: var(--bg); font-size: 0.6rem;
     padding: 1px 5px; border-radius: 8px; margin-left: 4px; vertical-align: top;
-    line-height: 1.4; font-weight: 700;
+    line-height: 1.6; font-weight: 700;
 }
 
 
@@ -121,7 +121,13 @@ a:hover { color: var(--blue); }
 .alert-danger { background: var(--surface2); color: var(--red); border-color: var(--red); }
 .alert-success { background: var(--surface2); color: var(--green); border-color: var(--green); }
 .alert-info { background: var(--surface2); color: var(--blue); border-color: var(--blue); }
-.alert-dismissible .btn-close { filter: invert(0.8); }
+.alert-dismissible .btn-close {
+    filter: invert(0.8);
+    width: 0.7em; height: 0.7em;
+    padding: 0.15em;
+    background-size: 0.7em;
+    margin: 0.35em;
+}
 
 /* ── Trending Tags Bar ── */
 .trending-bar {
@@ -297,6 +303,68 @@ a:hover { color: var(--blue); }
 .widget-card .widget-game { font-weight: 600; color: var(--text); }
 .widget-card .widget-state { color: var(--green); font-weight: 600; }
 .widget-card .widget-meta { font-size: 0.7rem; color: var(--subtle); margin-top: 2px; }
+
+/* Last.fm widget — album art + details layout */
+.widget-lastfm-layout {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+.widget-lastfm-cover {
+    width: 80px;
+    height: 80px;
+    border-radius: 6px;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 1px solid var(--overlay);
+}
+.widget-lastfm-details {
+    flex: 1;
+    min-width: 0;
+    line-height: 1.6;
+}
+.widget-card .widget-artist {
+    font-size: 0.78rem;
+    color: var(--subtext);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.widget-card .widget-album {
+    font-size: 0.7rem;
+    color: var(--subtle);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 1px;
+}
+.widget-attribution {
+    float: right;
+    font-size: 0.6rem;
+    color: var(--subtle);
+    text-decoration: none;
+    margin-top: 4px;
+    margin-bottom: -4px;
+    opacity: 0.6;
+}
+.widget-attribution:hover {
+    opacity: 1;
+    text-decoration: underline;
+}
+.widget-live-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    background: var(--green);
+    border-radius: 50%;
+    margin-right: 3px;
+    vertical-align: middle;
+    animation: pulse-dot 1.5s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
 
 /* ── Auth Pages ── */
 .auth-page { display: flex; justify-content: center; align-items: center; flex: 1; padding: 40px 16px; }
@@ -536,6 +604,20 @@ code, .inline-code {
 /* Back button: hidden on desktop (like TG/VK), shown via media query on mobile */
 #chatBackBtn { display: none; }
 .chat-avatar { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border); }
+
+.chat-avatar-wrapper {
+    position: relative;
+    display: inline-block;
+    line-height: 0; /* prevent extra space under img */
+}
+.chat-online-dot {
+    position: absolute;
+    bottom: 0; right: 0;
+    width: 11px; height: 11px;
+    background: var(--green);
+    border-radius: 50%;
+    border: 2px solid var(--bg);
+}
 .msg-bubble { max-width: 80%; padding: 12px 18px; border-radius: 10px; line-height: 1.6; word-break: break-word; display: flex; align-items: flex-end; gap: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.12); font-size: 0.95rem; }
 .msg-bubble.own { background: var(--accent); color: var(--bg); border-bottom-right-radius: 3px; }
 .msg-bubble.other { background: var(--surface); color: var(--fg); border: 1px solid var(--border); border-bottom-left-radius: 3px; }

@@ -223,3 +223,66 @@ def format_widget_data(widget_type: str, data: dict[str, Any] | None) -> dict[st
     if data is None:
         return None
     return data
+
+
+# ── Validation ────────────────────────────────────────────────────────────────
+
+
+def validate_widget_config(widget_type: str, config: dict[str, str]) -> str | None:
+    """Check that the external service will accept this config.
+
+    Returns an error message string, or *None* if the config is valid.
+    Makes a lightweight API call to verify the username / city / steam_id.
+    """
+    if widget_type == "lastfm":
+        username = config.get("username", "").strip()
+        if not username:
+            return "Username is required"
+        if not LASTFM_API_KEY:
+            return "Last.fm API key not configured"
+        url = (
+            "https://ws.audioscrobbler.com/2.0/"
+            "?method=user.getRecentTracks"
+            f"&user={urllib.request.quote(username)}"
+            f"&api_key={LASTFM_API_KEY}"
+            "&limit=1&format=json"
+        )
+        data = _fetch_json(url)
+        if data is None:
+            return "Could not reach Last.fm API"
+        if "error" in data:
+            return data.get("message", "Unknown Last.fm error")
+        # Success — user exists and has tracks
+        return None
+
+    if widget_type == "weather":
+        city = config.get("city", "").strip()
+        if not city:
+            return "City is required"
+        url = f"https://wttr.in/{urllib.request.quote(city)}?format=j1"
+        data = _fetch_json(url)
+        if data is None:
+            return "Could not reach weather service"
+        if not data.get("current_condition"):
+            return "City not found"
+        return None
+
+    if widget_type == "steam":
+        steam_id = config.get("steam_id", "").strip()
+        if not steam_id:
+            return "Steam ID is required"
+        if not STEAM_API_KEY:
+            return "Steam API key not configured"
+        url = (
+            "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/"
+            f"?key={STEAM_API_KEY}&steamids={steam_id}"
+        )
+        data = _fetch_json(url)
+        if data is None:
+            return "Could not reach Steam API"
+        players = data.get("response", {}).get("players")
+        if not players:
+            return "Steam ID not found"
+        return None
+
+    return f"Unknown widget type: {widget_type}"

@@ -9,24 +9,22 @@
     <form method="POST" enctype="multipart/form-data" style="padding:16px">
         {{ form.hidden_tag() }}
 
-        <div class="text-center mb-4">
+        <div class="auth-field" style="display:flex;align-items:center;gap:12px">
             <img src="{{ url_for('static', filename='uploads/profile_images/' + current_user.profile_image) if current_user.profile_image else url_for('static', filename='default-profile.png') }}"
-                 class="profile-avatar" style="width:80px;height:80px;margin-bottom:8px" alt="">
-            <div style="font-size:0.85rem;color:var(--fg)">@{{ current_user.username }}</div>
+                 class="profile-avatar" style="width:64px;height:64px" alt="">
+            <div style="flex:1">
+                <div style="font-size:0.85rem;font-weight:600">@{{ current_user.username }}</div>
+                {{ form.profile_image(class="field-input", style="padding:4px;font-size:0.8rem;margin-top:4px") }}
+                {% for error in form.profile_image.errors %}
+                <div class="field-msg error">{{ error }}</div>
+                {% endfor %}
+                <small style="color:var(--subtle);font-size:0.7rem">JPG, PNG. Optional.</small>
+            </div>
         </div>
 
-        <div class="auth-field">
+        <div class="auth-field" style="margin-top:12px">
             {{ form.description.label(class="field-label") }}
             {{ form.description(class="field-input", rows=3, placeholder="tell us about yourself...") }}
-        </div>
-
-        <div class="auth-field">
-            {{ form.profile_image.label(class="field-label") }}
-            {{ form.profile_image(class="field-input", style="padding:6px;font-size:0.8rem") }}
-            {% for error in form.profile_image.errors %}
-            <div class="field-msg error">{{ error }}</div>
-            {% endfor %}
-            <small style="color:var(--subtle);font-size:0.7rem">JPG, PNG. Optional.</small>
         </div>
 
         <div style="display:flex;gap:4px;margin-top:16px">
@@ -53,15 +51,15 @@
                     <option value="weather">Weather</option>
                     <option value="steam">Steam</option>
                 </select>
-                <button id="widget-add-btn" class="btn-term primary" style="padding:6px 12px;font-size:0.8rem">[+ add]</button>
+                <button type="button" id="widget-add-btn" class="btn-term primary" style="padding:6px 12px;font-size:0.8rem">[+ add]</button>
             </div>
 
             <!-- Config modal (inline) -->
             <div id="widget-config-modal" style="display:none;margin-top:12px;padding:12px;border:1px solid var(--overlay);background:var(--surface0)">
                 <div id="widget-config-fields"></div>
                 <div style="display:flex;gap:6px;margin-top:10px">
-                    <button id="widget-config-save" class="btn-term primary" style="padding:6px 12px;font-size:0.8rem">[save]</button>
-                    <button id="widget-config-cancel" class="btn-term" style="padding:6px 12px;font-size:0.8rem">[cancel]</button>
+                    <button type="button" id="widget-config-save" class="btn-term primary" style="padding:6px 12px;font-size:0.8rem">[save]</button>
+                    <button type="button" id="widget-config-cancel" class="btn-term" style="padding:6px 12px;font-size:0.8rem">[cancel]</button>
                 </div>
             </div>
         </div>

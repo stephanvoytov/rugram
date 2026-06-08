@@ -13,6 +13,7 @@ from app.services.widget_service import (
     get_config_schema,
     needs_refresh,
     now,
+    validate_widget_config,
 )
 
 
@@ -284,3 +285,94 @@ class TestGetConfigSchema:
         schema = get_config_schema()
         fields = schema["lastfm"]
         assert any(f["key"] == "username" for f in fields)
+
+
+class TestValidateWidgetConfig:
+    def test_lastfm_valid(self):
+        api_response = {"recenttracks": {"track": [{"name": "Song"}]}}
+        with (
+            patch("app.services.widget_service.LASTFM_API_KEY", "test_key"),
+            patch("urllib.request.urlopen", return_value=_mock_urlopen(api_response)),
+        ):
+            result = validate_widget_config("lastfm", {"username": "testuser"})
+        assert result is None  # valid
+
+    def test_lastfm_user_not_found(self):
+        api_response = {"error": 6, "message": "User not found"}
+        with (
+            patch("app.services.widget_service.LASTFM_API_KEY", "test_key"),
+            patch("urllib.request.urlopen", return_value=_mock_urlopen(api_response)),
+        ):
+            result = validate_widget_config("lastfm", {"username": "nonexistent"})
+        assert result == "User not found"
+
+    def test_lastfm_missing_key(self):
+        with patch("app.services.widget_service.LASTFM_API_KEY", ""):
+            result = validate_widget_config("lastfm", {"username": "testuser"})
+        assert result == "Last.fm API key not configured"
+
+    def test_lastfm_empty_username(self):
+        result = validate_widget_config("lastfm", {"username": ""})
+        assert result == "Username is required"
+
+    def test_lastfm_network_error(self):
+        with (
+            patch("app.services.widget_service.LASTFM_API_KEY", "test_key"),
+            patch("urllib.request.urlopen", side_effect=urllib.error.URLError("timeout")),
+        ):
+            result = validate_widget_config("lastfm", {"username": "testuser"})
+        assert result == "Could not reach Last.fm API"
+
+    def test_weather_valid(self):
+        api_response = {
+            "current_condition": [{"temp_C": "22", "weatherDesc": [{"value": "Sunny"}]}]
+        }
+        with patch("urllib.request.urlopen", return_value=_mock_urlopen(api_response)):
+            result = validate_widget_config("weather", {"city": "London"})
+        assert result is None
+
+    def test_weather_city_not_found(self):
+        api_response = {"current_condition": []}
+        with patch("urllib.request.urlopen", return_value=_mock_urlopen(api_response)):
+            result = validate_widget_config("weather", {"city": "NonexistentCity123"})
+        assert result == "City not found"
+
+    def test_weather_empty_city(self):
+        result = validate_widget_config("weather", {"city": ""})
+        assert result == "City is required"
+
+    def test_weather_network_error(self):
+        with patch("urllib.request.urlopen", side_effect=urllib.error.URLError("timeout")):
+            result = validate_widget_config("weather", {"city": "London"})
+        assert result == "Could not reach weather service"
+
+    def test_steam_valid(self):
+        api_response = {"response": {"players": [{"personaname": "gamer"}]}}
+        with (
+            patch("app.services.widget_service.STEAM_API_KEY", "test_key"),
+            patch("urllib.request.urlopen", return_value=_mock_urlopen(api_response)),
+        ):
+            result = validate_widget_config("steam", {"steam_id": "7656119"})
+        assert result is None
+
+    def test_steam_not_found(self):
+        api_response = {"response": {"players": []}}
+        with (
+            patch("app.services.widget_service.STEAM_API_KEY", "test_key"),
+            patch("urllib.request.urlopen", return_value=_mock_urlopen(api_response)),
+        ):
+            result = validate_widget_config("steam", {"steam_id": "0000000"})
+        assert result == "Steam ID not found"
+
+    def test_steam_missing_key(self):
+        with patch("app.services.widget_service.STEAM_API_KEY", ""):
+            result = validate_widget_config("steam", {"steam_id": "7656119"})
+        assert result == "Steam API key not configured"
+
+    def test_steam_empty_id(self):
+        result = validate_widget_config("steam", {"steam_id": ""})
+        assert result == "Steam ID is required"
+
+    def test_unknown_type(self):
+        result = validate_widget_config("invalid", {})
+        assert result == "Unknown widget type: invalid"

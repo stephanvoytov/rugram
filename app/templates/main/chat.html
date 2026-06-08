@@ -223,12 +223,15 @@ function createChatItem(chat) {
     div.dataset.username = chat.other_user.username;
 
     const unreadBadge = chat.unread_count > 0 ? ' <span class="notif-badge" style="position:static;display:inline;font-size:0.7rem">' + chat.unread_count + '</span>' : '';
-    const onlineDot = chat.other_user.is_online ? ' <span style="color:var(--green)">●</span>' : '';
+    const onlineDot = chat.other_user.is_online ? '<span class="chat-online-dot"></span>' : '';
 
     div.innerHTML = '<div style="display:flex;align-items:center;gap:8px">'
-        + '<img src="' + (chat.other_user.profile_image ? '{{ url_for('static', filename='uploads/profile_images/') }}' + chat.other_user.profile_image : '{{ url_for('static', filename='default-profile.png') }}') + '" alt="' + chat.other_user.username + ' avatar" width="36" height="36" class="chat-avatar" onerror="this.src=\'{{ url_for('static', filename='default-profile.png') }}\'">'
+        + '<div class="chat-avatar-wrapper">'
+            + '<img src="' + (chat.other_user.profile_image ? '{{ url_for('static', filename='uploads/profile_images/') }}' + chat.other_user.profile_image : '{{ url_for('static', filename='default-profile.png') }}') + '" alt="' + chat.other_user.username + ' avatar" width="36" height="36" class="chat-avatar" onerror="this.src=\'{{ url_for('static', filename='default-profile.png') }}\'">'
+            + onlineDot
+        + '</div>'
         + '<div style="flex:1;min-width:0">'
-        + '<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-weight:600">' + chat.other_user.username + '</span>' + onlineDot + '<small style="color:var(--subtle);font-size:0.7rem">' + formatDate(chat.last_message_date) + '</small></div>'
+        + '<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-weight:600">' + chat.other_user.username + '</span><small style="color:var(--subtle);font-size:0.7rem">' + formatDate(chat.last_message_date) + '</small></div>'
         + '<div style="color:var(--subtle);font-size:0.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escapeHtml(chat.last_message || 'no messages') + '</div>'
         + '</div>' + unreadBadge + '</div>';
 
@@ -276,7 +279,7 @@ function setupTypingSignal() {
 
 function updateChatStatus(isOnline, lastSeen) {
     const statusEl = document.getElementById('chatStatus');
-    statusEl.innerHTML = isOnline ? '<span style="color:var(--green)">online</span>' : (lastSeen || 'offline');
+    statusEl.innerHTML = lastSeen || 'offline';
 }
 
 function updateTypingIndicator(isTyping) {
@@ -612,8 +615,11 @@ function deleteMessage(msgId) {
     .catch(function() { loadMessages(); });
 }
 
+let _chatSending = false;
+
 async function sendMessage(e) {
     e.preventDefault();
+    if (_chatSending) return;
     const input = document.getElementById('messageInput');
     const fileInput = document.getElementById('fileInput');
     const text = input.value.trim();
@@ -629,11 +635,14 @@ async function sendMessage(e) {
         if (text) formData.append('text', text);
         formData.append('image', file);
         body = formData;
-        // Don't set Content-Type — browser sets it with boundary for FormData
     } else {
         headers['Content-Type'] = 'application/json';
         body = JSON.stringify({ text });
     }
+
+    _chatSending = true;
+    const submitBtn = document.getElementById('messageForm').querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
 
     try {
         const response = await fetch('{{ url_for('main.chat_send', chat_id=0) }}'.replace('/0/', '/' + currentChatId + '/'), {
@@ -648,6 +657,10 @@ async function sendMessage(e) {
             await loadMessages();
         }
     } catch (error) { console.error('Error sending message:', error); }
+    finally {
+        _chatSending = false;
+        if (submitBtn) submitBtn.disabled = false;
+    }
 }
 
 // ── Emoji picker ──
@@ -772,6 +785,8 @@ function startChatListPolling() {
                 const isNewMessage = prev && prev.last_message !== chat.last_message;
                 const isNewChat = !prev && chat.last_message;
                 if ((isNewMessage || isNewChat) && chat.other_user) {
+                    // Don't notify if the current user sent the message
+                    if (chat.last_message_sender_id && chat.last_message_sender_id === currentUser) return;
                     if (window.showBrowserNotification) window.showBrowserNotification(chat.other_user.username, chat.last_message);
                 }
             });
