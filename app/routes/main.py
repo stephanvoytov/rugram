@@ -862,6 +862,12 @@ def add_widget() -> Response:
     if widget_type not in ("lastfm", "weather", "steam"):
         return jsonify({"error": _("Invalid widget type")}), 400
 
+    # Limits: max 1 per type, max 10 total
+    if len(current_user.widgets) >= 10:
+        return jsonify({"error": _("Maximum 10 widgets allowed")}), 400
+    if any(w.widget_type == widget_type for w in current_user.widgets):
+        return jsonify({"error": _("Widget type already added")}), 400
+
     config = data.get("config", {})
     schema = get_config_schema()
     required = [f["key"] for f in schema.get(widget_type, [])]

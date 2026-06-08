@@ -33,39 +33,44 @@
             <button type="submit" class="btn-term primary" style="flex:1">[>> save]</button>
             <a href="{{ url_for('main.profile', user_id_or_username=current_user.username) }}" class="btn-term" style="flex:1;text-align:center;text-decoration:none">[cancel]</a>
         </div>
+
+        <!-- Widgets management section -->
+        <div style="border-top:1px solid var(--border);margin-top:20px;padding:16px 0">
+            <div style="margin-bottom:12px">
+                <div class="auth-title">[profile widgets]</div>
+                <div style="font-size:0.75rem;color:var(--subtle);margin-top:2px">connect external services</div>
+            </div>
+
+            <div id="widgets-list">
+                <div class="empty-state" style="padding:20px;text-align:center;color:var(--subtle)" id="widgets-empty">
+                    no widgets yet
+                </div>
+            </div>
+
+            <div class="add-widget-form" style="display:flex;gap:6px;margin-top:12px">
+                <select id="widget-type-select" class="field-input" style="flex:1;padding:6px;font-size:0.8rem">
+                    <option value="lastfm">Last.fm</option>
+                    <option value="weather">Weather</option>
+                    <option value="steam">Steam</option>
+                </select>
+                <button id="widget-add-btn" class="btn-term primary" style="padding:6px 12px;font-size:0.8rem">[+ add]</button>
+            </div>
+
+            <!-- Config modal (inline) -->
+            <div id="widget-config-modal" style="display:none;margin-top:12px;padding:12px;border:1px solid var(--overlay);background:var(--surface0)">
+                <div id="widget-config-fields"></div>
+                <div style="display:flex;gap:6px;margin-top:10px">
+                    <button id="widget-config-save" class="btn-term primary" style="padding:6px 12px;font-size:0.8rem">[save]</button>
+                    <button id="widget-config-cancel" class="btn-term" style="padding:6px 12px;font-size:0.8rem">[cancel]</button>
+                </div>
+            </div>
+        </div>
+
+        <div style="display:flex;gap:4px;margin-top:8px">
+            <button type="submit" class="btn-term primary" style="flex:1">[>> save]</button>
+            <a href="{{ url_for('main.profile', user_id_or_username=current_user.username) }}" class="btn-term" style="flex:1;text-align:center;text-decoration:none">[cancel]</a>
+        </div>
     </form>
-
-    <!-- Widgets management section -->
-    <div class="widgets-section" style="border-top:1px solid var(--border);margin-top:20px;padding:16px">
-        <div class="auth-header" style="margin-bottom:12px">
-            <span class="auth-title">[profile widgets]</span>
-            <span class="auth-subtitle">connect external services</span>
-        </div>
-
-        <div id="widgets-list">
-            <div class="empty-state" style="padding:20px;text-align:center;color:var(--subtle)" id="widgets-empty">
-                no widgets yet
-            </div>
-        </div>
-
-        <div class="add-widget-form" style="display:flex;gap:6px;margin-top:12px">
-            <select id="widget-type-select" class="field-input" style="flex:1;padding:6px;font-size:0.8rem">
-                <option value="lastfm">Last.fm</option>
-                <option value="weather">Weather</option>
-                <option value="steam">Steam</option>
-            </select>
-            <button id="widget-add-btn" class="btn-term primary" style="padding:6px 12px;font-size:0.8rem">[+ add]</button>
-        </div>
-
-        <!-- Config modal (inline) -->
-        <div id="widget-config-modal" style="display:none;margin-top:12px;padding:12px;border:1px solid var(--overlay);background:var(--surface0)">
-            <div id="widget-config-fields"></div>
-            <div style="display:flex;gap:6px;margin-top:10px">
-                <button id="widget-config-save" class="btn-term primary" style="padding:6px 12px;font-size:0.8rem">[save]</button>
-                <button id="widget-config-cancel" class="btn-term" style="padding:6px 12px;font-size:0.8rem">[cancel]</button>
-            </div>
-        </div>
-    </div>
 </div>
 {% endblock %}
 
