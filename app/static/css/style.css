@@ -277,8 +277,8 @@ a:hover { color: var(--blue); }
     display: none; position: absolute; top: 0; right: 0;
     background: none; border: 1px solid var(--overlay);
     color: var(--subtle); cursor: pointer;
-    font-family: var(--font); font-size: 1rem;
-    padding: 2px 10px; line-height: 1.4;
+    font-family: var(--font); font-size: 1.3rem;
+    padding: 4px 14px; line-height: 1.2;
 }
 .drawer-trigger:hover { color: var(--text); border-color: var(--text); }
 @media (max-width: 600px) {
@@ -587,6 +587,7 @@ code, .inline-code {
     .status-bar { display: none; }
     .bottom-nav { display: flex; }
     .container { padding: 10px 14px 64px; }
+    .container:has(.chat-layout) { padding-bottom: 0; }
     .chat-layout { height: calc(100vh - 55px - 52px) !important; } /* терминал + bottom-nav */
     .profile-avatar { width: 100px; height: 100px; }
     .profile-stats { gap: 8px; }
