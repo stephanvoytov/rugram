@@ -503,25 +503,25 @@ code, .inline-code {
     background: var(--surface);
     border-top: 2px solid var(--overlay);
     justify-content: space-around; align-items: center;
-    padding: 6px 4px env(safe-area-inset-bottom, 6px);
+    padding: 10px 4px env(safe-area-inset-bottom, 10px);
     z-index: 1030;
     font-family: var(--font);
 }
 .bottom-nav-item {
-    display: block; padding: 6px 2px;
+    display: block; padding: 8px 4px;
     text-decoration: none; color: var(--subtle);
-    font-size: 0.7rem; text-align: center;
+    font-size: 0.8rem; font-weight: 600; text-align: center;
     flex: 1; position: relative;
     transition: color 0.15s;
 }
 .bottom-nav-item:active { color: var(--accent); }
-.bottom-nav-item.active { color: var(--accent); }
+.bottom-nav-item.active { color: var(--accent); text-shadow: 0 0 8px rgba(137,180,250,0.25); }
 .bottom-nav-badge {
-    position: absolute; top: 2px; right: 4px;
+    position: absolute; top: 2px; right: 6px;
     background: var(--red); color: var(--bg);
-    font-size: 0.5rem; font-weight: 700;
-    padding: 1px 4px; border-radius: 6px;
-    line-height: 1.3; display: none;
+    font-size: 0.55rem; font-weight: 700;
+    padding: 1px 5px; border-radius: 6px;
+    line-height: 1.4; display: none;
 }
 
 /* ── Profile Drawer (mobile) ── */
@@ -586,8 +586,8 @@ code, .inline-code {
 @media (max-width: 600px) {
     .status-bar { display: none; }
     .bottom-nav { display: flex; }
-    .container { padding: 10px 14px 60px; }
-    .chat-layout { height: calc(100vh - 55px - 48px) !important; } /* терминал + bottom-nav */
+    .container { padding: 10px 14px 64px; }
+    .chat-layout { height: calc(100vh - 55px - 52px) !important; } /* терминал + bottom-nav */
     .profile-avatar { width: 100px; height: 100px; }
     .profile-stats { gap: 8px; }
     .profile-stat { flex: 1; }
