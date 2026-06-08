@@ -49,9 +49,9 @@ def _flush_loop(app):
                         db.session.execute(
                             db.text("UPDATE users SET last_seen = :ts WHERE id = :id"),
                             {
-                                "ts": datetime.datetime.fromtimestamp(
-                                    ts, tz=datetime.UTC
-                                ).replace(tzinfo=None),
+                                "ts": datetime.datetime.fromtimestamp(ts, tz=datetime.UTC).replace(
+                                    tzinfo=None
+                                ),
                                 "id": uid,
                             },
                         )
