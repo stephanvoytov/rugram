@@ -229,6 +229,50 @@
     </span>
 </footer>
 
+<!-- Bottom Navigation (mobile) -->
+<nav class="bottom-nav">
+    <a href="{{ url_for('main.index') }}" class="bottom-nav-item {% if request.endpoint == 'main.index' and not request.args.get('followed') %}active{% endif %}" title="feed">
+        <span class="bottom-nav-icon">🏠</span>
+        <span class="bottom-nav-label">feed</span>
+    </a>
+    {% if current_user.is_authenticated %}
+    <a href="{{ url_for('main.index', followed='1') }}" class="bottom-nav-item {% if request.args.get('followed') %}active{% endif %}" title="subs">
+        <span class="bottom-nav-icon">🔍</span>
+        <span class="bottom-nav-label">subs</span>
+    </a>
+    <a href="{{ url_for('main.chat') }}" class="bottom-nav-item {% if request.endpoint == 'main.chat' %}active{% endif %}" title="chat">
+        <span class="bottom-nav-icon">✉</span>
+        <span class="bottom-nav-label">chat</span>
+    </a>
+    <a href="{{ url_for('main.notifications_page') }}" class="bottom-nav-item {% if request.endpoint == 'main.notifications_page' %}active{% endif %}" title="notifications">
+        <span class="bottom-nav-icon">🔔</span>
+        <span class="bottom-nav-label">notif</span>
+        <span class="bottom-nav-badge" id="mobileNotifBadge"></span>
+    </a>
+    <a href="{{ url_for('main.profile', user_id_or_username=current_user.id) }}" class="bottom-nav-item {% if request.endpoint == 'main.profile' %}active{% endif %}" title="profile">
+        <span class="bottom-nav-icon">👤</span>
+        <span class="bottom-nav-label">me</span>
+    </a>
+    {% else %}
+    <a href="{{ url_for('main.index', followed='1') }}" class="bottom-nav-item" title="subs" style="opacity:0.4;pointer-events:none">
+        <span class="bottom-nav-icon">🔍</span>
+        <span class="bottom-nav-label">subs</span>
+    </a>
+    <a href="{{ url_for('auth.login') }}" class="bottom-nav-item" title="chat">
+        <span class="bottom-nav-icon">✉</span>
+        <span class="bottom-nav-label">chat</span>
+    </a>
+    <a href="{{ url_for('auth.login') }}" class="bottom-nav-item" title="notifications">
+        <span class="bottom-nav-icon">🔔</span>
+        <span class="bottom-nav-label">notif</span>
+    </a>
+    <a href="{{ url_for('auth.login') }}" class="bottom-nav-item" title="login">
+        <span class="bottom-nav-icon">👤</span>
+        <span class="bottom-nav-label">login</span>
+    </a>
+    {% endif %}
+</nav>
+
 <!-- Lightbox -->
 <div class="lightbox-overlay" id="lightbox">
     <button class="lightbox-close" id="lightboxClose">&times;</button>

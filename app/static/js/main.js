@@ -48,7 +48,7 @@
 // ── Notification badge polling ──
 (function() {
     const badge = document.getElementById('notificationBadge');
-    if (!badge) return;
+    const mobileBadge = document.getElementById('mobileNotifBadge');
 
     async function updateBadge() {
         if (!window.isAuthenticated) return;
@@ -57,11 +57,24 @@
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
             const data = await r.json();
-            if (data.count > 0) {
-                badge.textContent = data.count;
-                badge.style.display = 'inline';
-            } else {
-                badge.style.display = 'none';
+            var count = data.count || 0;
+            // Desktop badge
+            if (badge) {
+                if (count > 0) {
+                    badge.textContent = count;
+                    badge.style.display = 'inline';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+            // Mobile badge
+            if (mobileBadge) {
+                if (count > 0) {
+                    mobileBadge.textContent = count;
+                    mobileBadge.style.display = 'block';
+                } else {
+                    mobileBadge.style.display = 'none';
+                }
             }
         } catch (e) {}
     }

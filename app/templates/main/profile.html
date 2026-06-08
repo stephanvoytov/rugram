@@ -133,7 +133,7 @@
 
     <!-- Posts -->
     <div class="profile-posts-header">
-        <span>[{{ _('user posts') }}] <span class="count">— {{ user.posts|rejectattr('is_deleted')|list|length }} {{ _('posts') }}</span></span>
+        <span>[{{ _('posts') }}] <span class="count">— {{ user.posts|rejectattr('is_deleted')|list|length }}</span></span>
     </div>
 
 {% import 'macros/_post_card.html' as macros %}
