@@ -231,13 +231,13 @@
 
 <!-- Bottom Navigation (mobile) -->
 <nav class="bottom-nav">
-    <a href="{{ url_for('main.index') }}" class="bottom-nav-item {% if request.endpoint == 'main.index' and not request.args.get('followed') %}active{% endif %}">feed</a>
-    <a href="{% if current_user.is_authenticated %}{{ url_for('main.index', followed='1') }}{% else %}{{ url_for('auth.login') }}{% endif %}" class="bottom-nav-item {% if request.args.get('followed') %}active{% endif %}">subs</a>
-    <a href="{% if current_user.is_authenticated %}{{ url_for('main.chat') }}{% else %}{{ url_for('auth.login') }}{% endif %}" class="bottom-nav-item {% if request.endpoint == 'main.chat' %}active{% endif %}">chat</a>
+    <a href="{{ url_for('main.index') }}" class="bottom-nav-item {% if request.endpoint == 'main.index' and not request.args.get('followed') %}active{% endif %}">[feed]</a>
+    <a href="{% if current_user.is_authenticated %}{{ url_for('main.index', followed='1') }}{% else %}{{ url_for('auth.login') }}{% endif %}" class="bottom-nav-item {% if request.args.get('followed') %}active{% endif %}">[subs]</a>
+    <a href="{% if current_user.is_authenticated %}{{ url_for('main.chat') }}{% else %}{{ url_for('auth.login') }}{% endif %}" class="bottom-nav-item {% if request.endpoint == 'main.chat' %}active{% endif %}">[chat]</a>
     <a href="{% if current_user.is_authenticated %}{{ url_for('main.notifications_page') }}{% else %}{{ url_for('auth.login') }}{% endif %}" class="bottom-nav-item {% if request.endpoint == 'main.notifications_page' %}active{% endif %}">
-        notif<span class="bottom-nav-badge" id="mobileNotifBadge"></span>
+        [notif]<span class="bottom-nav-badge" id="mobileNotifBadge"></span>
     </a>
-    <a href="{% if current_user.is_authenticated %}{{ url_for('main.profile', user_id_or_username=current_user.id) }}{% else %}{{ url_for('auth.login') }}{% endif %}" class="bottom-nav-item {% if request.endpoint == 'main.profile' %}active{% endif %}">me</a>
+    <a href="{% if current_user.is_authenticated %}{{ url_for('main.profile', user_id_or_username=current_user.id) }}{% else %}{{ url_for('auth.login') }}{% endif %}" class="bottom-nav-item {% if request.endpoint == 'main.profile' %}active{% endif %}">[me]</a>
 </nav>
 
 <!-- Lightbox -->
