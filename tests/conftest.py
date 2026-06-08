@@ -45,6 +45,7 @@ class TestConfig(BaseConfig):
     }
     WTF_CSRF_ENABLED = False
     RATELIMIT_ENABLED = False
+    SENTRY_DSN = ""  # Disable Sentry in tests
     UPLOAD_FOLDER = str(_TEST_DIR / "test_uploads")
     CHAT_UPLOAD_FOLDER = str(_TEST_DIR / "test_chat_uploads")
 
@@ -103,6 +104,7 @@ def app() -> Flask:
     _Cfg.CHAT_UPLOAD_FOLDER = TestConfig.CHAT_UPLOAD_FOLDER
     _Cfg.SQLALCHEMY_DATABASE_URI = TestConfig.SQLALCHEMY_DATABASE_URI
     _Cfg.RATELIMIT_ENABLED = False
+    _Cfg.SENTRY_DSN = ""  # Disable Sentry in tests
 
     app = create_app()
 

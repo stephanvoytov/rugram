@@ -284,6 +284,20 @@ a:hover { color: var(--blue); }
 .profile-posts { flex: 1; min-width: 0; }
 .profile-posts-header { }
 
+/* ── Profile Widgets ── */
+.profile-widgets { display: flex; flex-wrap: wrap; gap: 10px; width: 100%; }
+.widget-card { flex: 1 1 180px; min-width: 160px; border: 1px solid var(--overlay); padding: 10px 14px; font-size: 0.8rem; background: var(--surface0); }
+.widget-card .widget-header { font-size: 0.7rem; color: var(--subtle); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+.widget-card .widget-icon { margin-right: 4px; }
+.widget-card .widget-body { line-height: 1.5; }
+.widget-card .widget-track { font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.widget-card .widget-artist { color: var(--subtext); font-size: 0.78rem; }
+.widget-card .widget-temp { font-size: 1.5rem; font-weight: 700; color: var(--accent); }
+.widget-card .widget-condition { color: var(--subtext); }
+.widget-card .widget-game { font-weight: 600; color: var(--text); }
+.widget-card .widget-state { color: var(--green); font-weight: 600; }
+.widget-card .widget-meta { font-size: 0.7rem; color: var(--subtle); margin-top: 2px; }
+
 /* ── Auth Pages ── */
 .auth-page { display: flex; justify-content: center; align-items: center; flex: 1; padding: 40px 16px; }
 .auth-box { width: 100%; max-width: 420px; border: 1px solid var(--overlay); padding: 24px; }

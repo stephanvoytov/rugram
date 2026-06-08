@@ -4,8 +4,10 @@ Creates users, posts, follows, and chat messages.
 Run: python seed.py
 """
 
+import json
 import os
 import sys
+from datetime import UTC, datetime
 
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -18,6 +20,7 @@ from app.models import (
     Like,
     Message,
     Post,
+    ProfileWidget,
     User,
 )
 from app.routes.helpers import extract_tags, sync_post_tags
@@ -162,6 +165,48 @@ with app.app_context():
             msg.is_read = True
             db.session.add(msg)
 
+    # ── Profile widgets ──
+    def _utcnow():
+        return datetime.now(UTC)
+
+    if ProfileWidget.query.filter_by(user_id=bob.id).count() == 0:
+        db.session.add(
+            ProfileWidget(
+                user_id=bob.id,
+                widget_type="weather",
+                config=json.dumps({"city": "Moscow"}),
+                position=0,
+                cached_data=json.dumps(
+                    {
+                        "city": "Moscow",
+                        "temp": "22",
+                        "feels_like": "20",
+                        "condition": "Partly cloudy",
+                        "humidity": "45",
+                        "wind": "12 km/h N",
+                    }
+                ),
+                cached_at=_utcnow(),
+            )
+        )
+    if ProfileWidget.query.filter_by(user_id=alice.id).count() == 0:
+        db.session.add(
+            ProfileWidget(
+                user_id=alice.id,
+                widget_type="lastfm",
+                config=json.dumps({"username": "rj"}),
+                position=0,
+                cached_data=json.dumps(
+                    {
+                        "now_playing": True,
+                        "track": "Karma Police",
+                        "artist": "Radiohead",
+                        "album": "OK Computer",
+                    }
+                ),
+                cached_at=_utcnow(),
+            )
+        )
     db.session.commit()
     print("** Database seeded!")
     print("   - Users: alice / pass123, bob / pass123")
@@ -169,3 +214,4 @@ with app.app_context():
     print(f"   - Follows: {Follow.query.count()}")
     print(f"   - Likes: {Like.query.count()}")
     print(f"   - Chats: {Chat.query.count()}")
+    print(f"   - Widgets: {ProfileWidget.query.count()}")

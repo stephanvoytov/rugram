@@ -1,3 +1,4 @@
+import json
 import re
 from datetime import UTC, datetime
 
@@ -71,3 +72,14 @@ def linkify_tags_filter(text: str) -> str:
         return text
     result = re.sub(r"(?<!\w)#(\w{1,32})", r'<a href="/?tag=\1" class="tag-link">#\1</a>', text)
     return Markup(result)
+
+
+@filters_bp.app_template_filter("from_json")
+def from_json_filter(value: str) -> dict:
+    """Parse a JSON string into a Python dict (for widget cached_data)."""
+    if not value:
+        return {}
+    try:
+        return json.loads(value)
+    except (json.JSONDecodeError, TypeError):
+        return {}
