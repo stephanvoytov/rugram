@@ -87,7 +87,7 @@ class ChatService:
                         else None
                     ),
                     "last_message_date": last_msg.created_date.isoformat() if last_msg else None,
-                    "last_message_sender_id": last_msg.user_id if last_msg else None,
+                    "last_message_sender_id": last_msg.author_id if last_msg else None,
                     "unread_count": unread_counts.get(p.chat_id, 0),
                 }
             )
