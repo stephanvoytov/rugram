@@ -144,6 +144,7 @@
             {% for section_name, cmds in sections %}
             <div class="tty-help-category">
                 <div class="tty-help-section-header" style="margin-top:16px">-- {{ _(section_name) }} --</div>
+                <div style="overflow-x:auto">
                 <table class="tty-help-table">
                     <thead>
                         <tr><th>{{ _('Command') }}</th><th>{{ _('Params') }}</th><th>{{ _('Description') }}</th><th>{{ _('Example') }}</th></tr>
@@ -159,11 +160,13 @@
                         {% endfor %}
                     </tbody>
                 </table>
+                </div>
             </div>
             {% endfor %}
 
             <div class="tty-help-category" style="margin-top:24px">
                 <div class="tty-help-section-header">-- {{ _('Keyboard Shortcuts') }} --</div>
+                <div style="overflow-x:auto">
                 <table class="tty-help-table tty-help-shortcuts">
                     <thead><tr><th>{{ _('Key') }}</th><th>{{ _('Description') }}</th></tr></thead>
                     <tbody>
@@ -174,6 +177,7 @@
                         <tr><td><code>--help</code></td><td>{{ _('Per-command help') }}</td></tr>
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
     </div>
@@ -245,6 +249,7 @@
 
         <div style="margin-top:24px">
             <div class="tty-help-section-header">-- {{ _('File types') }} --</div>
+            <div style="overflow-x:auto">
             <table class="tty-help-table">
                 <thead><tr><th>{{ _('File') }}</th><th>{{ _('Description') }}</th><th>{{ _('Commands') }}</th></tr></thead>
                 <tbody>
@@ -254,10 +259,12 @@
                     <tr><td class="tty-help-cmd">info</td><td>{{ _('profile info (cat, nano)') }}</td><td><code>cat</code>, <code>nano</code></td></tr>
                 </tbody>
             </table>
+            </div>
         </div>
 
         <div style="margin-top:24px">
             <div class="tty-help-section-header">-- {{ _('Key commands') }} --</div>
+            <div style="overflow-x:auto">
             <table class="tty-help-table">
                 <thead><tr><th>{{ _('Command') }}</th><th>{{ _('Description') }}</th></tr></thead>
                 <tbody>
@@ -271,6 +278,7 @@
                     <tr><td class="tty-help-cmd">help / man</td><td>{{ _('help & manuals') }}</td></tr>
                 </tbody>
             </table>
+            </div>
         </div>
     </div>
 

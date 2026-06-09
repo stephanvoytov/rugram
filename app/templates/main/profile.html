@@ -140,7 +140,7 @@
 {% import 'macros/_post_card.html' as macros %}
     {% for post in user.posts %}
     {% if not post.is_deleted %}
-    {% call macros.render_post(post, current_user) %}
+    {% call macros.render_post(post, current_user, hide_meta=True) %}
         {% if current_user == post.author %}
         <a href="{{ url_for('posts.edit_post', post_id=post.id) }}" class="post-action" style="font-size:0.68rem">[edit]</a>
         <button class="post-action" onclick="event.stopPropagation();deletePost({{ post.id }})" style="font-size:0.68rem;color:var(--red)">[delete]</button>

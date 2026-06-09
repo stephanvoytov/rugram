@@ -1,4 +1,4 @@
-{% macro render_post(post, current_user) %}
+{% macro render_post(post, current_user, hide_meta=False) %}
 <div class="post-card" data-post-id="{{ post.id }}" data-post-url="{{ url_for('posts.get_post', post_id=post.id) }}">
     <div class="post-header">
         <span class="post-id"><b>[#{{ post.id }}]</b></span>
@@ -7,6 +7,7 @@
             {{ caller() }}
         </div>
     </div>
+    {% if not hide_meta %}
     <div class="post-meta" style="display:flex;align-items:center;gap:8px">
         <img src="{{ url_for('static', filename='uploads/profile_images/' + post.author.profile_image) if post.author.profile_image else url_for('static', filename='default-profile.png') }}"
              alt="{{ post.author.username }}" class="post-avatar" loading="lazy"
@@ -18,6 +19,7 @@
             <span class="post-stat">↻ {{ post.reposts_count }}</span>
         </span>
     </div>
+    {% endif %}
     <div class="post-body"><p class="post-text">{{- post.text | linkify_tags -}}</p>{%- if post.image %}
         <img src="{{ url_for('static', filename='uploads/posts/thumb_' + post.image) }}"
              data-full-img="{{ url_for('static', filename='uploads/posts/' + post.image) }}"
