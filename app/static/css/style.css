@@ -590,7 +590,7 @@ code, .inline-code {
     .bottom-nav { display: flex; }
     .container { padding: 10px 14px 64px; }
     .container:has(.chat-layout) { padding-bottom: 0; }
-    .chat-layout { height: calc(100vh - 55px - 52px) !important; } /* терминал + bottom-nav */
+    .chat-layout { position: fixed; top: 0; left: 0; right: 0; bottom: 52px !important; height: auto !important; } /* fixed above bottom-nav */
     .profile-avatar { width: 100px; height: 100px; }
     .profile-stats { gap: 8px; }
     .profile-stat { flex: 1; }
