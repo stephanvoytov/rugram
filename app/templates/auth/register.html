@@ -1,3 +1,4 @@
+{% from "macros/_icons.html" import icon %}
 {% extends "base.html" %}
 
 {% block robots %}noindex,nofollow{% endblock %}
@@ -14,44 +15,44 @@
         {{ form.hidden_tag() }}
 
         <div class="auth-field" style="margin-bottom:20px">
-            <label for="{{ form.username.id }}" class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] username</label>
-            {{ form.username(class="field-input" + (" field-error" if form.username.errors else ""), placeholder="username", pattern="[a-z0-9_]+", title="Only Latin letters (a-z), digits (0-9), and underscore (_)", oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9_]/g,'')", style="padding:10px 14px;font-size:0.9rem;width:100%") }}
+            <label for="{{ form.username.id }}" class="field-label" style="font-size:0.9rem;margin-bottom:6px">[*] username</label>
+            {{ form.username(class="field-input" + (" field-error" if form.username.errors else ""), placeholder="username", pattern="[a-z0-9_]+", title="Only Latin letters (a-z), digits (0-9), and underscore (_)", oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9_]/g,'')", style="padding:10px 14px;font-size:0.9rem") }}
             {% for error in form.username.errors %}
             <div class="field-msg error">{{ error }}</div>
             {% endfor %}
         </div>
 
         <div class="auth-field" style="margin-bottom:20px">
-            <label for="{{ form.email.id }}" class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] email</label>
-            {{ form.email(class="field-input" + (" field-error" if form.email.errors else ""), placeholder="email@example.com", style="padding:10px 14px;font-size:0.9rem;width:100%") }}
+            <label for="{{ form.email.id }}" class="field-label" style="font-size:0.9rem;margin-bottom:6px">[*] email</label>
+            {{ form.email(class="field-input" + (" field-error" if form.email.errors else ""), placeholder="email@example.com", style="padding:10px 14px;font-size:0.9rem") }}
             {% for error in form.email.errors %}
             <div class="field-msg error">{{ error }}</div>
             {% endfor %}
         </div>
 
         <div class="auth-field" style="margin-bottom:20px">
-            <label for="{{ form.password.id }}" class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] password</label>
-            {{ form.password(class="field-input" + (" field-error" if form.password.errors else ""), placeholder="••••••••", style="padding:10px 14px;font-size:0.9rem;width:100%") }}
+            <label for="{{ form.password.id }}" class="field-label" style="font-size:0.9rem;margin-bottom:6px">[*] password</label>
+            {{ form.password(class="field-input" + (" field-error" if form.password.errors else ""), placeholder="••••••••", style="padding:10px 14px;font-size:0.9rem") }}
             {% for error in form.password.errors %}
             <div class="field-msg error">{{ error }}</div>
             {% endfor %}
         </div>
 
         <div class="auth-field" style="margin-bottom:20px">
-            <label for="{{ form.password2.id }}" class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] confirm password</label>
-            {{ form.password2(class="field-input" + (" field-error" if form.password2.errors else ""), placeholder="confirm password", style="padding:10px 14px;font-size:0.9rem;width:100%") }}
+            <label for="{{ form.password2.id }}" class="field-label" style="font-size:0.9rem;margin-bottom:6px">[*] confirm password</label>
+            {{ form.password2(class="field-input" + (" field-error" if form.password2.errors else ""), placeholder="confirm password", style="padding:10px 14px;font-size:0.9rem") }}
             {% for error in form.password2.errors %}
             <div class="field-msg error">{{ error }}</div>
             {% endfor %}
         </div>
 
-        <div style="display:flex;gap:8px;margin-top:24px;padding-top:16px;border-top:1px solid var(--border)">
-            <button type="submit" class="btn-term primary" style="flex:1;padding:10px 20px;font-size:0.9rem;display:flex;justify-content:center">[>> register]</button>
+        <div class="d-flex gap-2 btop" style="margin-top:24px;padding-top:16px">
+            <button type="submit" class="btn-term primary lg flex-1 d-flex justify-content-center">[{{ icon('plus') }} register]</button>
         </div>
     </form>
 
-    <div style="border-top:1px solid var(--border);padding:16px 24px;font-size:0.85rem;color:var(--subtle);text-align:center">
-        {{ _('Already have an account?') }} <a href="{{ url_for('auth.login') }}" style="color:var(--accent);text-decoration:none">[login]</a>
+    <div class="btop text-center" style="padding:16px 24px;font-size:0.85rem;color:var(--subtle)">
+        {{ _('Already have an account?') }} <a href="{{ url_for('auth.login') }}" class="text-decoration-none" style="color:var(--accent)">[{{ icon('login') }} login]</a>
     </div>
 </div>
 {% endblock %}

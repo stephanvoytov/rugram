@@ -1,3 +1,4 @@
+{% from "macros/_icons.html" import icon %}
 {% extends "base.html" %}
 
 {% block title %}settings — Rugram{% endblock %}
@@ -10,7 +11,7 @@
     </div>
 
     {# ── Global bar (language — no save needed, auto-applies) ── #}
-    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:8px 24px;border-top:1px solid var(--border);background:var(--surface0)">
+    <div class="d-flex align-items-center gap-12 flex-wrap btop" style="padding:8px 24px;background:var(--surface0)">
         <span style="font-size:0.82rem;color:var(--subtle)">[*] language:</span>
         <select id="settings-lang" class="field-input"
                 style="padding:6px 10px;font-size:0.82rem;width:auto;cursor:pointer;appearance:auto;min-width:100px">
@@ -35,49 +36,47 @@
 
             {# ── Profile section ── #}
             <div class="auth-field" style="margin-bottom:20px">
-                <label class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] username</label>
+                <label class="field-label" style="font-size:0.9rem;margin-bottom:6px">[*] username</label>
                 <input type="text" class="field-input" id="settings-username"
                        placeholder="new username" value="{{ current_user.username }}" autocomplete="off"
-                       style="padding:10px 14px;font-size:0.9rem;width:100%"
+                       style="padding:10px 14px;font-size:0.9rem"
                        oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9_]/g,'')">
                 <div style="color:var(--subtle);font-size:0.78rem;margin-top:4px">current: <b>{{ current_user.username }}</b>. leave empty to keep.</div>
             </div>
 
             <div class="auth-field" style="margin-bottom:20px">
-                <label class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] email</label>
+                <label class="field-label" style="font-size:0.9rem;margin-bottom:6px">[*] email</label>
                 <input type="email" class="field-input" id="settings-email"
                        placeholder="new email" autocomplete="new-email"
-                       style="padding:10px 14px;font-size:0.9rem;width:100%"
+                       style="padding:10px 14px;font-size:0.9rem"
                        value="{{ current_user.email }}">
                 <div style="color:var(--subtle);font-size:0.78rem;margin-top:4px">current: <b>{{ current_user.email }}</b>. leave empty to keep.</div>
             </div>
 
-            <div style="display:flex;gap:8px;margin-bottom:20px">
-                <input type="password" class="field-input" id="settings-account-pw"
+            <div class="d-flex gap-2" style="margin-bottom:20px">
+                <input type="password" class="field-input flex-1" id="settings-account-pw"
                        placeholder="current password" autocomplete="current-password"
-                       style="padding:10px 14px;font-size:0.9rem;flex:1">
-                <button type="button" class="btn-term primary" id="saveAccountBtn"
-                        style="padding:10px 20px;font-size:0.9rem">[save account]</button>
+                       style="padding:10px 14px;font-size:0.9rem"
+                <button type="button" class="btn-term primary lg" id="saveAccountBtn">[save account]</button>
             </div>
             <div id="accountStatus" style="font-size:0.82rem;margin-bottom:16px"></div>
 
             {# ── Password section ── #}
-            <div class="auth-field" style="margin-bottom:20px;padding-top:20px;border-top:1px solid var(--border)">
-                <label class="field-label" style="font-size:0.9rem;margin-bottom:8px;display:block">[*] change password</label>
-                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
-                    <input type="password" class="field-input" id="settings-cur-pw"
+            <div class="auth-field btop" style="margin-bottom:20px;padding-top:20px">
+                <label class="field-label" style="font-size:0.9rem;margin-bottom:8px">[*] change password</label>
+                <div class="d-flex flex-wrap gap-6" style="margin-bottom:8px">
+                    <input type="password" class="field-input flex-1" id="settings-cur-pw"
                            placeholder="current password" autocomplete="current-password"
-                           style="padding:10px 14px;font-size:0.9rem;flex:1;min-width:160px">
-                    <input type="password" class="field-input" id="settings-new-pw"
+                           style="padding:10px 14px;font-size:0.9rem;min-width:160px">
+                    <input type="password" class="field-input flex-1" id="settings-new-pw"
                            placeholder="new password" autocomplete="new-password"
-                           style="padding:10px 14px;font-size:0.9rem;flex:1;min-width:160px">
-                    <input type="password" class="field-input" id="settings-conf-pw"
-                           placeholder="confirm" style="padding:10px 14px;font-size:0.9rem;flex:1;min-width:160px">
+                           style="padding:10px 14px;font-size:0.9rem;min-width:160px">
+                    <input type="password" class="field-input flex-1" id="settings-conf-pw"
+                           placeholder="confirm" style="padding:10px 14px;font-size:0.9rem;min-width:160px">
                 </div>
-                <div style="display:flex;gap:8px;align-items:center">
-                    <span style="color:var(--subtle);font-size:0.78rem;flex:1">min 6 chars.</span>
-                    <button type="button" class="btn-term primary" id="savePasswordBtn"
-                            style="padding:8px 18px;font-size:0.85rem">[save password]</button>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="flex-1" style="color:var(--subtle);font-size:0.78rem">min 6 chars.</span>
+                    <button type="button" class="btn-term primary" id="savePasswordBtn">[save password]</button>
                 </div>
                 <div id="passwordStatus" style="font-size:0.82rem;margin-top:8px"></div>
             </div>
@@ -87,14 +86,14 @@
         <div class="st-panel" id="panel-appearance" style="display:none">
 
             <div class="auth-field" style="margin-bottom:20px">
-                <span class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] theme</span>
-                <div style="display:flex;gap:8px">
+                <span class="field-label" style="font-size:0.9rem;margin-bottom:6px">[*] theme</span>
+                <div class="d-flex gap-2">
                     <button type="button" class="theme-btn" data-theme="dark">
-                        <span style="display:block;font-size:1.2rem;margin-bottom:4px">🌙</span>
+                        <span style="display:block;font-size:1.3rem;margin-bottom:4px">{{ icon('moon') }}</span>
                         dark
                     </button>
                     <button type="button" class="theme-btn" data-theme="light">
-                        <span style="display:block;font-size:1.2rem;margin-bottom:4px">☀️</span>
+                        <span style="display:block;font-size:1.3rem;margin-bottom:4px">{{ icon('sun') }}</span>
                         light
                     </button>
                 </div>
@@ -102,8 +101,8 @@
             </div>
 
             <div class="auth-field" style="margin-bottom:20px">
-                <label class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] terminal font size</label>
-                <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <label class="field-label" style="font-size:0.9rem;margin-bottom:6px">[*] terminal font size</label>
+                <div class="d-flex gap-6 flex-wrap">
                     <button type="button" class="fs-btn" data-size="12px" style="font-size:0.75rem">12px</button>
                     <button type="button" class="fs-btn" data-size="13px" style="font-size:0.8rem">13px</button>
                     <button type="button" class="fs-btn" data-size="14px" style="font-size:0.85rem">14px</button>
@@ -119,38 +118,38 @@
         {# ════════════ NOTIFICATIONS ════════════ #}
         <div class="st-panel" id="panel-notifications" style="display:none">
             <div class="auth-field" style="margin-bottom:20px">
-                <span class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] push notifications</span>
-                <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:6px">
-                    <input type="checkbox" id="notif-enabled" style="width:18px;height:18px;cursor:pointer"
+                <span class="field-label" style="font-size:0.9rem;margin-bottom:6px">[*] push notifications</span>
+                <div class="d-flex align-items-center gap-10 bordered" style="padding:10px 14px;background:var(--surface);border-radius:6px">
+                    <input type="checkbox" id="notif-enabled" class="cursor-pointer" style="width:18px;height:18px"
                            {{ 'checked' if current_user.notifications_enabled else '' }}>
-                    <label for="notif-enabled" style="cursor:pointer;color:var(--fg);font-size:0.88rem;flex:1">receive push notifications</label>
+                    <label for="notif-enabled" class="cursor-pointer flex-1" style="color:var(--fg);font-size:0.88rem">receive push notifications</label>
                     <span style="color:var(--subtle);font-size:0.75rem">browser</span>
                 </div>
                 <div style="margin-top:6px;padding:4px 14px;font-size:0.82rem" id="notifStatus">checking...</div>
             </div>
 
             <div class="auth-field" style="margin-bottom:20px">
-                <span class="field-label" style="font-size:0.9rem;margin-bottom:8px;display:block">[*] notify me about</span>
-                <div style="display:flex;flex-direction:column;gap:6px">
-                    <label style="display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer">
-                        <input type="checkbox" class="notif-type" data-field="notify_on_like" style="width:16px;height:16px;cursor:pointer"
+                <span class="field-label" style="font-size:0.9rem;margin-bottom:8px">[*] notify me about</span>
+                <div class="d-flex flex-column gap-6">
+                    <label class="d-flex align-items-center gap-10 bordered cursor-pointer" style="padding:8px 14px;background:var(--surface);border-radius:6px">
+                        <input type="checkbox" class="notif-type cursor-pointer" data-field="notify_on_like" style="width:16px;height:16px"
                                {{ 'checked' if current_user.notify_on_like else '' }}>
-                        <span style="flex:1;color:var(--fg);font-size:0.85rem">likes</span>
+                        <span class="flex-1" style="color:var(--fg);font-size:0.85rem">likes</span>
                     </label>
-                    <label style="display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer">
-                        <input type="checkbox" class="notif-type" data-field="notify_on_comment" style="width:16px;height:16px;cursor:pointer"
+                    <label class="d-flex align-items-center gap-10 bordered cursor-pointer" style="padding:8px 14px;background:var(--surface);border-radius:6px">
+                        <input type="checkbox" class="notif-type cursor-pointer" data-field="notify_on_comment" style="width:16px;height:16px"
                                {{ 'checked' if current_user.notify_on_comment else '' }}>
-                        <span style="flex:1;color:var(--fg);font-size:0.85rem">comments</span>
+                        <span class="flex-1" style="color:var(--fg);font-size:0.85rem">comments</span>
                     </label>
-                    <label style="display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer">
-                        <input type="checkbox" class="notif-type" data-field="notify_on_follow" style="width:16px;height:16px;cursor:pointer"
+                    <label class="d-flex align-items-center gap-10 bordered cursor-pointer" style="padding:8px 14px;background:var(--surface);border-radius:6px">
+                        <input type="checkbox" class="notif-type cursor-pointer" data-field="notify_on_follow" style="width:16px;height:16px"
                                {{ 'checked' if current_user.notify_on_follow else '' }}>
-                        <span style="flex:1;color:var(--fg);font-size:0.85rem">follows</span>
+                        <span class="flex-1" style="color:var(--fg);font-size:0.85rem">follows</span>
                     </label>
-                    <label style="display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer">
-                        <input type="checkbox" class="notif-type" data-field="notify_on_message" style="width:16px;height:16px;cursor:pointer"
+                    <label class="d-flex align-items-center gap-10 bordered cursor-pointer" style="padding:8px 14px;background:var(--surface);border-radius:6px">
+                        <input type="checkbox" class="notif-type cursor-pointer" data-field="notify_on_message" style="width:16px;height:16px"
                                {{ 'checked' if current_user.notify_on_message else '' }}>
-                        <span style="flex:1;color:var(--fg);font-size:0.85rem">messages</span>
+                        <span class="flex-1" style="color:var(--fg);font-size:0.85rem">messages</span>
                     </label>
                 </div>
                 <div style="color:var(--subtle);font-size:0.78rem;margin-top:4px">changes saved automatically.</div>
@@ -164,11 +163,10 @@
                 <span class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block;color:var(--red)">[!] delete account</span>
 
                 <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg);border:1px solid var(--red);border-radius:6px">
-                    <input type="password" class="field-input" id="delete-password"
+                    <input type="password" class="field-input flex-1" id="delete-password"
                            placeholder="current password" autocomplete="current-password"
-                           style="padding:10px 14px;font-size:0.85rem;flex:1;min-width:140px">
-                    <button type="button" class="btn-term" id="deleteAccountBtn"
-                            style="border-color:var(--red);color:var(--red);padding:10px 18px;white-space:nowrap">[delete account]</button>
+                           style="padding:10px 14px;font-size:0.85rem;min-width:140px">
+                    <button type="button" class="btn-term danger" id="deleteAccountBtn">[delete account]</button>
                 </div>
                 <div style="color:var(--subtle);font-size:0.78rem;margin-top:8px">This will permanently remove your profile, posts, comments, likes, chats, and all associated data. This action cannot be undone.</div>
             </div>
@@ -177,7 +175,7 @@
     </div>
 
     {# ── User info footer ── #}
-    <div style="border-top:1px solid var(--border);padding:12px 24px;font-size:0.82rem;color:var(--subtle);display:grid;grid-template-columns:1fr 1fr;gap:4px;word-break:break-all">
+    <div class="btop" style="padding:12px 24px;font-size:0.82rem;color:var(--subtle);display:grid;grid-template-columns:1fr 1fr;gap:4px;word-break:break-all">
         <span>username: <b style="color:var(--fg)">{{ current_user.username }}</b></span>
         <span>email: <b style="color:var(--fg)">{{ current_user.email }}</b></span>
         <span>joined: <b style="color:var(--fg)">{{ current_user.created_date.strftime('%Y-%m-%d') if current_user.created_date else '?' }}</b></span>
@@ -190,7 +188,7 @@
     <div class="modal-box" style="max-width:440px">
         <div class="modal-box-header" style="border-bottom:2px solid var(--red);padding:14px 18px">
             <span style="color:var(--red);font-size:0.9rem"><b>[*] confirm account deletion</b></span>
-            <button class="btn-term" onclick="document.getElementById('deleteAccountModal').classList.add('d-none')" style="font-size:1.2rem">&times;</button>
+            <button class="btn-term" onclick="document.getElementById('deleteAccountModal').classList.add('d-none')" style="font-size:1.3rem;line-height:1">&times;</button>
         </div>
         <div class="modal-box-body" style="padding:18px;font-size:0.88rem">
             <p style="color:var(--red);margin-bottom:12px">This will permanently delete everything:</p>
@@ -202,9 +200,9 @@
             </ul>
             <p style="margin:0"><b>Are you sure?</b></p>
         </div>
-        <div class="modal-box-footer" style="padding:12px 18px;display:flex;justify-content:flex-end;gap:8px">
-            <button class="btn-term" onclick="document.getElementById('deleteAccountModal').classList.add('d-none')" style="padding:8px 16px">[cancel]</button>
-            <button class="btn-term" id="confirmDeleteBtn" style="border-color:var(--red);color:var(--red);padding:8px 16px">[delete account]</button>
+        <div class="modal-box-footer d-flex justify-content-end gap-2" style="padding:12px 18px">
+            <button class="btn-term" onclick="document.getElementById('deleteAccountModal').classList.add('d-none')">[cancel]</button>
+            <button class="btn-term danger" id="confirmDeleteBtn">[delete account]</button>
         </div>
     </div>
 </div>

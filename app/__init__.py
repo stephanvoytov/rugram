@@ -130,6 +130,7 @@ def create_app():
     static_dir = os.path.join(app.root_path, "static")
     static_files = [
         os.path.join(static_dir, "css", "style.css"),
+        os.path.join(static_dir, "js", "icons.js"),
         os.path.join(static_dir, "js", "main.js"),
         os.path.join(static_dir, "js", "terminal.js"),
         os.path.join(static_dir, "sw.js"),

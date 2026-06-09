@@ -1,3 +1,4 @@
+{% from "macros/_icons.html" import icon %}
 {% extends "base.html" %}
 {% block title %}help — Rugram{% endblock %}
 {% block robots %}index,follow{% endblock %}
@@ -10,10 +11,10 @@
     </div>
 
     <!-- Tab bar -->
-    <div style="display:flex;gap:0;border-bottom:2px solid var(--border);padding:0">
-        <button class="help-tab active" data-tab="about" style="flex:1;padding:10px;background:none;border:none;border-bottom:2px solid var(--accent);color:var(--accent);cursor:pointer;font-family:var(--font);font-size:0.85rem">[about]</button>
-        <button class="help-tab" data-tab="commands" style="flex:1;padding:10px;background:none;border:none;border-bottom:2px solid transparent;color:var(--subtle);cursor:pointer;font-family:var(--font);font-size:0.85rem">[commands]</button>
-        <button class="help-tab" data-tab="filesystem" style="flex:1;padding:10px;background:none;border:none;border-bottom:2px solid transparent;color:var(--subtle);cursor:pointer;font-family:var(--font);font-size:0.85rem">[filesystem]</button>
+    <div class="d-flex" style="border-bottom:2px solid var(--border)">
+        <button class="help-tab active" data-tab="about">[about]</button>
+        <button class="help-tab" data-tab="commands">[commands]</button>
+        <button class="help-tab" data-tab="filesystem">[filesystem]</button>
     </div>
 
     <!-- ── TAB: About ── -->
@@ -56,10 +57,10 @@
         <div style="padding:14px 16px;background:var(--surface);border:1px solid var(--border)">
             <div style="color:var(--green);margin-bottom:8px;font-size:0.82rem">$ <span style="color:var(--accent)">cat</span> /about/links.txt</div>
             <div style="padding-left:14px;border-left:2px solid var(--overlay)">
-                <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px">
-                    <a href="https://github.com/stephanvoytov/rugram" target="_blank" rel="noopener" class="btn-term" style="padding:4px 12px;text-decoration:none;font-size:0.82rem">[github]</a>
-                    <a href="{{ url_for('main.index') }}" class="btn-term" style="padding:4px 12px;text-decoration:none;font-size:0.82rem">[feed]</a>
-                    <a href="{{ url_for('auth.register') }}" class="btn-term" style="padding:4px 12px;text-decoration:none;font-size:0.82rem">[register]</a>
+                <div class="d-flex gap-12 flex-wrap" style="margin-bottom:8px">
+                    <a href="https://github.com/stephanvoytov/rugram" target="_blank" rel="noopener" class="btn-term text-decoration-none">[github]</a>
+                    <a href="{{ url_for('main.index') }}" class="btn-term text-decoration-none">[{{ icon('home') }} feed]</a>
+                    <a href="{{ url_for('auth.register') }}" class="btn-term text-decoration-none">[{{ icon('plus') }} register]</a>
                 </div>
                 <div style="font-size:0.78rem;color:var(--subtle)">
                     {{ _('MIT License') }}
@@ -67,17 +68,17 @@
             </div>
         </div>
 
-        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);font-size:0.78rem;color:var(--subtle);text-align:center">
+        <div class="btop text-center" style="margin-top:16px;padding-top:16px;font-size:0.78rem;color:var(--subtle)">
             {{ _('Type') }} <code style="background:var(--surface2);padding:1px 6px">neofetch</code> {{ _('in the terminal for your profile') }}
         </div>
     </div>
 
     <!-- ── TAB: Commands ── -->
-    <div class="help-panel" id="panel-commands" style="display:none;padding:24px;font-size:0.88rem;line-height:1.7">
+    <div class="help-panel d-none" id="panel-commands" style="padding:24px;font-size:0.88rem;line-height:1.7">
         <div class="tty-help-section">
             <p class="tty-help-intro" style="margin-bottom:12px;color:var(--subtext)">
                 {{ _('All commands are in English') }} — <code>help</code> {{ _('in the terminal to get started.') }}
-                {{ _('Use the') }} <strong>[>_]</strong> {{ _('button in the top bar to open the terminal.') }}
+                {{ _('Use the') }} <strong>[{{ icon('terminal') }} TTY]</strong> {{ _('button in the top bar to open the terminal.') }}
             </p>
 
             {%- set sections = [
@@ -183,7 +184,7 @@
     </div>
 
     <!-- ── TAB: Filesystem ── -->
-    <div class="help-panel" id="panel-filesystem" style="display:none;padding:24px;font-size:0.88rem;line-height:1.7">
+    <div class="help-panel d-none" id="panel-filesystem" style="padding:24px;font-size:0.88rem;line-height:1.7">
         <p class="tty-help-intro" style="margin-bottom:12px;color:var(--subtext)">
             {{ _('Navigate with') }} <code>cd</code>, {{ _('list with') }} <code>ls</code>,
             <code>cat</code> {{ _('reads files') }}, <code>nano</code> {{ _('edits') }}.
@@ -196,7 +197,7 @@
             </div>
 
             <details open style="margin-bottom:6px">
-                <summary style="cursor:pointer;padding:2px 0"><span class="tty-help-cmd">posts/</span>
+                <summary class="cursor-pointer" style="padding:2px 0"><span class="tty-help-cmd">posts/</span>
                     <span class="tty-help-desc">— {{ _('post feed') }}</span></summary>
                 <div style="padding-left:28px">
                     <div><span class="tty-help-cmd">42.post</span> <span class="tty-help-desc">— {{ _('post (cat, nano)') }}</span></div>
@@ -300,9 +301,7 @@
 
     function switchTab(name) {
         tabs.forEach(function(t) {
-            var isActive = t.dataset.tab === name;
-            t.style.borderBottomColor = isActive ? 'var(--accent)' : 'transparent';
-            t.style.color = isActive ? 'var(--accent)' : 'var(--subtle)';
+            t.classList.toggle('active', t.dataset.tab === name);
         });
         Object.keys(panels).forEach(function(key) {
             panels[key].style.display = key === name ? '' : 'none';

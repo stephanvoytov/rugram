@@ -31,9 +31,10 @@ class Config:
     )
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024
 
-    # Auto-reload templates on every request (no need to restart after docker cp)
-    # Enabled only when FLASK_DEBUG is set (local dev)
-    TEMPLATES_AUTO_RELOAD = os.environ.get("FLASK_DEBUG", "").lower() in ("1", "true")
+    # Auto-reload templates on every request + no static cache (local dev only)
+    _debug = os.environ.get("FLASK_DEBUG", "").lower() in ("1", "true")
+    TEMPLATES_AUTO_RELOAD = _debug
+    SEND_FILE_MAX_AGE_DEFAULT = 0 if _debug else None
 
     # Rate limiting
     RATELIMIT_ENABLED = os.environ.get("RATELIMIT_ENABLED", "true").lower() in ("1", "true")

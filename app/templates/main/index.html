@@ -1,3 +1,4 @@
+{% from "macros/_icons.html" import icon %}
 {% extends "base.html" %}
 
 {% set is_subs = request.args.get('followed') == '1' %}
@@ -41,12 +42,12 @@
        class="filter-item {% if sort_by == 'new' %}active{% endif %}">new</a>
 
     {% if current_user.is_authenticated %}
-    <a href="{{ url_for('posts.create_post') }}" class="filter-item" style="margin-left:auto">[+ create]</a>
+    <a href="{{ url_for('posts.create_post') }}" class="filter-item" style="margin-left:auto">[{{ icon('plus') }} create]</a>
     {% endif %}
 </div>
 
 <!-- Search bar -->
-<form action="{{ url_for('main.index') }}" method="GET" class="search-bar" style="display:flex;gap:6px;margin-bottom:8px;align-items:center;flex-wrap:wrap">
+<form action="{{ url_for('main.index') }}" method="GET" class="search-bar d-flex gap-6 align-items-center flex-wrap" style="margin-bottom:8px">
     <input type="search" name="q" value="{{ search_query }}"
            placeholder="{{ _('search posts…') }}"
            aria-label="Search posts"
@@ -54,12 +55,12 @@
     {% if tag_filter %}<input type="hidden" name="tag" value="{{ tag_filter }}">{% endif %}
     {% if request.args.get('followed') %}<input type="hidden" name="followed" value="1">{% endif %}
     <input type="hidden" name="sort" value="{{ sort_by }}">
-    <button type="submit" class="btn-term" style="padding:6px 12px">[search]</button>
-    {% if search_query %}<a href="{{ url_for('main.index', tag=tag_filter, sort=sort_by, followed=request.args.get('followed', '')) }}" class="btn-term" style="padding:6px 12px;text-decoration:none">[×]</a>{% endif %}
+    <button type="submit" class="btn-term sm">[{{ icon('search') }} search]</button>
+    {% if search_query %}<a href="{{ url_for('main.index', tag=tag_filter, sort=sort_by, followed=request.args.get('followed', '')) }}" class="btn-term sm text-decoration-none">[{{ icon('x') }}]</a>{% endif %}
 </form>
 
 <!-- Search autocomplete dropdown -->
-<div id="search-ac" class="search-ac" style="display:none;background:var(--surface0);border:1px solid var(--border);border-radius:6px;margin-bottom:8px;max-height:280px;overflow-y:auto;font-size:0.82rem"></div>
+<div id="search-ac" class="search-ac d-none" style="background:var(--surface0);border:1px solid var(--border);border-radius:6px;margin-bottom:8px;max-height:280px;overflow-y:auto;font-size:0.82rem"></div>
 
 {# Trending tags #}
 {% if trending_tags %}
@@ -76,18 +77,18 @@
     <form action="{{ url_for('posts.create_post') }}" method="POST" enctype="multipart/form-data" id="quickPostForm">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <textarea name="text" id="quickPostText" placeholder="[>] type something... (#python #web)" rows="2" maxlength="3000" required></textarea>
-        <div class="tag-preview" id="quickTagPreview" style="display:none">
+        <div class="tag-preview d-none" id="quickTagPreview">
             <span class="tag-preview-label">tags:</span>
             <span class="tag-preview-tags" id="quickTagList"></span>
         </div>
         <div class="create-actions">
             <span class="hint">[*] Ctrl+Enter to post</span>
-            <div style="display:flex;gap:4px">
-                <label class="btn-term" style="cursor:pointer;display:inline-block">
-                    [attach]
+            <div class="d-flex gap-1">
+                <label class="btn-term cursor-pointer d-inline-block">
+                    [{{ icon('paperclip') }} attach]
                     <input type="file" name="image" accept="image/*" style="display:none" onchange="this.form.querySelector('.hint').textContent='[1] file selected'">
                 </label>
-                <button type="submit" class="btn-term primary">[>> post]</button>
+                <button type="submit" class="btn-term primary">[{{ icon('send') }} post]</button>
             </div>
         </div>
         {% if trending_tags %}
@@ -109,15 +110,15 @@
 <!-- Pagination -->
 {% if pagination.pages > 1 %}
 {% set _common_args = {'tag': tag_filter, 'sort': sort_by, 'followed': request.args.get('followed', '')} %}
-<div class="filter-line" style="justify-content:center;border-bottom:none">
+<div class="filter-line justify-content-center" style="border-bottom:none">
     {% if pagination.has_prev %}
-    <a href="{{ url_for('main.index', page=pagination.prev_num, **_common_args) }}" class="filter-item">[&lt;&lt; prev]</a>
+    <a href="{{ url_for('main.index', page=pagination.prev_num, **_common_args) }}" class="filter-item">[{{ icon('chevrons_left') }} prev]</a>
     {% endif %}
     {% for p in range(1, pagination.pages + 1) %}
     <a href="{{ url_for('main.index', page=p, **_common_args) }}" class="filter-item {% if p == pagination.page %}active{% endif %}">#{{ p }}</a>
     {% endfor %}
     {% if pagination.has_next %}
-    <a href="{{ url_for('main.index', page=pagination.next_num, **_common_args) }}" class="filter-item">[next &gt;&gt;]</a>
+    <a href="{{ url_for('main.index', page=pagination.next_num, **_common_args) }}" class="filter-item">[next {{ icon('chevrons_right') }}]</a>
     {% endif %}
 </div>
 {% endif %}

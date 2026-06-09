@@ -1,9 +1,10 @@
+{% from "macros/_icons.html" import icon %}
 {% extends "base.html" %}
 {% block title %}logs · rugram admin{% endblock %}
 {% block robots %}noindex,nofollow{% endblock %}
 
 {% block content %}
-<h1 style="margin-bottom:4px">[*] structured logs</h1>
+<h1 class="mb-1">{{ icon('shield') }} structured logs</h1>
 <p class="text-secondary" style="font-size:0.85rem;margin-bottom:20px">
   <a href="{{ url_for('admin.dashboard') }}">dashboard</a> ·
   <a href="{{ url_for('admin.users') }}">users</a> ·
@@ -14,7 +15,7 @@
 </p>
 
 <!-- Filters -->
-<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+<div class="d-flex gap-2 flex-wrap align-items-center" style="margin-bottom:16px">
   <a href="{{ url_for('admin.logs_view') }}" class="lg-filter {% if not level and not q %}active{% endif %}">all</a>
   <a href="{{ url_for('admin.logs_view', level='critical') }}" class="lg-filter lg-critical {% if level == 'critical' %}active{% endif %}">critical</a>
   <a href="{{ url_for('admin.logs_view', level='error') }}" class="lg-filter lg-error {% if level == 'error' %}active{% endif %}">error</a>
@@ -22,12 +23,12 @@
   <a href="{{ url_for('admin.logs_view', level='info') }}" class="lg-filter lg-info {% if level == 'info' %}active{% endif %}">info</a>
   <a href="{{ url_for('admin.logs_view', level='debug') }}" class="lg-filter {% if level == 'debug' %}active{% endif %}">debug</a>
   <span style="color:var(--subtle);font-size:0.72rem;margin:0 4px">|</span>
-  <form method="GET" action="{{ url_for('admin.logs_view') }}" style="display:inline-flex;gap:4px;align-items:center">
+  <form method="GET" action="{{ url_for('admin.logs_view') }}" class="d-inline-flex align-items-center gap-1">
     {% if level %}<input type="hidden" name="level" value="{{ level }}">{% endif %}
     <input type="text" name="q" value="{{ q }}" placeholder="search logs"
            style="background:var(--bg);border:1px solid var(--border);color:var(--fg);padding:2px 8px;font-size:0.72rem;font-family:var(--font);width:160px">
-    <button type="submit" class="btn-term" style="font-size:0.65rem">[search]</button>
-    {% if q %}<a href="{{ url_for('admin.logs_view', level=level) }}" class="btn-term" style="font-size:0.65rem">[clear]</a>{% endif %}
+    <button type="submit" class="btn-term sm">[{{ icon('search') }} search]</button>
+    {% if q %}<a href="{{ url_for('admin.logs_view', level=level) }}" class="btn-term sm">[{{ icon('x') }} clear]</a>{% endif %}
   </form>
 </div>
 

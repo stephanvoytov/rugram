@@ -1,3 +1,4 @@
+{% from "macros/_icons.html" import icon %}
 {% extends "base.html" %}
 {% block title %}admin · rugram{% endblock %}
 {% block robots %}noindex,nofollow{% endblock %}
@@ -7,7 +8,7 @@
 {% endblock %}
 
 {% block content %}
-<h1 style="margin-bottom:4px">[*] admin</h1>
+<h1 style="margin-bottom:4px">{{ icon('shield') }} admin</h1>
 <p class="text-secondary" style="font-size:0.85rem;margin-bottom:20px">
    dashboard ·
   <a href="{{ url_for('admin.users') }}">users</a> ·

@@ -46,16 +46,29 @@
 .ctx-item:hover { border-color:var(--accent); color:var(--accent) !important; }
 .ctx-item.ctx-danger { color:var(--subtle); }
 .ctx-item.ctx-danger:hover { border-color:var(--red); color:var(--red) !important; }
+
+/* Chat input buttons base size */
+#attachBtn, #emojiBtn { padding: 4px 8px; font-size: 1rem; line-height: 1; }
+@media (max-width: 767.98px) {
+    #attachBtn, #emojiBtn { padding: 4px 5px; font-size: 0.85rem; }
+    #sendBtn { padding: 4px 8px; font-size: 0.82rem; }
+}
+@media (max-width: 480px) {
+    #attachBtn, #emojiBtn { padding: 3px 4px; font-size: 0.75rem; }
+    .chat-input-area { padding: 8px 10px; }
+    .chat-input { padding: 6px 10px; }
+}
 </style>
 {% endblock %}
 
+{% from "macros/_icons.html" import icon %}
 {% block content %}
 <div class="chat-layout">
     <!-- Chat list column -->
     <div class="chat-list-col" id="chatListColumn">
         <div class="chat-list-header">
             <span><b>[chats]</b></span>
-            <button class="btn-term" id="newChatBtnLeft">[+ new]</button>
+            <button class="btn-term" id="newChatBtnLeft">[{{ icon('plus') }} new]</button>
         </div>
         <div class="chat-list-scroll" id="chatList">
             <div class="text-center py-5" style="color:var(--subtle)">{{ _('Loading...') }}</div>
@@ -67,7 +80,7 @@
         <!-- Active chat area -->
         <div class="d-none flex-column flex-grow-1" id="chatArea">
             <div class="chat-detail-header">
-                <button class="btn-term" id="chatBackBtn" title="Back">[&larr;]</button>
+                <button class="btn-term" id="chatBackBtn" title="Back">[{{ icon('arrow_left') }}]</button>
                 <img id="chatAvatar" src="" alt="avatar" width="32" height="32" class="chat-avatar"
                      onerror="this.src='{{ url_for('static', filename='default-profile.png') }}'">
                 <div>
@@ -79,14 +92,14 @@
             <div class="chat-messages" id="messagesContainer"></div>
 
             <div class="chat-input-area">
-                <form id="messageForm" style="display:flex;gap:4px;flex:1">
+                <form id="messageForm" class="d-flex gap-1 flex-1">
                     <input type="file" id="fileInput" accept="image/*" style="display:none">
                     <input type="text" id="messageInput" class="chat-input" placeholder="{{ _('Type a message...') }}" autocomplete="off">
-                    <button type="button" class="btn-term" id="attachBtn" title="Attach image" style="padding:4px 8px;font-size:1rem;line-height:1">[📎]</button>
-                    <button type="button" class="btn-term" id="emojiBtn" title="Emoji" style="padding:4px 8px;font-size:1rem;line-height:1">[😊]</button>
-                    <button type="submit" class="btn-term primary">[>>]</button>
+                    <button type="button" class="btn-term" id="attachBtn" title="Attach image">[{{ icon('paperclip') }}]</button>
+                    <button type="button" class="btn-term" id="emojiBtn" title="Emoji">[{{ icon('smile') }}]</button>
+                    <button type="submit" class="btn-term primary" id="sendBtn">[{{ icon('send') }}]</button>
                 </form>
-                <div style="display:flex;gap:4px;align-items:center;padding:2px 4px">
+                <div class="d-flex align-items-center gap-1" style="padding:2px 4px">
                     <span id="filePreview" style="display:none;font-size:0.75rem;color:var(--subtle)"></span>
                 </div>
                 <div id="emojiPicker" class="emoji-picker" style="display:none"></div>
@@ -95,7 +108,7 @@
 
         <!-- Empty state -->
         <div class="d-flex flex-column align-items-center justify-content-center flex-grow-1" id="noChatSelected">
-            <span style="font-size:2rem;color:var(--subtle);font-family:var(--font)">[✉]</span>
+            <span style="font-size:2rem;color:var(--subtle);font-family:var(--font)">[{{ icon('chat') }}]</span>
             <div style="margin-top:12px;color:var(--fg)">select a chat</div>
             <div style="font-size:0.8rem;color:var(--subtle)">or start a new one</div>
         </div>
@@ -103,20 +116,20 @@
 </div>
 
 <!-- New chat modal -->
-<div class="modal-overlay d-none" id="newChatModal" style="position:fixed;inset:0;z-index:1050;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center">
+<div class="modal-overlay d-none d-flex align-items-center justify-content-center" id="newChatModal" style="position:fixed;inset:0;z-index:1050;background:rgba(0,0,0,0.7)">
     <div class="modal-box">
         <div class="modal-box-header">
             <span><b>[new chat]</b></span>
             <button class="btn-term" onclick="document.getElementById('newChatModal').classList.add('d-none')">&times;</button>
         </div>
         <div class="modal-box-body" style="padding:12px">
-            <div style="display:flex;gap:4px;margin-bottom:8px">
-                <input type="text" class="chat-input" id="newChatUsername" placeholder="{{ _('Search users...') }}" autocomplete="off" style="flex:1">
+            <div class="d-flex gap-1" style="margin-bottom:8px">
+                <input type="text" class="chat-input flex-1" id="newChatUsername" placeholder="{{ _('Search users...') }}" autocomplete="off">
                 <button class="btn-term" id="searchUserBtn">[search]</button>
             </div>
             <div id="searchResults"></div>
         </div>
-        <div class="modal-box-footer" style="padding:8px 12px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:4px">
+        <div class="modal-box-footer btop d-flex justify-content-end gap-1" style="padding:8px 12px">
             <button class="btn-term" onclick="document.getElementById('newChatModal').classList.add('d-none')">[cancel]</button>
             <button class="btn-term primary" id="startChatBtn" disabled>[start]</button>
         </div>
@@ -186,6 +199,17 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('newChatUsername').addEventListener('keypress', function(e) { if (e.key === 'Enter') searchUser(); });
     document.getElementById('startChatBtn').addEventListener('click', startNewChat);
     document.getElementById('chatBackBtn').addEventListener('click', closeChatMobile);
+
+    // ── Fix chat layout bottom edge = bottom-nav height ──
+    function fixChatBottom() {
+        var nav = document.querySelector('.bottom-nav');
+        var chat = document.querySelector('.chat-layout');
+        if (nav && chat && window.innerWidth <= 600) {
+            chat.style.bottom = nav.offsetHeight + 'px';
+        }
+    }
+    fixChatBottom();
+    window.addEventListener('resize', fixChatBottom);
 });
 
 async function loadChatList() {
@@ -225,13 +249,13 @@ function createChatItem(chat) {
     const unreadBadge = chat.unread_count > 0 ? ' <span class="notif-badge" style="position:static;display:inline;font-size:0.7rem">' + chat.unread_count + '</span>' : '';
     const onlineDot = chat.other_user.is_online ? '<span class="chat-online-dot"></span>' : '';
 
-    div.innerHTML = '<div style="display:flex;align-items:center;gap:8px">'
+    div.innerHTML = '<div class="d-flex align-items-center gap-2">'
         + '<div class="chat-avatar-wrapper">'
             + '<img src="' + (chat.other_user.profile_image ? '{{ url_for('static', filename='uploads/profile_images/') }}' + chat.other_user.profile_image : '{{ url_for('static', filename='default-profile.png') }}') + '" alt="' + chat.other_user.username + ' avatar" width="36" height="36" class="chat-avatar" onerror="this.src=\'{{ url_for('static', filename='default-profile.png') }}\'">'
             + onlineDot
         + '</div>'
-        + '<div style="flex:1;min-width:0">'
-        + '<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-weight:600">' + chat.other_user.username + '</span><small style="color:var(--subtle);font-size:0.7rem">' + formatDate(chat.last_message_date) + '</small></div>'
+        + '<div class="flex-1 min-width-0">'
+        + '<div class="d-flex justify-content-between align-items-baseline"><span style="font-weight:600">' + chat.other_user.username + '</span><small style="color:var(--subtle);font-size:0.7rem">' + formatDate(chat.last_message_date) + '</small></div>'
         + '<div style="color:var(--subtle);font-size:0.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escapeHtml(chat.last_message || 'no messages') + '</div>'
         + '</div>' + unreadBadge + '</div>';
 
@@ -351,10 +375,10 @@ async function loadOlderMessages() {
     isLoadingOlder = false;
 }
 
-function appendMessages(container, messages, prepend) {
+function appendMessages(container, messages, prepend, initialDate) {
     prepend = prepend || false;
-    let lastDate = null;
-    if (prepend && container.firstChild) {
+    let lastDate = initialDate || null;
+    if (prepend && container.firstChild && !lastDate) {
         const firstExisting = container.querySelector('.message-item');
         if (firstExisting) lastDate = getMessageDate(firstExisting.dataset.messageDate);
     }
@@ -831,7 +855,9 @@ async function pollMessages() {
         // Append new messages only (no DOM destruction)
         if (data.messages && data.messages.length > 0) {
             const wasNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 60;
-            appendMessages(container, data.messages);
+            const lastExisting = container.querySelector('.message-item:last-child');
+            const initialDate = lastExisting ? getMessageDate(lastExisting.dataset.messageDate) : null;
+            appendMessages(container, data.messages, false, initialDate);
             if (wasNearBottom) container.scrollTop = container.scrollHeight;
         }
 

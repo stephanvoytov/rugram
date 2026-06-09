@@ -1,21 +1,19 @@
+{% from "macros/_icons.html" import icon %}
 {% extends "base.html" %}
 
 {% block title %}notifications — Rugram{% endblock %}
 
 {% block content %}
 <div class="terminal-box" style="max-width:600px;margin:20px auto">
-    <div class="auth-header" style="justify-content:space-between">
-        <span>
-            <span class="auth-title">[notifications]</span>
-            <span class="auth-subtitle">notifications</span>
-        </span>
-        <button class="btn-term" id="markAllReadBtn">[mark all read]</button>
+    <div class="auth-header" style="flex-wrap:wrap;gap:6px">
+        <span class="auth-title">[notifications]</span>
+        <button class="btn-term" id="markAllReadBtn" style="margin-left:auto;font-size:0.75rem">[mark all read]</button>
     </div>
 
     <div id="notificationsLoading" class="text-center" style="padding:40px;color:var(--subtle)">{{ _('Loading...') }}</div>
 
-    <div id="notificationsEmpty" class="text-center" style="padding:40px;color:var(--subtle);display:none">
-        <span style="font-size:2rem">[📭]</span>
+    <div id="notificationsEmpty" class="text-center d-none" style="padding:40px;color:var(--subtle)">
+        <div style="font-size:2rem">{{ icon('bell') }}</div>
         <div style="margin-top:8px">{{ _('No notifications') }}</div>
     </div>
 
@@ -47,20 +45,22 @@ function renderNotification(n) {
     const actor = n.actor.username;
     const profileUrl = '{{ url_for('main.profile', user_id_or_username='') }}' + n.actor.id;
     const postUrl = n.post_id ? '{{ url_for('posts.get_post', post_id=0) }}'.replace('/0', '/' + n.post_id) : null;
-    let msg = '', icon = '';
+    let msg = '', iconName = '';
     switch (n.type) {
-        case 'like': msg = '<a href="' + profileUrl + '">' + actor + '</a> liked'; icon = '[♥]'; break;
-        case 'comment': msg = '<a href="' + profileUrl + '">' + actor + '</a> commented'; icon = '[💬]'; break;
-        case 'follow': msg = '<a href="' + profileUrl + '">' + actor + '</a> followed you'; icon = '[+]'; break;
-        default: msg = actor; icon = '[*]';
+        case 'like': msg = '<a href="' + profileUrl + '">' + actor + '</a> liked'; iconName = 'heart'; break;
+        case 'comment': msg = '<a href="' + profileUrl + '">' + actor + '</a> commented'; iconName = 'comment'; break;
+        case 'follow': msg = '<a href="' + profileUrl + '">' + actor + '</a> followed you'; iconName = 'plus'; break;
+        default: msg = actor; iconName = '';
     }
     if (postUrl) msg += ' <a href="' + postUrl + '">your post</a>';
-    return '<div class="post-card nf-item ' + (n.is_read ? '' : 'unread') + '" data-id="' + n.id + '">'
-        + '<div class="post-header" style="justify-content:space-between">'
-        + '<span>' + icon + ' ' + msg + '</span>'
-        + '<small style="color:var(--subtle);font-size:0.7rem">' + formatDate(n.created_date) + '</small>'
-        + '</div>'
-        + (!n.is_read ? '<div style="padding:4px 0"><button class="btn-term mark-read-btn" data-id="' + n.id + '" style="font-size:0.7rem">[read]</button></div>' : '')
+    var iconHtml = iconName ? iconSVG(iconName) : '[*]';
+    return '<div class="notif-item' + (n.is_read ? '' : ' unread') + '" data-id="' + n.id + '">'
+        + '<span class="notif-icon">' + iconHtml + '</span>'
+        + '<span class="notif-body">' + msg + '</span>'
+        + '<span class="notif-time">' + formatDate(n.created_date) + '</span>'
+        + (!n.is_read
+            ? '<button class="btn-term mark-read-btn" data-id="' + n.id + '">[read]</button>'
+            : '')
         + '</div>';
 }
 
@@ -95,7 +95,7 @@ async function markAllRead() {
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content }
         });
         if (r.ok) {
-            document.querySelectorAll('.nf-item').forEach(function(el) {
+            document.querySelectorAll('.notif-item').forEach(function(el) {
                 el.classList.remove('unread');
                 const btn = el.querySelector('.mark-read-btn');
                 if (btn) btn.remove();

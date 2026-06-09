@@ -1,22 +1,23 @@
+{% from "macros/_icons.html" import icon %}
 {% macro render_post(post, current_user, hide_meta=False) %}
 <div class="post-card" data-post-id="{{ post.id }}" data-post-url="{{ url_for('posts.get_post', post_id=post.id) }}">
     <div class="post-header">
         <span class="post-id"><b>[#{{ post.id }}]</b></span>
-        <div style="display:flex;align-items:center;gap:8px">
+        <div class="d-flex align-items-center gap-2">
             <span class="post-time" title="{{ (post.created_date.isoformat() + 'Z') if post.created_date else '' }}">{{ post.created_date | time_ago if post.created_date else '' }}</span>
             {{ caller() }}
         </div>
     </div>
     {% if not hide_meta %}
-    <div class="post-meta" style="display:flex;align-items:center;gap:8px">
+    <div class="post-meta d-flex align-items-center gap-2">
         <img src="{{ url_for('static', filename='uploads/profile_images/' + post.author.profile_image) if post.author.profile_image else url_for('static', filename='default-profile.png') }}"
              alt="{{ post.author.username }}" class="post-avatar" loading="lazy"
              onerror="this.src='{{ url_for('static', filename='default-profile.png') }}'">
         <a href="{{ url_for('main.profile', user_id_or_username=post.author.username) }}" class="post-author" {% if post.author.role_color %}style="color:{{ post.author.role_color }}"{% endif %}>@{{ post.author.username }}</a>{% if post.author.is_admin %}<span class="role-badge role-admin">admin</span>{% elif post.author.is_moderator %}<span class="role-badge role-mod">mod</span>{% endif %}
         <span class="post-stats">
-            <span class="post-stat {% if post.is_liked_by(current_user) %}liked{% endif %}">♥ {{ post.likes_count }}</span>
-            <span class="post-stat">💬 {{ post.comments_count }}</span>
-            <span class="post-stat">↻ {{ post.reposts_count }}</span>
+            <span class="post-stat {% if post.is_liked_by(current_user) %}liked{% endif %}">{{ icon('heart') }} {{ post.likes_count }}</span>
+            <span class="post-stat">{{ icon('message_square') }} {{ post.comments_count }}</span>
+            <span class="post-stat">{{ icon('repeat') }} {{ post.reposts_count }}</span>
         </span>
     </div>
     {% endif %}
@@ -27,16 +28,16 @@
         {%- endif %}</div>
     <div class="post-actions">
         <button class="post-action like-btn {% if post.is_liked_by(current_user) %}liked{% endif %}" data-post-id="{{ post.id }}" data-liked="{{ 'true' if post.is_liked_by(current_user) else 'false' }}">
-            [♥{% if post.likes_count > 0 %} {{ post.likes_count }}{% endif %} like]
+            [{{ icon('heart') }}{% if post.likes_count > 0 %} {{ post.likes_count }}{% endif %} like]
         </button>
-        <a href="{{ url_for('posts.get_post', post_id=post.id) }}#comments" class="post-action" style="text-decoration:none">
-            [💬{% if post.comments_count > 0 %} {{ post.comments_count }}{% endif %} comment]
+        <a href="{{ url_for('posts.get_post', post_id=post.id) }}#comments" class="post-action text-decoration-none">
+            [{{ icon('message_square') }}{% if post.comments_count > 0 %} {{ post.comments_count }}{% endif %} comment]
         </a>
         <button class="post-action repost-btn" data-post-id="{{ post.id }}" data-reposted="{{ 'true' if post.is_reposted_by(current_user) else 'false' }}">
-            [↻{% if post.reposts_count > 0 %} {{ post.reposts_count }}{% endif %} repost]
+            [{{ icon('repeat') }}{% if post.reposts_count > 0 %} {{ post.reposts_count }}{% endif %}<span class="action-label"> repost</span>]
         </button>
-        <button class="post-action save-btn" data-post-id="{{ post.id }}" data-saved="{{ 'true' if post.is_saved_by(current_user) else 'false' }}" style="margin-left:auto">
-            [{% if post.is_saved_by(current_user) %}◆{% else %}◇{% endif %} save]
+        <button class="post-action save-btn ms-auto" data-post-id="{{ post.id }}" data-saved="{{ 'true' if post.is_saved_by(current_user) else 'false' }}">
+            [{% if post.is_saved_by(current_user) %}{{ icon('bookmark_filled') }}{% else %}{{ icon('bookmark') }}{% endif %}<span class="action-label"> save</span>]
         </button>
     </div>
 </div>

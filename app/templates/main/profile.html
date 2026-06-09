@@ -1,3 +1,4 @@
+{% from "macros/_icons.html" import icon %}
 {% extends "base.html" %}
 {% set profile_desc = user.description|striptags|truncate(200) if user.description else 'Profile of @' + user.username + ' on Rugram' %}
 {% set avatar_url = url_for('static', filename='uploads/profile_images/' + user.profile_image, _external=True) if user.profile_image else url_for('static', filename='default-profile.png', _external=True) %}
@@ -17,7 +18,7 @@
 <div class="profile-page">
     <!-- Header -->
     <div class="profile-header">
-        <button class="drawer-trigger" id="drawerToggle" aria-label="Menu">≡</button>
+        <button class="drawer-trigger" id="drawerToggle" aria-label="Menu">{{ icon('menu') }}</button>
         <img src="{{ url_for('static', filename='uploads/profile_images/' + user.profile_image) if user.profile_image else url_for('static', filename='default-profile.png') }}"
              alt="{{ user.username }}" class="profile-avatar">
         <div class="profile-username" {% if user.role_color %}style="color:{{ user.role_color }}"{% endif %}>
@@ -52,11 +53,11 @@
         <button class="btn-term {% if is_following %}secondary{% else %}primary{% endif %} follow-btn"
                 data-username="{{ user.username }}"
                 data-following="{{ 'true' if is_following else 'false' }}">
-            {% if is_following %}[{{ _('unfollow') }}]{% else %}[+ {{ _('follow') }}]{% endif %}
+            {% if is_following %}[{{ _('unfollow') }}]{% else %}[{{ icon('plus') }} {{ _('follow') }}]{% endif %}
         </button>
-        <a href="{{ url_for('main.chat') }}?user={{ user.username }}" class="btn-term secondary">[✉ {{ _('message') }}]</a>
+        <a href="{{ url_for('main.chat') }}?user={{ user.username }}" class="btn-term secondary">[{{ icon('chat') }} {{ _('message') }}]</a>
         {% else %}
-        <a href="{{ url_for('auth.login') }}" class="btn-term primary">[+ {{ _('follow') }}]</a>
+        <a href="{{ url_for('auth.login') }}" class="btn-term primary">[{{ icon('plus') }} {{ _('follow') }}]</a>
         {% endif %}
     </div>
 
@@ -69,7 +70,7 @@
         {% set wconfig = w.config|from_json if w.config else {} %}
         <div class="widget-card widget-{{ w.widget_type }}" data-widget-id="{{ w.id }}">
             {% if w.widget_type == 'lastfm' %}
-            <div class="widget-header"><span class="widget-icon">🎵</span> last.fm</div>
+            <div class="widget-header"><span class="widget-icon">{{ icon('music') }}</span> last.fm</div>
             <div class="widget-body" style="padding-top:2px">
                 {% if wdata %}
                 <div class="widget-lastfm-layout">
@@ -99,7 +100,7 @@
             </div>
 
             {% elif w.widget_type == 'weather' %}
-            <div class="widget-header"><span class="widget-icon">☀</span> weather</div>
+            <div class="widget-header"><span class="widget-icon">{{ icon('cloud') }}</span> weather</div>
             <div class="widget-body">
                 {% if wdata %}
                 <div class="widget-temp">{{ wdata.get('temp', '?') }}°C</div>
@@ -111,11 +112,11 @@
             </div>
 
             {% elif w.widget_type == 'steam' %}
-            <div class="widget-header"><span class="widget-icon">🎮</span> steam</div>
+            <div class="widget-header"><span class="widget-icon">{{ icon('gamepad') }}</span> steam</div>
             <div class="widget-body">
                 {% if wdata %}
                 {% if wdata.get('game') %}
-                <div class="widget-game">🎮 {{ wdata.game }}</div>
+                <div class="widget-game">{{ icon('gamepad') }} {{ wdata.game }}</div>
                 <div class="widget-meta">{{ wdata.get('state', '—') }}</div>
                 {% else %}
                 <div class="widget-state">{{ wdata.get('state', '—') }}</div>
@@ -142,8 +143,8 @@
     {% if not post.is_deleted %}
     {% call macros.render_post(post, current_user, hide_meta=True) %}
         {% if current_user == post.author %}
-        <a href="{{ url_for('posts.edit_post', post_id=post.id) }}" class="post-action" style="font-size:0.68rem">[edit]</a>
-        <button class="post-action" onclick="event.stopPropagation();deletePost({{ post.id }})" style="font-size:0.68rem;color:var(--red)">[delete]</button>
+        <a href="{{ url_for('posts.edit_post', post_id=post.id) }}" class="post-action">[edit]</a>
+        <button class="post-action" onclick="event.stopPropagation();deletePost({{ post.id }})" style="color:var(--red)">[delete]</button>
         {% endif %}
     {% endcall %}
     {% endif %}
@@ -160,17 +161,17 @@
     <button class="drawer-close" id="drawerClose">&times;</button>
     <nav class="drawer-links">
         {% if current_user.is_authenticated %}
-        <a href="{{ url_for('main.settings') }}" class="drawer-link">[settings]</a>
+        <a href="{{ url_for('main.settings') }}" class="drawer-link">[{{ icon('settings') }} settings]</a>
         <a href="{{ url_for('main.saved_posts') }}" class="drawer-link">[*saved]</a>
         {% if current_user.is_admin %}
         <a href="{{ url_for('admin.dashboard') }}" class="drawer-link">[*admin]</a>
         {% endif %}
         <hr class="drawer-sep">
         {% endif %}
-        <a href="{{ url_for('main.help') }}" class="drawer-link">[help]</a>
-        <button class="drawer-link" id="drawerTtyToggle">[>_ TTY]</button>
-        <button class="drawer-link" id="drawerThemeToggle">[theme]</button>
-        <div style="display:flex;gap:4px;padding:8px 10px">
+        <a href="{{ url_for('main.help') }}" class="drawer-link">[{{ icon('help') }} help]</a>
+        <button class="drawer-link" id="drawerTtyToggle">[{{ icon('terminal') }} TTY]</button>
+        <button class="drawer-link" id="drawerThemeToggle">[{{ icon('moon') }} theme]</button>
+        <div class="d-flex gap-1" style="padding:8px 10px">
             {% set lang = current_lang or 'en' %}
             <a href="?lang=ru" class="drawer-link" style="padding:4px 8px;{% if lang == 'ru' %}color:var(--accent){% endif %}">RU</a>
             <a href="?lang=en" class="drawer-link" style="padding:4px 8px;{% if lang == 'en' %}color:var(--accent){% endif %}">EN</a>
