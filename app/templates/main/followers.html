@@ -1,3 +1,4 @@
+{% from "macros/_icons.html" import icon %}
 {% extends "base.html" %}
 {% block title %}followers — Rugram{% endblock %}
 {% block content %}
@@ -7,14 +8,14 @@
         <span class="auth-subtitle">followers @{{ user.username }}</span>
     </div>
     <div style="padding:8px">
-        <a href="{{ url_for('main.profile', user_id_or_username=user.username) }}" class="btn-term" style="margin-bottom:8px;display:inline-block">[&larr; back]</a>
+        <a href="{{ url_for('main.profile', user_id_or_username=user.username) }}" class="btn-term d-inline-block mb-2">[{{ icon('arrow_left') }} back]</a>
         {% for follow in follows %}
         <div class="post-card" style="padding:8px 12px;margin-bottom:4px">
-            <div style="display:flex;align-items:center;gap:8px">
+            <div class="d-flex align-items-center gap-2">
                 <img src="{{ url_for('static', filename='uploads/profile_images/' + follow.follower.profile_image) if follow.follower.profile_image else url_for('static', filename='default-profile.png') }}"
                      width="36" height="36" class="chat-avatar" alt="@{{ follow.follower.username }}">
-                <div style="flex:1">
-                    <a href="{{ url_for('main.profile', user_id_or_username=follow.follower.username) }}" style="font-weight:600;text-decoration:none{% if follow.follower.role_color %};color:{{ follow.follower.role_color }}{% else %};color:var(--fg){% endif %}">@{{ follow.follower.username }}{% if follow.follower.is_admin %}<span class="role-badge role-admin">admin</span>{% elif follow.follower.is_moderator %}<span class="role-badge role-mod">mod</span>{% endif %}</a>
+                <div class="flex-1">
+                    <a href="{{ url_for('main.profile', user_id_or_username=follow.follower.username) }}" class="text-decoration-none" style="font-weight:600{% if follow.follower.role_color %};color:{{ follow.follower.role_color }}{% else %};color:var(--fg){% endif %}">@{{ follow.follower.username }}{% if follow.follower.is_admin %}<span class="role-badge role-admin">admin</span>{% elif follow.follower.is_moderator %}<span class="role-badge role-mod">mod</span>{% endif %}</a>
                     {% if follow.follower.description %}<br><small style="color:var(--subtle);font-size:0.75rem">{{ follow.follower.description|truncate(50) }}</small>{% endif %}
                 </div>
             </div>

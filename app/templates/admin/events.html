@@ -3,7 +3,7 @@
 {% block robots %}noindex,nofollow{% endblock %}
 
 {% block content %}
-<h1 style="margin-bottom:4px">[*] system events</h1>
+<h1 class="mb-1">[*] system events</h1>
 <p class="text-secondary" style="font-size:0.85rem;margin-bottom:20px">
   <a href="{{ url_for('admin.dashboard') }}">dashboard</a> ·
   <a href="{{ url_for('admin.users') }}">users</a> ·
@@ -13,13 +13,13 @@
 </p>
 
 <!-- Summary badges -->
-<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+<div class="d-flex gap-2 flex-wrap" style="margin-bottom:16px">
   <span class="ev-badge ev-all">{{ total }} total</span>
   <span class="ev-badge ev-unread" style="{% if unread == 0 %}opacity:0.3{% endif %}">{{ unread }} unread</span>
   <span class="ev-badge ev-critical" style="{% if critical == 0 %}opacity:0.3{% endif %}">{{ critical }} critical</span>
   <span class="ev-badge ev-error" style="{% if errors == 0 %}opacity:0.3{% endif %}">{{ errors }} errors</span>
   {% if unread > 0 %}
-  <form method="POST" action="{{ url_for('admin.mark_all_events_read') }}" style="display:inline">
+  <form method="POST" action="{{ url_for('admin.mark_all_events_read') }}" class="d-inline">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button class="btn-term" style="font-size:0.72rem">[mark all read]</button>
   </form>
@@ -27,7 +27,7 @@
 </div>
 
 <!-- Filters -->
-<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+<div class="d-flex gap-2 flex-wrap" style="margin-bottom:16px">
   <a href="{{ url_for('admin.events') }}" class="ev-filter {% if not level and not category %}active{% endif %}">all</a>
   <a href="{{ url_for('admin.events', level='critical') }}" class="ev-filter ev-f-critical {% if level == 'critical' %}active{% endif %}">critical</a>
   <a href="{{ url_for('admin.events', level='error') }}" class="ev-filter ev-f-error {% if level == 'error' %}active{% endif %}">error</a>
@@ -69,9 +69,9 @@
     <span class="ev-col ev-col-time">{{ event.created_date.strftime('%H:%M %d.%m') }}</span>
     <span class="ev-col ev-col-action">
       {% if not event.is_read %}
-      <form method="POST" action="{{ url_for('admin.mark_event_read', event_id=event.id) }}" style="display:inline">
+      <form method="POST" action="{{ url_for('admin.mark_event_read', event_id=event.id) }}" class="d-inline">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="btn-term" style="font-size:0.65rem;padding:2px 6px">[read]</button>
+        <button class="btn-term sm">[read]</button>
       </form>
       {% endif %}
     </span>
@@ -85,11 +85,11 @@
 {% if pagination.pages > 1 %}
 <div class="ev-pagination">
   {% if pagination.has_prev %}
-  <a href="{{ url_for('admin.events', page=pagination.prev_num, level=level, category=category) }}" class="btn-term" style="font-size:0.72rem">[prev]</a>
+  <a href="{{ url_for('admin.events', page=pagination.prev_num, level=level, category=category) }}" class="btn-term sm">[prev]</a>
   {% endif %}
   <span style="color:var(--subtle);font-size:0.72rem;margin:0 8px">page {{ pagination.page }} / {{ pagination.pages }}</span>
   {% if pagination.has_next %}
-  <a href="{{ url_for('admin.events', page=pagination.next_num, level=level, category=category) }}" class="btn-term" style="font-size:0.72rem">[next]</a>
+  <a href="{{ url_for('admin.events', page=pagination.next_num, level=level, category=category) }}" class="btn-term sm">[next]</a>
   {% endif %}
 </div>
 {% endif %}

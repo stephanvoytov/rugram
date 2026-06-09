@@ -1,3 +1,9 @@
+// ── Global helpers ──
+function getCsrf() {
+    var m = document.querySelector('meta[name="csrf-token"]');
+    return m ? m.content : '';
+}
+
 // ── Lightbox ──
 (function() {
     const lightbox = document.getElementById('lightbox');
@@ -37,12 +43,18 @@
     const theme = stored || (prefersDark ? 'dark' : 'light');
     document.documentElement.setAttribute('data-bs-theme', theme);
 
-    toggle.addEventListener('click', function() {
+    function toggleTheme() {
         const current = document.documentElement.getAttribute('data-bs-theme');
         const next = current === 'dark' ? 'light' : 'dark';
         document.documentElement.setAttribute('data-bs-theme', next);
         localStorage.setItem('theme', next);
-    });
+    }
+
+    toggle.addEventListener('click', toggleTheme);
+
+    // More dropdown theme button (narrow screens)
+    const moreBtn = document.querySelector('.theme-more-btn');
+    if (moreBtn) moreBtn.addEventListener('click', toggleTheme);
 })();
 
 // ── Notification badge polling ──
@@ -62,7 +74,7 @@
             if (badge) {
                 if (count > 0) {
                     badge.textContent = count;
-                    badge.style.display = 'inline';
+                    badge.style.display = 'flex';
                 } else {
                     badge.style.display = 'none';
                 }
@@ -296,11 +308,6 @@ window.showBrowserNotification = function(title, body) {
 
 // ── Post actions (like / save / repost) — delegated ──
 (function() {
-    function getCsrf() {
-        var m = document.querySelector('meta[name="csrf-token"]');
-        return m ? m.content : '';
-    }
-
     document.addEventListener('click', function(e) {
         // Like
         var btn = e.target.closest('.like-btn');
@@ -321,9 +328,9 @@ window.showBrowserNotification = function(title, body) {
                 btn.dataset.liked = data.status === 'liked' ? 'true' : 'false';
                 btn.classList.toggle('liked', data.status === 'liked');
                 var count = data.likes_count > 0 ? ' ' + data.likes_count : '';
-                btn.innerHTML = '[♥' + count + ' like]';
+                btn.innerHTML = '[' + iconSVG('heart') + count + ' like]';
             })
-            .catch(function() { btn.innerHTML = '[♥ like]'; });
+            .catch(function() { btn.innerHTML = '[' + iconSVG('heart') + ' like]'; });
             return;
         }
 
@@ -344,9 +351,10 @@ window.showBrowserNotification = function(title, body) {
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 btn.dataset.saved = data.is_saved ? 'true' : 'false';
-                btn.innerHTML = data.is_saved ? '[◆ save]' : '[◇ save]';
+                var svg = data.is_saved ? iconSVG('bookmark_filled') : iconSVG('bookmark');
+                btn.innerHTML = '[' + svg + '<span class="action-label"> save</span>]';
             })
-            .catch(function() { btn.innerHTML = '[◇ save]'; });
+            .catch(function() { btn.innerHTML = '[' + iconSVG('bookmark') + '<span class="action-label"> save</span>]'; });
             return;
         }
 
@@ -368,9 +376,9 @@ window.showBrowserNotification = function(title, body) {
             .then(function(data) {
                 btn.dataset.reposted = data.reposted ? 'true' : 'false';
                 var count = data.reposts_count > 0 ? ' ' + data.reposts_count : '';
-                btn.innerHTML = '[↻' + count + ' repost]';
+                btn.innerHTML = '[' + iconSVG('repeat') + count + '<span class="action-label"> repost</span>]';
             })
-            .catch(function() { btn.innerHTML = '[↻ repost]'; });
+            .catch(function() { btn.innerHTML = '[' + iconSVG('repeat') + '<span class="action-label"> repost</span>]'; });
         }
     });
 })();

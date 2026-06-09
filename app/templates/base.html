@@ -6,7 +6,8 @@
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="{% block meta_description %}Rugram — a minimalist social platform. Share posts, follow friends, chat.{% endblock %}">
+    {% from "macros/_icons.html" import icon %}
+<meta name="description" content="{% block meta_description %}Rugram — a minimalist social platform. Share posts, follow friends, chat.{% endblock %}">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <!-- Open Graph -->
@@ -136,47 +137,58 @@
     </script>
 </head>
 <body class="d-flex flex-column min-vh-100">
-<!-- Status Bar (terminal-inspired navigation) -->
+<!-- Status Bar (stacked: icon above text) -->
 <header class="status-bar" id="statusBar">
     <div class="status-left">
-        <a href="{{ url_for('main.index') }}" class="status-brand">[*] rugram</a>
-        <span class="status-sep">|</span>
-        <a href="{{ url_for('main.index') }}" class="status-item {% if request.endpoint == 'main.index' and not request.args.get('followed') %}active{% endif %}">feed</a>
+        <a href="{{ url_for('main.index') }}" class="status-item {% if request.endpoint == 'main.index' and not request.args.get('followed') %}active{% endif %}">{{ icon('home') }}<span>feed</span></a>
         {% if current_user.is_authenticated %}
-        <a href="{{ url_for('main.index', followed='1') }}" class="status-item {% if request.args.get('followed') %}active{% endif %}">~subs</a>
-        <a href="{{ url_for('main.notifications_page') }}" class="status-item {% if request.endpoint == 'main.notifications_page' %}active{% endif %}" id="notifStatusItem">~notifications<span class="notif-badge" id="notificationBadge"></span></a>
-        <a href="{{ url_for('main.chat') }}" class="status-item {% if request.endpoint == 'main.chat' %}active{% endif %}">✉ chat</a>
+        <a href="{{ url_for('main.index', followed='1') }}" class="status-item hide-narrow {% if request.args.get('followed') %}active{% endif %}">{{ icon('users') }}<span>subs</span></a>
+        <a href="{{ url_for('main.notifications_page') }}" class="status-item {% if request.endpoint == 'main.notifications_page' %}active{% endif %}" id="notifStatusItem"><span class="notif-icon-wrap">{{ icon('bell') }}<span class="notif-badge" id="notificationBadge"></span></span><span>notif</span></a>
+        <a href="{{ url_for('main.chat') }}" class="status-item {% if request.endpoint == 'main.chat' %}active{% endif %}">{{ icon('chat') }}<span>chat</span></a>
         {% endif %}
-        <a href="{{ url_for('main.help') }}" class="status-item" title="Help">[?]</a>
+        <a href="{{ url_for('main.help') }}" class="status-item hide-narrow" title="Help">{{ icon('help') }}<span>help</span></a>
+    </div>
+    <div class="status-center">
+        <a href="{{ url_for('main.index') }}" class="status-brand">[*] rugram</a>
     </div>
     <div class="status-right">
-        <a href="{{ url_for('main.terminal') }}" class="term-toggle-btn status-item" title="Open terminal">[>_ TTY]</a>
-        <span class="status-sep" style="opacity:0.3">|</span>
+        <a href="{{ url_for('main.terminal') }}" class="term-toggle-btn status-item" title="Open terminal">{{ icon('terminal') }}<span>tty</span></a>
         {% if current_user.is_authenticated %}
-        <div class="dropdown" style="display:inline-block">
-            <a href="#" class="status-user dropdown-toggle" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="text-decoration:none">{{ current_user.username }}</a>
+        <div class="dropdown d-inline-block">
+            <a href="#" class="status-user dropdown-toggle text-decoration-none" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">{{ icon('user') }}<span>{{ current_user.username }}</span></a>
             <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 user-dropdown-menu">
                 <li><a class="dropdown-item" href="{{ url_for('main.profile', user_id_or_username=current_user.id)}}">[@profile]</a></li>
                 <li><a class="dropdown-item" href="{{ url_for('main.saved_posts') }}">[*saved]</a></li>
                 {% if current_user.is_admin %}<li><a class="dropdown-item" href="{{ url_for('admin.dashboard') }}">[*admin]</a></li>{% endif %}
-                <li><a class="dropdown-item" href="{{ url_for('main.settings') }}">[settings]</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('main.settings') }}">[{{ icon('settings') }} settings]</a></li>
                 <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">[logout]</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">[{{ icon('logout') }} logout]</a></li>
             </ul>
         </div>
         {% else %}
-        <a href="{{ url_for('auth.login') }}" class="status-item {% if request.endpoint == 'auth.login' %}active{% endif %}">login</a>
+        <a href="{{ url_for('auth.login') }}" class="status-item {% if request.endpoint == 'auth.login' %}active{% endif %}">{{ icon('user') }}<span>login</span></a>
         {% endif %}
-        <span class="status-sep" style="opacity:0.3">|</span>
-        <button class="theme-toggle" id="themeToggle">[theme]</button>
+        <button class="theme-toggle hide-narrow" id="themeToggle">{{ icon('moon') }}<span>theme</span></button>
         {% set lang = current_lang or 'en' %}
-        <a href="?lang={{ 'ru' if lang == 'en' else 'en' }}" class="status-item lang-toggle" style="text-decoration:none">{{ 'RU' if lang == 'en' else 'EN' }}</a>
+        <a href="?lang={{ 'ru' if lang == 'en' else 'en' }}" class="status-item lang-toggle hide-narrow text-decoration-none">{{ icon('globe') }}<span>{{ 'ru' if lang == 'en' else 'en' }}</span></a>
+        <!-- More dropdown (narrow screens) -->
+        <div class="dropdown status-more-wrap">
+            <a href="#" class="status-item" id="moreDropdown" data-bs-toggle="dropdown" aria-expanded="false">{{ icon('menu') }}<span>more</span></a>
+            <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2" aria-labelledby="moreDropdown">
+                {% if current_user.is_authenticated %}
+                <li><a class="dropdown-item" href="{{ url_for('main.index', followed='1') }}">[{{ icon('users') }} subs]</a></li>
+                {% endif %}
+                <li><a class="dropdown-item" href="{{ url_for('main.help') }}">[{{ icon('help') }} help]</a></li>
+                <li><button class="dropdown-item theme-more-btn" type="button">[{{ icon('moon') }} theme]</button></li>
+                <li><a class="dropdown-item" href="?lang={{ 'ru' if lang == 'en' else 'en' }}">[{{ icon('globe') }} {{ 'ru' if lang == 'en' else 'en' }}]</a></li>
+            </ul>
+        </div>
     </div>
     </div>
 </header>
 
 <!-- Notifications dropdown (hidden, for JS) -->
-<div id="notifDropdownData" style="display:none">
+<div id="notifDropdownData" class="d-none">
     <ul class="dropdown-menu shadow border-0 mt-2 notification-dropdown"
         style="max-height: 400px; overflow-y: auto;">
         <li class="dropdown-header text-center py-2">notifications <span id="notifDropdownBadge"></span></li>
@@ -185,7 +197,7 @@
                 <span class="visually-hidden">{{ _('Loading...') }}</span>
             </div>
         </li>
-        <li id="notificationEmpty" class="px-3 py-2 text-center" style="display:none;">
+        <li id="notificationEmpty" class="px-3 py-2 text-center d-none">
             <p class="text-muted mb-0">{{ _('No new notifications') }}</p>
         </li>
         <li id="notificationList"></li>
@@ -221,9 +233,9 @@
 <footer class="footer">
     <span class="brand">[*] rugram</span>
     <span>
-        <a href="{{ url_for('main.index') }}">[feed]</a> ·
-        <a href="{{ url_for('auth.login') }}">[login]</a> ·
-        <a href="{{ url_for('main.help') }}">[help]</a> ·
+        <a href="{{ url_for('main.index') }}">[{{ icon('home') }} feed]</a> ·
+        <a href="{{ url_for('auth.login') }}">[{{ icon('login') }} login]</a> ·
+        <a href="{{ url_for('main.help') }}">[{{ icon('help') }} help]</a> ·
         <a href="https://github.com/stephanvoytov/rugram" target="_blank" rel="noopener">[github]</a> ·
         <span>&copy; 2026</span>
     </span>
@@ -231,13 +243,11 @@
 
 <!-- Bottom Navigation (mobile) -->
 <nav class="bottom-nav">
-    <a href="{{ url_for('main.index') }}" class="bottom-nav-item {% if request.endpoint == 'main.index' and not request.args.get('followed') %}active{% endif %}">[feed]</a>
-    <a href="{% if current_user.is_authenticated %}{{ url_for('main.index', followed='1') }}{% else %}{{ url_for('auth.login') }}{% endif %}" class="bottom-nav-item {% if request.args.get('followed') %}active{% endif %}">[subs]</a>
-    <a href="{% if current_user.is_authenticated %}{{ url_for('main.chat') }}{% else %}{{ url_for('auth.login') }}{% endif %}" class="bottom-nav-item {% if request.endpoint == 'main.chat' %}active{% endif %}">[chat]</a>
-    <a href="{% if current_user.is_authenticated %}{{ url_for('main.notifications_page') }}{% else %}{{ url_for('auth.login') }}{% endif %}" class="bottom-nav-item {% if request.endpoint == 'main.notifications_page' %}active{% endif %}">
-        [notif]<span class="bottom-nav-badge" id="mobileNotifBadge"></span>
-    </a>
-    <a href="{% if current_user.is_authenticated %}{{ url_for('main.profile', user_id_or_username=current_user.id) }}{% else %}{{ url_for('auth.login') }}{% endif %}" class="bottom-nav-item {% if request.endpoint == 'main.profile' %}active{% endif %}">[me]</a>
+    <a href="{{ url_for('main.index') }}" class="bottom-nav-item {% if request.endpoint == 'main.index' and not request.args.get('followed') %}active{% endif %}">{{ icon('home') }}<span class="bnav-label">feed</span></a>
+    <a href="{% if current_user.is_authenticated %}{{ url_for('main.index', followed='1') }}{% else %}{{ url_for('auth.login') }}{% endif %}" class="bottom-nav-item {% if request.args.get('followed') %}active{% endif %}">{{ icon('users') }}<span class="bnav-label">subs</span></a>
+    <a href="{% if current_user.is_authenticated %}{{ url_for('main.chat') }}{% else %}{{ url_for('auth.login') }}{% endif %}" class="bottom-nav-item {% if request.endpoint == 'main.chat' %}active{% endif %}">{{ icon('chat') }}<span class="bnav-label">chat</span></a>
+    <a href="{% if current_user.is_authenticated %}{{ url_for('main.notifications_page') }}{% else %}{{ url_for('auth.login') }}{% endif %}" class="bottom-nav-item {% if request.endpoint == 'main.notifications_page' %}active{% endif %}">{{ icon('bell') }}<span class="bnav-label">notif</span><span class="bottom-nav-badge" id="mobileNotifBadge"></span></a>
+    <a href="{% if current_user.is_authenticated %}{{ url_for('main.profile', user_id_or_username=current_user.id) }}{% else %}{{ url_for('auth.login') }}{% endif %}" class="bottom-nav-item {% if request.endpoint == 'main.profile' %}active{% endif %}">{{ icon('user') }}<span class="bnav-label">me</span></a>
 </nav>
 
 <!-- Lightbox -->
@@ -251,7 +261,7 @@
     <div id="termOutput"></div>
 </div>
 <div id="termBar">
-    <div style="display:flex;align-items:center;gap:6px;">
+    <div class="d-flex align-items-center gap-6">
         <span id="termPrompt">{{ current_user.username if current_user.is_authenticated else 'guest' }}@tty:~/$</span>
         <input type="text" id="termInput" placeholder="type `help` for commands..." autocomplete="off" spellcheck="false">
     </div>
@@ -263,6 +273,7 @@
 
 <!-- JavaScript -->
 <script src="{{ url_for('static', filename='lib/bootstrap.bundle.min.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/icons.js') }}?v={{ static_version }}"></script>
 <script defer src="{{ url_for('static', filename='js/terminal.js') }}?v={{ static_version }}"></script>
 <script defer src="{{ url_for('static', filename='js/terminal-ascii.js') }}?v={{ static_version }}"></script>
 <script defer src="{{ url_for('static', filename='js/terminal-vfs.js') }}?v={{ static_version }}"></script>

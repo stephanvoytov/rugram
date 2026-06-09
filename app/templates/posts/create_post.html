@@ -14,7 +14,7 @@
         <div class="auth-field">
             {{ form.text.label(class="field-label") }}
             {{ form.text(class="field-input", rows=4, id="postText", placeholder="what's on your mind? (#python #web)") }}
-            <div class="tag-preview" id="postTagPreview" style="display:none">
+            <div class="tag-preview d-none" id="postTagPreview">
                 <span class="tag-preview-label">tags:</span>
                 <span class="tag-preview-tags" id="postTagList"></span>
             </div>
@@ -45,9 +45,9 @@
             </div>
         </div>
 
-        <div style="display:flex;gap:4px;margin-top:16px">
-            <button type="submit" class="btn-term primary" style="flex:1">[>> {{ 'save' if post else 'publish' }}]</button>
-            <a href="{{ url_for('main.index') }}" class="btn-term" style="flex:1;text-align:center;text-decoration:none">[cancel]</a>
+        <div class="d-flex gap-1" style="margin-top:16px">
+            <button type="submit" class="btn-term primary flex-1">[>> {{ 'save' if post else 'publish' }}]</button>
+            <a href="{{ url_for('main.index') }}" class="btn-term flex-1 text-center text-decoration-none">[cancel]</a>
         </div>
     </form>
 </div>

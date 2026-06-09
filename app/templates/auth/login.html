@@ -1,3 +1,4 @@
+{% from "macros/_icons.html" import icon %}
 {% extends "base.html" %}
 
 {% block robots %}noindex,nofollow{% endblock %}
@@ -14,33 +15,33 @@
         {{ form.hidden_tag() }}
 
         <div class="auth-field" style="margin-bottom:20px">
-            <label for="{{ form.email_or_username.id }}" class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] email or username</label>
-            {{ form.email_or_username(class="field-input" + (" field-error" if form.email_or_username.errors else ""), placeholder="email or username", style="padding:10px 14px;font-size:0.9rem;width:100%") }}
+            <label for="{{ form.email_or_username.id }}" class="field-label" style="font-size:0.9rem;margin-bottom:6px">[*] email or username</label>
+            {{ form.email_or_username(class="field-input" + (" field-error" if form.email_or_username.errors else ""), placeholder="email or username", style="padding:10px 14px;font-size:0.9rem") }}
             {% for error in form.email_or_username.errors %}
             <div class="field-msg error">{{ error }}</div>
             {% endfor %}
         </div>
 
         <div class="auth-field" style="margin-bottom:20px">
-            <label for="{{ form.password.id }}" class="field-label" style="font-size:0.9rem;margin-bottom:6px;display:block">[*] password</label>
-            {{ form.password(class="field-input" + (" field-error" if form.password.errors else ""), placeholder="••••••••", style="padding:10px 14px;font-size:0.9rem;width:100%") }}
+            <label for="{{ form.password.id }}" class="field-label" style="font-size:0.9rem;margin-bottom:6px">[*] password</label>
+            {{ form.password(class="field-input" + (" field-error" if form.password.errors else ""), placeholder="••••••••", style="padding:10px 14px;font-size:0.9rem") }}
             {% for error in form.password.errors %}
             <div class="field-msg error">{{ error }}</div>
             {% endfor %}
         </div>
 
-        <div class="auth-field" style="margin-bottom:20px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:6px;display:flex;align-items:center;gap:10px">
-            {{ form.remember(style="width:18px;height:18px;cursor:pointer") }}
-            <label for="{{ form.remember.id }}" style="cursor:pointer;color:var(--fg);font-size:0.88rem;flex:1">{{ _('Remember me') }}</label>
+        <div class="auth-field d-flex align-items-center gap-10 bordered" style="margin-bottom:20px;padding:10px 14px;background:var(--surface);border-radius:6px">
+            {{ form.remember(class="cursor-pointer", style="width:18px;height:18px") }}
+            <label for="{{ form.remember.id }}" class="cursor-pointer flex-1" style="color:var(--fg);font-size:0.88rem">{{ _('Remember me') }}</label>
         </div>
 
-        <div style="display:flex;gap:8px;margin-top:24px;padding-top:16px;border-top:1px solid var(--border)">
-            <button type="submit" class="btn-term primary" style="flex:1;padding:10px 20px;font-size:0.9rem;display:flex;justify-content:center">[>> login]</button>
+        <div class="d-flex gap-2 btop" style="margin-top:24px;padding-top:16px">
+            <button type="submit" class="btn-term primary lg flex-1 d-flex justify-content-center">[{{ icon('login') }} login]</button>
         </div>
     </form>
 
-    <div style="border-top:1px solid var(--border);padding:16px 24px;font-size:0.85rem;color:var(--subtle);text-align:center">
-        {{ _("Don't have an account?") }} <a href="{{ url_for('auth.register') }}" style="color:var(--accent);text-decoration:none">[register]</a>
+    <div class="btop text-center" style="padding:16px 24px;font-size:0.85rem;color:var(--subtle)">
+        {{ _("Don't have an account?") }} <a href="{{ url_for('auth.register') }}" class="text-decoration-none" style="color:var(--accent)">[{{ icon('plus') }} register]</a>
     </div>
 </div>
 {% endblock %}

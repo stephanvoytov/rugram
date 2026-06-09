@@ -1,10 +1,11 @@
+{% from "macros/_icons.html" import icon %}
 {% extends "base.html" %}
 {% import 'macros/_post_card.html' as macros %}
 
 {% block title %}saved — Rugram{% endblock %}
 
 {% block content %}
-<div class="section-title">[*] saved posts</div>
+<div class="section-title">{{ icon('bookmark') }} saved posts</div>
 
 {% if saved.items %}
     {% for item in saved.items %}
@@ -14,13 +15,13 @@
     {% if saved.pages > 1 %}
     <div class="filter-line" style="justify-content:center;border-bottom:none">
         {% if saved.has_prev %}
-        <a href="{{ url_for('main.saved_posts', page=saved.prev_num) }}" class="filter-item">[&lt;&lt; prev]</a>
+        <a href="{{ url_for('main.saved_posts', page=saved.prev_num) }}" class="filter-item">[{{ icon('chevrons_left') }} prev]</a>
         {% endif %}
         {% for p in range(1, saved.pages + 1) %}
         <a href="{{ url_for('main.saved_posts', page=p) }}" class="filter-item {% if p == saved.page %}active{% endif %}">#{{ p }}</a>
         {% endfor %}
         {% if saved.has_next %}
-        <a href="{{ url_for('main.saved_posts', page=saved.next_num) }}" class="filter-item">[next &gt;&gt;]</a>
+        <a href="{{ url_for('main.saved_posts', page=saved.next_num) }}" class="filter-item">[next {{ icon('chevrons_right') }}]</a>
         {% endif %}
     </div>
     {% endif %}
@@ -28,7 +29,7 @@
 {% else %}
 <div class="empty-state">
     <span>{{ _('No saved posts') }}</span>
-    <div class="hint">[*] save posts by clicking [◇ save]</div>
+    <div class="hint">[*] save posts by clicking [{{ icon('bookmark') }} save]</div>
 </div>
 {% endif %}
 {% endblock %}
