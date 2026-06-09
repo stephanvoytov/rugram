@@ -171,6 +171,7 @@ a:hover { color: var(--blue); }
 .filter-line {
     display: flex; gap: 12px; margin-bottom: 16px; font-size: 0.78rem;
     border-bottom: 1px solid var(--overlay); padding-bottom: 8px;
+    flex-wrap: wrap;
 }
 .filter-spacer { flex: 1; min-width: 8px; }
 .filter-item { color: var(--subtle); cursor: pointer; transition: color 0.15s; background: none; border: none; font-family: var(--font); font-size: 0.78rem; padding: 0; }
@@ -235,6 +236,7 @@ a:hover { color: var(--blue); }
 .create-actions {
     display: flex; justify-content: space-between; align-items: center;
     margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--overlay);
+    flex-wrap: wrap; gap: 4px;
 }
 .create-actions .hint { color: var(--subtle); font-size: 0.72rem; }
 
@@ -517,7 +519,7 @@ code, .inline-code {
 .bottom-nav-item:active { color: var(--accent); }
 .bottom-nav-item.active { color: var(--accent); text-shadow: 0 0 8px rgba(137,180,250,0.25); }
 .bottom-nav-badge {
-    position: absolute; top: 2px; right: 6px;
+    position: absolute; top: 2px; right: 2px;
     background: var(--red); color: var(--bg);
     font-size: 0.55rem; font-weight: 700;
     padding: 1px 5px; border-radius: 6px;
@@ -597,6 +599,7 @@ code, .inline-code {
     .widget-card { flex: 1 1 100%; min-width: 0; }
     .post-body { font-size: 0.8rem; padding: 8px 14px; }
     .notif-item { flex-wrap: wrap; }
+    .nf-item { flex-wrap: wrap; }
     .auth-box { padding: 16px; }
     .footer { display: none; }
 }
@@ -612,6 +615,9 @@ code, .inline-code {
 .user-list-name { color: var(--accent); font-weight: 600; }
 .user-list-meta { color: var(--subtle); font-size: 0.72rem; margin-left: auto; }
 
+/* ── Terminal Box (shared wrapper for help/settings/auth pages) ── */
+.terminal-box { border: 1px solid var(--overlay); background: var(--surface); }
+
 /* ── Settings ── */
 .settings-card { border: 1px solid var(--overlay); }
 .settings-card .card-header { border-bottom: 1px solid var(--overlay); padding: 10px 16px; }
@@ -624,6 +630,7 @@ code, .inline-code {
 /* Settings tabs */
 .settings-tabs {
     display: flex;
+    flex-wrap: wrap;
     border-bottom: 2px solid var(--border);
     background: var(--surface);
     font-family: var(--font);
@@ -738,7 +745,7 @@ code, .inline-code {
 .message-item.own { justify-content: flex-end; }
 .message-item.other { justify-content: flex-start; }
 .chat-messages > :first-child { margin-top: auto; }
-@media (max-width: 767px) { #chatBackBtn { display: inline-flex; } .chat-list-col { width: 100%; min-width: auto; } .chat-detail-col.active-column { display: flex !important; } .chat-detail-col:not(.active-column) { display: none !important; } .chat-messages { padding: 14px; } .chat-detail-header { padding: 10px 14px; } .chat-input-area { padding: 10px 14px; gap: 4px; } .chat-input { padding: 8px 12px; } .chat-list-header { padding: 12px 14px; } .chat-item { padding: 12px 14px; } }
+/* Moved to @media (max-width: 767.98px) block below */
 .search-result { cursor: pointer; padding: 6px 8px; border-radius: 4px; display: flex; align-items: center; gap: 6px; font-family: var(--font); font-size: 0.82rem; transition: background 0.1s; }
 .search-result:hover { background: var(--surface2); }
 .search-result.selected { background: var(--accent) !important; color: var(--bg); }
@@ -755,7 +762,12 @@ code, .inline-code {
 .modal-box-footer { padding: 8px 12px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 4px; }
 
 /* ── Notification item (terminal style) ── */
-.nf-item { padding: 8px 12px; }
+.nf-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+}
 .nf-item.unread { border-left: 2px solid var(--accent); }
 
 /* ── Bootstrap-style form validation ── */
@@ -831,6 +843,9 @@ code, .inline-code {
         height: 100%;
     }
     /* Back button в заголовке чата */
+    #chatBackBtn {
+        display: inline-flex;
+    }
     .chat-back-btn {
         display: inline-flex !important;
     }
@@ -846,6 +861,35 @@ code, .inline-code {
     }
     #chatDetailColumn.active + #noChatSelected {
         display: none !important;
+    }
+    .chat-list-col {
+        width: 100%;
+        min-width: auto;
+    }
+    .chat-detail-col.active-column {
+        display: flex !important;
+    }
+    .chat-detail-col:not(.active-column) {
+        display: none !important;
+    }
+    .chat-messages {
+        padding: 14px;
+    }
+    .chat-detail-header {
+        padding: 10px 14px;
+    }
+    .chat-input-area {
+        padding: 10px 14px;
+        gap: 4px;
+    }
+    .chat-input {
+        padding: 8px 12px;
+    }
+    .chat-list-header {
+        padding: 12px 14px;
+    }
+    .chat-item {
+        padding: 12px 14px;
     }
 }
 @media (min-width: 768px) {

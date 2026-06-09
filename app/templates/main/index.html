@@ -46,7 +46,7 @@
 </div>
 
 <!-- Search bar -->
-<form action="{{ url_for('main.index') }}" method="GET" class="search-bar" style="display:flex;gap:6px;margin-bottom:8px;align-items:center">
+<form action="{{ url_for('main.index') }}" method="GET" class="search-bar" style="display:flex;gap:6px;margin-bottom:8px;align-items:center;flex-wrap:wrap">
     <input type="search" name="q" value="{{ search_query }}"
            placeholder="{{ _('search posts…') }}"
            aria-label="Search posts"

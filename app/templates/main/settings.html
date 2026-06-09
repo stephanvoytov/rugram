@@ -10,7 +10,7 @@
     </div>
 
     {# ── Global bar (language — no save needed, auto-applies) ── #}
-    <div style="display:flex;align-items:center;gap:12px;padding:8px 24px;border-top:1px solid var(--border);background:var(--surface0)">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:8px 24px;border-top:1px solid var(--border);background:var(--surface0)">
         <span style="font-size:0.82rem;color:var(--subtle)">[*] language:</span>
         <select id="settings-lang" class="field-input"
                 style="padding:6px 10px;font-size:0.82rem;width:auto;cursor:pointer;appearance:auto;min-width:100px">
@@ -177,7 +177,7 @@
     </div>
 
     {# ── User info footer ── #}
-    <div style="border-top:1px solid var(--border);padding:12px 24px;font-size:0.82rem;color:var(--subtle);display:grid;grid-template-columns:1fr 1fr;gap:4px">
+    <div style="border-top:1px solid var(--border);padding:12px 24px;font-size:0.82rem;color:var(--subtle);display:grid;grid-template-columns:1fr 1fr;gap:4px;word-break:break-all">
         <span>username: <b style="color:var(--fg)">{{ current_user.username }}</b></span>
         <span>email: <b style="color:var(--fg)">{{ current_user.email }}</b></span>
         <span>joined: <b style="color:var(--fg)">{{ current_user.created_date.strftime('%Y-%m-%d') if current_user.created_date else '?' }}</b></span>
